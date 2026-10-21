@@ -41,7 +41,7 @@ npm run build       # release/web/ and release/HANZAI-ORIGINS-web.zip
 
 ### Website
 
-Every push to `main` deploys the site through `.github/workflows/deploy-pages.yml` (Settings → Pages → Source must be **GitHub Actions**). The workflow fetches the offline translator, runs `node scripts/build.mjs --pages`, and publishes `release/pages/`. To build the same copy locally, run `npm run translation` once, then that command.
+Every push to `main` deploys the site through `.github/workflows/deploy-pages.yml` (Settings → Pages → Source must be **GitHub Actions**). The workflow fetches the offline translator when `data/translation/files.json` is there, runs `node scripts/build.mjs --pages`, and publishes `release/pages/`. To build the same copy locally, run `npm run translation` once, then that command.
 
 ### Android
 
