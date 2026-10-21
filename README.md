@@ -86,6 +86,5 @@ android/              the Android project (Capacitor)
 - English glosses: CC-CEDICT, via [complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary) (CC BY-SA 4.0)
 - Stroke order: [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data); character breakdowns: [Make Me A Hanzi](https://github.com/skishore/makemeahanzi) (LGPL / Arphic)
 - Frequency, stroke counts, radicals: [hanziDB](https://github.com/ruddfawcett/hanziDB.csv)
-- Offline translation: [OPUS-MT zh-en](https://huggingface.co/Helsinki-NLP/opus-mt-zh-en) (CC BY 4.0), run with [Transformers.js](https://github.com/huggingface/transformers.js) (Apache 2.0)
 - Fonts: [Zhuque Fangsong](https://github.com/TrionesType/zhuque) (SIL OFL 1.1), and for Kai either a `KaiTi.ttf` you supply or [LXGW WenKai](https://github.com/lxgw/LxgwWenKai); see `app/fonts/LICENSES.txt`
 - Grammar explanations and their example lines were written for this project.
