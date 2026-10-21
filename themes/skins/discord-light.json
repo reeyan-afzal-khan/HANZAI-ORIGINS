@@ -1,0 +1,38 @@
+{
+  "id": "discord-light",
+  "name": "Discord Light",
+  "dark": false,
+  "order": 2,
+  "radius": "8px",
+  "preview": [
+    "#80848E",
+    "#248046",
+    "#5865F2",
+    "#D33F8E",
+    "#C29A17"
+  ],
+  "tokens": {
+    "void": "#F2F3F5",
+    "rail": "#E3E5E8",
+    "surface": "#FFFFFF",
+    "surface-2": "#F2F3F5",
+    "surface-3": "#E3E5E8",
+    "line": "#E3E5E8",
+    "line-hot": "#C4C9CE",
+    "ink": "#313338",
+    "ink-soft": "#4E5058",
+    "muted": "#80848E",
+    "acc": "#5865F2",
+    "acc-hi": "#4752C4",
+    "acc-dim": "#A5AEF0",
+    "acc-wash": "#E9EAFE",
+    "on-acc": "#FFFFFF",
+    "stripe": "#313338",
+    "h1": "#80848E",
+    "h2": "#248046",
+    "h3": "#5865F2",
+    "h4": "#D33F8E",
+    "h5": "#C29A17",
+    "shadow": "0 1px 0 rgba(0,0,0,.06), 0 8px 16px rgba(0,0,0,.10)"
+  }
+}

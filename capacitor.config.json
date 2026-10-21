@@ -1,0 +1,12 @@
+{
+  "appId": "com.hskker.app",
+  "appName": "HANZAI-ORIGINS",
+  "webDir": "release/web",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#1D2021"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

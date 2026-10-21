@@ -1,0 +1,23 @@
+{
+  "name": "HANZAI-ORIGINS",
+  "short_name": "HANZAI-ORIGINS",
+  "description": "The complete HSK 3.0 standard as a study app: 11,092 words, 3,000 characters with stroke order, and all 573 grammar points — offline, on your device.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1D2021",
+  "theme_color": "#1D2021",
+  "lang": "en",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "./icons/icon-192.png?v=logo1", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png?v=logo1", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/icon-maskable.png?v=logo1", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Talk", "url": "./index.html#talk" },
+    { "name": "Read", "url": "./index.html#read" },
+    { "name": "Characters", "url": "./index.html#chars" }
+  ]
+}

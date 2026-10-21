@@ -1,0 +1,38 @@
+{
+  "name": "hskker",
+  "private": true,
+  "version": "1.28.0",
+  "type": "module",
+  "description": "Build scripts for the HANZAI-ORIGINS web app and Android app.",
+  "scripts": {
+    "sources": "node scripts/fetch-sources.mjs",
+    "db": "node scripts/build-db.mjs",
+    "data": "node scripts/build-db.mjs && node scripts/build-data.mjs && node scripts/build-examples.mjs",
+    "examples": "node scripts/build-examples.mjs",
+    "strokes": "node scripts/build-strokes.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "themes": "node scripts/build-themes.mjs",
+    "fonts": "python scripts/build-fonts.py",
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs app 5178",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "serve:release": "node scripts/serve.mjs release/web 5179",
+    "charextra": "node scripts/build-charextra.mjs",
+    "talk": "node scripts/build-talk.mjs",
+    "translation": "node scripts/build-translation.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
+    "@capacitor/splash-screen": "^6.0.4",
+    "@capacitor/status-bar": "^6.0.3"
+  },
+  "devDependencies": {
+    "hanzi-writer": "^3.7.0",
+    "hanzi-writer-data": "^2.0.1"
+  }
+}

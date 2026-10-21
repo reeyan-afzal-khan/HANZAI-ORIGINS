@@ -1,0 +1,75 @@
+# data/dictionary/ — what is known about each word and character
+
+Three JSON files that hang off the lists in `../hsk3/`: English meanings for
+the words, a reading and meaning for every character, and how each character
+is built. All three are reductions of open sources (CC-CEDICT and the files
+named below), cut down to the HSK headwords so the checkout builds offline.
+Read by `scripts/lib/compile.mjs`; rebuild the app with `npm run data`.
+
+## glosses.json — English meanings, by headword
+
+A list, one entry per simplified headword, matched to `words.csv` on
+`Simplified`. Derived from CC-CEDICT via
+[drkameleon/complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary).
+
+```json
+{
+  "simplified": "阿拉伯语",
+  "radical": "阝",                  // the headword's first character's radical
+  "frequency": 27202,               // corpus rank (lower is commoner)
+  "forms": [                        // one per reading; matched to the word's pinyin
+    {
+      "traditional": "阿拉伯語",
+      "pinyin": "Ā lā bó yǔ",
+      "meanings": ["Arabic (language)"],
+      "classifiers": []             // measure words, simplified, where the source lists any
+    }
+  ]
+}
+```
+
+The build picks the form whose pinyin matches the list's, and falls back to
+the first. Meanings that are proper names are sorted after the others.
+
+## chardict.json — a reading and a meaning for every character
+
+An object keyed by character, 4,151 entries (the 3,000 HSK characters and
+the components they are built from). Extracted from CC-CEDICT by
+`scripts/build-chardict.mjs`.
+
+```json
+"俊": {
+  "p":   "jùn",                     // the main reading
+  "alt": ["zùn"],                   // other readings, in CC-CEDICT's order
+  "en":  ["smart", "eminent", "handsome", "talented", "cool"]
+}
+```
+
+## charextra.json — how a character is written and built
+
+An object keyed by character, 3,000 entries, from
+[hanziDB](https://github.com/ruddfawcett/hanziDB.csv) (frequency, strokes,
+radical) and [Make Me a Hanzi](https://github.com/skishore/makemeahanzi)
+(decomposition, etymology), reduced by `scripts/build-charextra.mjs`.
+
+```json
+"爱": {
+  "rank":    394,                   // frequency rank
+  "sc":      10,                    // stroke count
+  "rad":     "爪",  "radn": 87,     // Kangxi radical and its number
+  "dec":     "⿱⿱爫冖友",           // ideographic decomposition
+  "comp":    [{"c": "爫", "g": "claws"}, {"c": "冖", "g": "cover"}, {"c": "友", "g": "friend"}],
+  "ety":     "To bring a friend 友 into one's house 冖",
+  "etyType": "ideographic"          // ideographic · pictographic · pictophonetic
+}
+```
+
+Any key may be missing for a character the sources do not cover; the build
+reads every one with a fallback.
+
+## Editing
+
+These are ordinary JSON files: fix an entry and run `npm run data`. They are
+committed, so a fix stays — but `npm run sources` regenerates all three from
+upstream and would overwrite it; a correction that should outlive a refresh
+belongs in the reducing script instead.

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HANZAI-ORIGINS</string>
+    <string name="title_activity_main">HANZAI-ORIGINS</string>
+    <string name="package_name">com.hskker.app</string>
+    <string name="custom_url_scheme">com.hskker.app</string>
+</resources>
