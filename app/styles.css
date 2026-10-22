@@ -625,13 +625,12 @@ mark{background:var(--acc-wash);color:var(--acc);padding:0 1px;border-radius:3px
 
 .uses{display:flex;flex-direction:column;gap:1px;max-height:38vh;overflow:auto}
 
-/* ---------- masthead mark: two characters now, not one ----------
-   4千 is the name written the way the app is: half digits, half Chinese.
-   Two glyphs of different widths in a 34px square need the box to grow a
-   little and the tracking to come in, or the 千 touches the edge. */
-.mark{width:auto;min-width:44px;height:34px;padding:0 7px;font-size:16px;
-  letter-spacing:-.02em;font-weight:700;gap:0}
-@media (max-width:380px){.mark{min-width:40px;height:31px;font-size:14.5px;padding:0 6px}}
+/* ---------- masthead mark ----------
+   汉, the character at the centre of the logo, in a square of the accent:
+   one glyph, so the square it was before the name changed, not the wider
+   box two glyphs once needed. */
+.mark{width:34px;height:34px;padding:0;font-size:17px;font-weight:700;gap:0}
+@media (max-width:380px){.mark{width:31px;height:31px;font-size:15.5px}}
 
 /* per-part speaking estimate, sat next to the part name */
 .apart .asec{font-style:normal;font-size:9.5px;letter-spacing:.04em;color:var(--acc);
@@ -897,18 +896,6 @@ button.ghost.sm{padding:7px 11px;font-size:12px}
    the space it gives back is vertical, which is the space that is short
    there. The one state, body.railmin, drives both. */
 @media (max-width:899px){
-  /* The toggle is a handle across the foot of the tab block — a drawer's
-     grip — rather than a ninth tab: it spans the row, stays thin, and reads
-     as the thing you pull to fold the block up or let it down. */
-  .navrow .railtoggle{grid-column:1/-1;flex-direction:row;justify-content:center;gap:6px;
-    padding:4px 2px 5px;margin-top:1px;border-top:1px solid var(--line);border-radius:0 0 7px 7px;
-    color:var(--muted);font-weight:500;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
-  .navrow .railtoggle svg{width:15px;height:15px;transform:rotate(90deg);transition:transform .3s var(--ease)}
-  .navrow .railtoggle span{max-height:14px}
-  /* A handle is never "the current tab": no accent fill in either state. */
-  .navrow .railtoggle[aria-pressed="true"]{background:none;color:var(--muted)}
-  .navrow .railtoggle:hover{background:var(--surface-2);color:var(--ink)}
-  body.railmin .navrow .railtoggle svg{transform:rotate(-90deg)}
   .mast{overflow:hidden;max-height:60px;
     transition:max-height .3s var(--ease),opacity .18s ease,margin .3s var(--ease)}
   body.railmin .mast{max-height:0;opacity:0;margin-bottom:-16px;pointer-events:none}
@@ -924,19 +911,20 @@ button.ghost.sm{padding:7px 11px;font-size:12px}
   body.reading .wrap,body.reading .navrow button,body.reading .navrow button span,body.reading .mast,
   body.reading .mast h1,body.reading .mast .mini,body.reading .rc-you,body.reading .rc-id,
   body.reading .wrap::before{transition:none !important}
-  body.railmin .navrow .railtoggle{padding:3px 2px 4px}
   body.railmin .navrow{padding:3px}
 }
 @media (min-width:900px){
-  /* The last item in the column of tabs, set apart by a hairline and kept
-     quiet: it is a control over the rail, not a destination in it. */
-  .navrow .railtoggle{display:flex;margin-top:4px;padding-top:12px;border-top:1px solid var(--line);
-    border-radius:0 0 7px 7px;color:var(--muted);font-weight:500}
-  .navrow .railtoggle:hover{color:var(--ink);background:var(--surface-2)}
-  .navrow .railtoggle[aria-pressed="true"]{background:none;color:var(--muted)}
-  .navrow .railtoggle[aria-pressed="true"]:hover{color:var(--ink);background:var(--surface-2)}
-  .navrow .railtoggle svg{transition:transform .3s var(--ease)}
-  body.railmin .navrow .railtoggle svg{transform:scaleX(-1)}
+  /* The fold sits at the foot, beside whose record this is: a quiet square
+     with no label — the chevrons say which way it goes and its name is its
+     tooltip — kept out of the column of tabs, since it is a control over the
+     rail and not a place in it. */
+  .railtoggle{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;
+    color:var(--muted);transition:background .15s,color .15s}
+  .railtoggle:hover{color:var(--ink);background:var(--surface-2)}
+  .railtoggle span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .railtoggle svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round;transition:transform .3s var(--ease)}
+  body.railmin .railtoggle svg{transform:scaleX(-1)}
 
   /* Folding is one motion, not a switch between two layouts. Nothing changes
      display or direction; every part that has to go somewhere gets there by
@@ -947,38 +935,49 @@ button.ghost.sm{padding:7px 11px;font-size:12px}
 
   .navrow button span{display:block;max-width:160px;overflow:hidden;white-space:nowrap;
     transition:max-width .3s var(--ease),opacity .18s ease}
-  body.railmin .navrow button{padding-left:calc(50% - 8.5px);padding-right:0;gap:0}
+  body.railmin .navrow button{padding-left:calc(50% - 8px);padding-right:0;gap:0}
   body.railmin .navrow button span{max-width:0;opacity:0}
   body.railmin .navrow{padding:6px 5px}
 
   /* The masthead keeps its row: the wordmark closes to nothing and the help
      button folds away with it, and the mark is what is left. */
   .mast{transition:gap .3s var(--ease),padding-left .3s var(--ease)}
-  .mast h1{overflow:hidden;white-space:nowrap;max-width:200px;
-    transition:max-width .3s var(--ease),opacity .18s ease,flex-grow .3s var(--ease)}
-  /* Stacked, the two words fill the 40px row at 20px, HANZAI- and ORIGINS
-     within a pixel of each other in width; on one line the name would need
-     about 190px of the 130px the mark and the help button leave it. */
-  .mast h1{font-size:20px}
-  .mast h1 span{display:block}
-  .mast .mini{transition:width .3s var(--ease),opacity .18s ease,margin .3s var(--ease),background .15s}
+  .mast h1{flex:0 1 auto;font-size:18px;overflow:hidden;white-space:nowrap;max-width:200px;
+    transition:max-width .3s var(--ease),opacity .18s ease}
+  /* On one line the name needs about 190px of the 120 the mark and the help
+     button leave it, and broken at its hyphen it read as a word cut off. So
+     the sidebar sets it as a lockup: HANZAI in the display face over ORIGINS
+     in small capitals spread to the same width, and the hyphen left to the
+     one-line name (the heading's label still has it). The spread is the
+     box's doing — ORIGINS is a row of letters set space-between under
+     HANZAI — not a tracking figure tuned to one face, so the two lines stay
+     square whichever face loads; and the lockup keeps its own width while
+     the fold closes the heading over it, rather than squeezing its letters. */
+  .mast h1 .wm{display:inline-flex;flex-direction:column;gap:5px;width:max-content;vertical-align:top}
+  .mast h1 .w1{letter-spacing:.07em;margin-right:-.07em}
+  .mast h1 .hy{display:none}
+  .mast h1 .w2{display:flex;justify-content:space-between;font-family:var(--font-ui);
+    font-size:9px;font-weight:700;letter-spacing:0;color:var(--muted)}
+  .mark{width:32px;height:32px;font-size:16px;border-radius:9px}
+  .mast .mini{width:28px;height:28px;margin-left:auto;
+    transition:width .3s var(--ease),opacity .18s ease,margin .3s var(--ease),background .15s}
+  .mast .mini svg{width:15px;height:15px}
   /* Folded, the mark slides to the middle of the column the same way the
      tab icons do — by the padding in front of it — so it sits over them
-     rather than against the left edge (the mark is 44px wide). */
-  body.railmin .mast{gap:0;padding-left:calc(50% - 22px)}
-  body.railmin .mast h1{max-width:0;opacity:0;flex-grow:0}
+     rather than against the left edge (the mark is 32px wide). */
+  body.railmin .mast{gap:0;padding-left:calc(50% - 16px)}
+  body.railmin .mast h1{max-width:0;opacity:0}
   body.railmin .mast .mini{width:0;opacity:0;overflow:hidden;pointer-events:none}
 
   /* The status card keeps the face — who this is — and the words close. */
   .rc-you{transition:background .15s,padding .3s var(--ease),gap .3s var(--ease)}
   .rc-id{overflow:hidden;white-space:nowrap;max-width:160px;
     transition:max-width .3s var(--ease),opacity .18s ease}
-  body.railmin .railcard{padding:6px 5px}
-  body.railmin .rc-you{padding-left:calc(50% - 17px);padding-right:0;gap:0}
+  body.railmin .rc-you{padding-left:calc(50% - 14px);padding-right:0;gap:0}
   body.railmin .rc-id{max-width:0;opacity:0}
   body.railmin .rc-swap{opacity:0 !important}
 }
-html.still :is(.wrap,.navrow button,.navrow button span,.navrow .railtoggle svg,.mast,.mast h1,.mast .mini,
+html.still :is(.wrap,.navrow button,.navrow button span,.railtoggle svg,.mast,.mast h1,.mast .mini,
   .rc-you,.rc-id){transition:none !important}
 
 /* ================================================================
@@ -3153,7 +3152,6 @@ html.still body.locked .wrap{filter:blur(10px)}
    filter rows are one swipeable line each, their label first, instead of
    chips wrapping back under the label. */
 @media (max-width:899px){
-  .navrow .railtoggle{display:none}
   body.railmin .mast{max-height:60px;opacity:1;margin-bottom:0;pointer-events:auto}
   /* The bar is as good as opaque rather than frosted: it stays on screen
      while everything scrolls under it, and a blur behind it is the GPU
@@ -3199,6 +3197,14 @@ html.still body.locked .wrap{filter:blur(10px)}
 .empty .empty-acts{align-items:center}
 .empty .empty-acts > *{margin:0;height:42px;padding-top:0;padding-bottom:0;display:inline-flex;align-items:center;justify-content:center}
 
+/* A view that failed to draw shows its error alone. Its own contents stay in
+   the page, hidden, for the retry to fill (boot.js viewFailed); the section
+   is a plain block meanwhile, so whatever grid the view lays out cannot
+   squeeze the box into one cell of it. .hidden still wins. */
+section.failed:not(.hidden){display:block!important}
+section.failed > :not(.view-failed){display:none!important}
+.view-failed .vf-acts{margin-top:12px;display:flex;gap:8px}
+
 /* ================================================================
    THE SIDEBAR, AND PAGES THAT FILL THE WINDOW
    ================================================================
@@ -3223,23 +3229,33 @@ html.still body.locked .wrap{filter:blur(10px)}
      last box, so the two columns start and end together on every page. The
      column is 16px wider than the tabs it holds, and the mark and the tabs
      sit 8px in from its edges. */
-  :root{--rail-w:252px;--rail-gap:24px}
-  body.railmin{--rail-w:80px}
+  /* Narrower than it was (252px), with the tabs in tighter rows: the longest
+     name, Characters, needs a third of the width, and the rest of the column
+     was a margin the content did not get. */
+  :root{--rail-w:212px;--rail-gap:22px;--mast-h:34px}
+  body.railmin{--rail-w:64px}
   .wrap{padding-bottom:18px;--wrap-y:34px}
   .wrap::before{content:"";position:fixed;z-index:0;left:var(--wrap-x);top:16px;bottom:18px;
     width:var(--rail-w);background:var(--rail);border:1px solid var(--line);
     border-radius:var(--r);box-shadow:var(--shadow);pointer-events:none;transition:width .3s var(--ease)}
   body.immersive .wrap::before{display:none}
-  .mast{top:24px;margin-top:8px;padding-left:8px;padding-right:8px}
-  /* the tabs run down the panel, the fold and the profile at its foot */
+  .mast{top:24px;margin-top:8px;gap:10px;padding-left:9px;padding-right:4px}
+  /* the tabs run down the panel, and whose record this is sits at its foot
+     with the fold beside it */
   .rail{top:calc(24px + var(--mast-h) + 12px);margin-top:calc(8px + var(--mast-h) + 12px);
     height:calc(100vh - 24px - var(--mast-h) - 12px - 18px - 8px);gap:6px;padding:0 8px}
   .navrow,body.railmin .navrow{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;
-    background:none;border-color:transparent;box-shadow:none;padding:4px 0}
-  .navrow button{padding:11px 12px}
-  .navrow .railtoggle{margin-top:auto}
+    background:none;border-color:transparent;box-shadow:none;padding:2px 0}
+  .navrow button{padding:8px 10px;gap:10px;border-radius:8px}
+  .navrow button svg{width:16px;height:16px}
   .railcard,body.railmin .railcard{background:none;border:none;border-top:1px solid var(--line);border-radius:0;
-    box-shadow:none;padding:8px 0 0}
+    box-shadow:none;padding:8px 0 0;flex-direction:row;align-items:center;gap:2px}
+  /* folded there is no room beside the face, so the fold goes under it */
+  body.railmin .railcard{flex-direction:column;gap:4px}
+  .rc-you{padding:6px;gap:9px;flex:1 1 auto;min-width:0;border-radius:8px}
+  .rc-face{width:28px;height:28px;border-radius:8px;font-size:14px}
+  .rc-id b{font-size:12.5px}
+  .rc-id small{font-size:10.5px}
 
   /* the front page fills the window */
   #v-home{min-height:calc(100vh - var(--wrap-y))}

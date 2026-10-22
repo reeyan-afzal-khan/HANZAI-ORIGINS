@@ -32,6 +32,13 @@ function show(view){
   /* A new view arrives rather than appears: a short rise-and-fade, once,
      removed when it lands so nothing is left transformed under it. */
   const sec = $(`#v-${view}`);
+  /* A view that failed last time is drawn again from the start: its error
+     goes and its own contents come back for the render to fill. */
+  if(sec.classList.contains("failed")){
+    sec.classList.remove("failed");
+    const box = sec.querySelector(":scope > .view-failed");
+    if(box) box.remove();
+  }
   if(booted && changed) sec.style.opacity = "0";
   $$("#nav button[data-v]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === view));
   /* On a phone the tabs are one row that scrolls sideways: the one you are
@@ -73,34 +80,46 @@ function enterView(sec, drawn){
   });
 }
 
-/* A view that cannot render is nearly always one thing: the generated syllabus
-   is not there. Say that, in the page, with the command that fixes it — the
-   raw stack is kept behind a disclosure for the case where it is something
-   else. */
+/* A view that cannot render says so in the page, in a box of its own put over
+   the view's contents, which are hidden rather than replaced. Written over
+   them, it took the view's own elements away, so every later visit failed
+   again on those — with an error about an element that was not there instead
+   of the one that happened. The next show() takes the box away and draws the
+   view afresh, so coming back to the tab, or Try again, is a retry. Nearly
+   always the cause is a data file that did not arrive; the raw stack is kept
+   behind a disclosure for the case where it is something else. */
 function viewFailed(view, err){
   const host = $(`#v-${view}`);
   if(!host) return;
+  console.error(`The ${view} view failed:`, err);
   const missing = /Could not load data\//.test(String(err && err.message));
-  host.innerHTML = `<div class="panel">
-    <h3>${missing ? "The syllabus data is missing" : "That view failed to load"}</h3>
+  let box = host.querySelector(":scope > .view-failed");
+  if(!box){
+    box = document.createElement("div");
+    box.className = "panel view-failed";
+    host.prepend(box);
+  }
+  host.classList.add("failed");
+  box.innerHTML = `
+    <h3>${missing ? "Part of the app did not load" : "That view failed to load"}</h3>
     <p class="pmeta">${missing
-      ? `HANZAI-ORIGINS keeps the HSK 3.0 lists in <code>app/data/</code>, which is generated rather than
-         committed. Run <b>npm run data</b> once — and <b>npm run strokes</b> if you want stroke
-         order offline — then reload.`
+      ? `A file it needs did not arrive, which is nearly always the connection. Try again, or reload the page.`
       : `Something went wrong rendering this screen.`}</p>
+    <div class="vf-acts"><button class="btn sm" data-retry>Try again</button></div>
     <details style="margin-top:9px">
       <summary class="lbl" style="cursor:pointer">Technical detail</summary>
       <p class="qtext" style="white-space:pre-wrap;margin-top:7px">${esc(String(err && err.stack || err))}</p>
-    </details>
-  </div>`;
+    </details>`;
+  box.querySelector("[data-retry]").onclick = () => show(view);
 }
 
 $("#nav").addEventListener("click", e => {
   const b = e.target.closest("button[data-v]");
   if(!b) return;
   /* The tab you are already on: back to the top of its list, the way a
-     second tap on a phone's tab bar does. */
-  if(b.dataset.v === S.view){
+     second tap on a phone's tab bar does — unless it failed to draw, when
+     the tap is a retry. */
+  if(b.dataset.v === S.view && !$(`#v-${S.view}`).classList.contains("failed")){
     const list = $(`#v-${S.view} .list-scroll`);
     if(list) list.scrollTo({top: 0, behavior: REDUCED() ? "auto" : "smooth"});
     window.scrollTo({top: 0, behavior: REDUCED() ? "auto" : "smooth"});
@@ -1032,10 +1051,10 @@ function showHelp(){
 }
 $("#b-help").onclick = showHelp;
 
-/* The sidebar folds to its icons — a wide table or a page of text gets the
-   236px back — and stays folded across sessions. The class does all the work
-   in CSS; what has to follow it in script is the lists and the reader, which
-   are measured against a width that just changed. */
+/* The sidebar folds to its icons — a wide table or a page of text gets most
+   of its width back — and stays folded across sessions. The class does all
+   the work in CSS; what has to follow it in script is the lists and the
+   reader, which are measured against a width that just changed. */
 /* Runs fn once the rail has finished moving: on the end of the column
    transition, or on a timer a little longer than it if that never comes
    (a hidden tab, reduced motion, a layout with no rail). */

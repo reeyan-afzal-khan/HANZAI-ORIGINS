@@ -275,17 +275,31 @@ function loadData(name){
 
   hit = new Promise((resolve, reject) => {
     pendingData.set(name, resolve);
-    const el = document.createElement("script");
-    el.src = `./data/${name}.js`;
-    el.async = false;
-    /* A script tag reports only that it failed, never why, so the message says
-       what to do rather than guessing at a cause. */
-    el.onerror = () => {
-      pendingData.delete(name);
-      dataCache.delete(name);
-      reject(new Error(`Could not load data/${name}.js — run \`npm run data\` to generate it.`));
+    /* Over a slow or dropped connection it is the first request that fails,
+       and a tab should not go blank for that, so a file that does not arrive
+       is asked for twice more, a moment apart. A file that loaded without
+       handing over its data was cut off on the way and counts as not
+       arriving. Opened from disk there is nothing to wait for: the file is
+       there or it is not. */
+    let tries = location.protocol === "file:" ? 1 : 3;
+    const attempt = () => {
+      const el = document.createElement("script");
+      el.src = `./data/${name}.js`;
+      el.async = false;
+      const failed = () => {
+        el.remove();
+        if(!pendingData.has(name)) return;
+        if(--tries > 0){ setTimeout(attempt, tries === 2 ? 500 : 1500); return; }
+        pendingData.delete(name);
+        dataCache.delete(name);
+        /* A script tag reports only that it failed, never why. */
+        reject(new Error(`Could not load data/${name}.js — the connection dropped, or the file is not there (npm run data makes it).`));
+      };
+      el.onerror = failed;
+      el.onload = () => { if(pendingData.has(name)) failed(); };
+      document.head.appendChild(el);
     };
-    document.head.appendChild(el);
+    attempt();
   });
   dataCache.set(name, hit);
   return hit;
@@ -563,7 +577,7 @@ function safely(what, fn){
     .catch(err => {
       console.error(`${what} failed:`, err);
       const missing = /Could not load data\//.test(String(err && err.message));
-      toast(missing ? "Syllabus data is missing — run npm run data" : `Could not ${what}`);
+      toast(missing ? "Part of the syllabus did not load — check the connection" : `Could not ${what}`);
     });
 }
 
