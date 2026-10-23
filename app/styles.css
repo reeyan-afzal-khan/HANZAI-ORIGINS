@@ -3580,7 +3580,7 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
    characters after the strokes left once it is taken away. The grid keeps
    a set number of rows, so the canvas or the grid under it stays put as the
    index changes; it scrolls, and its head jumps to a count. */
-.cidx{--rx-key:38px;--rx-gap:4px;--rx-rows:3;display:flex;flex-direction:column;min-width:0;margin-top:-6px;
+.cidx{--rx-key:38px;--rx-gap:4px;--rx-rows:3;--rx-pad:10px;display:flex;flex-direction:column;min-width:0;margin-top:-6px;
   background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 .cidx-head{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;min-height:50px;padding:8px 10px 8px 16px;
   border-bottom:1px solid var(--line)}
@@ -3619,14 +3619,14 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
 .rx-pages button[aria-pressed="true"],#tk-view button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:700;
   box-shadow:var(--seg-on-shadow)}
 /* the keys */
-.cidx-keys{display:flex;flex-wrap:wrap;align-content:flex-start;gap:var(--rx-gap);padding:10px 12px 10px 16px;
-  height:calc(var(--rx-rows) * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 20px);
+.cidx-keys{display:flex;flex-wrap:wrap;align-content:flex-start;gap:var(--rx-gap);padding:var(--rx-pad) 12px var(--rx-pad) 16px;
+  height:calc(var(--rx-rows) * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 2 * var(--rx-pad));
   overflow-y:auto;overscroll-behavior:contain;
-  /* the row after the last one shown fades out under the edge rather than
-     being cut there: the grid reads as going on, and scrolls */
-  -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 10px), transparent);
-  mask-image:linear-gradient(to bottom, #000 calc(100% - 10px), transparent)}
-.cidx.tall .cidx-keys{height:min(54vh, calc(10 * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 20px))}
+  /* the keys stop at the foot of the padding's inner edge, so the top of
+     the next row never shows as a sliver under the last one */
+  -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - var(--rx-pad)), transparent calc(100% - var(--rx-pad)));
+  mask-image:linear-gradient(to bottom, #000 calc(100% - var(--rx-pad)), transparent calc(100% - var(--rx-pad)))}
+.cidx.tall .cidx-keys{height:min(54vh, calc(10 * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 2 * var(--rx-pad)))}
 .rx-n,.rx-k{flex:none;width:var(--rx-key);height:var(--rx-key);border-radius:9px;display:grid;place-items:center}
 .rx-n{font:700 13.5px/1 var(--font-ui);font-variant-numeric:tabular-nums;color:var(--on-acc);background:var(--acc)}
 .rx-k{position:relative;font-family:var(--font-zh);font-size:20px;line-height:1;color:var(--ink);
@@ -3651,7 +3651,7 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
 /* the tree wants its height: on a short window the index keeps two rows */
 @media (max-height:820px){#v-chars.treeview .cidx{--rx-rows:2}}
 @media (max-width:699px){
-  .cidx{--rx-key:36px;--rx-gap:4px;margin-top:-2px}
+  .cidx{--rx-key:36px;--rx-gap:4px;--rx-pad:8px;margin-top:-2px}
   .cidx-head{gap:8px 10px;padding:8px 8px 8px 12px}
   /* the head's switches take rows of their own under its name, the fold
      beside the name */
@@ -3660,7 +3660,7 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
   .rx-pages{order:3;flex-basis:100%}
   .rx-pages button{flex:1 1 0;padding:0 6px}
   .rx-jump{order:4;flex-basis:100%;margin:0 -2px}
-  .cidx-keys{padding:8px 8px 8px 12px}
+  .cidx-keys{padding:var(--rx-pad) 8px var(--rx-pad) 12px}
   #v-chars.treeview .cidx{--rx-rows:2}
 }
 /* the tree's tiles in a level's card leave the level to the card's name */
