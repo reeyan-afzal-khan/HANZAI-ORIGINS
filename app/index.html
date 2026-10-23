@@ -93,15 +93,61 @@ window.boom = function(what, detail){
   dismiss.onclick = function(){ el.remove(); };
   el.appendChild(dismiss);
 };
+
+/* Which build this page is. scripts/build.mjs stamps the same hash here, in
+   core.js (APP_BUILD) and in sw.js, so a page can tell whether the scripts it
+   was handed are its own. They were not, after a deploy, wherever the
+   previous service worker was still installed: it fetched the page from the
+   server and the scripts from its cache, and the new page ran on the old
+   build's code, which stopped at the first thing it looked for that the page
+   no longer had. */
+var PAGE_BUILD = "__BUILD__";
+function staleCode(){
+  /* Before core.js is even on the page, a fault is a fault, not old code. */
+  if(!document.querySelector('script[src*="js/core.js"]')) return false;
+  try{ return typeof APP_BUILD === "undefined" || APP_BUILD !== PAGE_BUILD; }catch(_){ return false; }
+}
+/* Start over on this build: drop the worker and every build's cache but this
+   one, then load again — from the server, all of it the same build. Once a
+   minute at most, so a fault that survives the reload is reported (boom)
+   rather than reloaded forever. The worker comes back as this build's when
+   boot.js registers it. */
+function heal(){
+  if(heal.started) return true;
+  var last = 0;
+  try{ last = +sessionStorage.getItem("hskker.heal") || 0; }catch(_){}
+  if(Date.now() - last < 60000) return false;
+  heal.started = true;
+  try{ sessionStorage.setItem("hskker.heal", String(Date.now())); }catch(_){}
+  var cover = document.createElement("div");
+  cover.id = "healing";
+  cover.textContent = "Updating to the latest version…";
+  cover.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;"
+    + "background:var(--void,#1d2021);color:var(--ink,#ebdbb2);font:500 15px/1.4 system-ui,sans-serif";
+  (document.body || document.documentElement).appendChild(cover);
+  var jobs = [];
+  try{
+    if(navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+      return Promise.all(rs.map(function(r){ return r.unregister(); })); }));
+    if(window.caches) jobs.push(caches.keys().then(function(ks){
+      return Promise.all(ks.filter(function(k){ return k.indexOf("hskker-") === 0 && k !== "hskker-" + PAGE_BUILD; })
+                           .map(function(k){ return caches.delete(k); })); }));
+  }catch(_){}
+  Promise.all(jobs).catch(function(){}).then(function(){ location.reload(); });
+  return true;
+}
+
 addEventListener("error", function(e){
   /* A data file that arrives garbled — cut off, or a portal's page served in
      its place — fails to parse here; loadData (core.js) asks for it again,
      and says so in the view if it never comes. */
   try{ if(e.filename && e.filename.indexOf(new URL("data/", location.href).href) === 0) return; }catch(_){}
+  if(staleCode() && heal()) return;
   var where = e.filename ? ("\n" + e.filename + ":" + e.lineno) : "";
   window.boom("Something failed to run.", (e.message || e.type) + where);
 });
 addEventListener("unhandledrejection", function(e){
+  if(staleCode() && heal()) return;
   window.boom("A background task failed.", String(e.reason));
 });
 </script>
@@ -828,5 +874,13 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <script src="./js/settings.js"></script>
 <script src="./js/boot.js"></script>
 <script src="./js/native.js"></script>
+<script>
+/* Everything above has run. Scripts from another build that happened not to
+   throw are still the wrong scripts for this page (see heal, in <head>). */
+if(staleCode() && !heal())
+  boom("This page and its scripts are from different versions.",
+       "page " + PAGE_BUILD + ", scripts " + (typeof APP_BUILD === "undefined" ? "older" : APP_BUILD)
+       + "\nReload the page; if this stays, clear the site's data in the browser's settings.");
+</script>
 </body>
 </html>

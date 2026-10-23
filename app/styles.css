@@ -553,6 +553,7 @@ mark{background:var(--acc-wash);color:var(--acc);padding:0 1px;border-radius:3px
 .about div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;
   border-bottom:1px solid var(--line);font-size:11.5px;color:var(--muted)}
 .about div:last-child{border-bottom:none}
+.about .build{color:var(--muted);font-weight:500}
 .about b{color:var(--ink-soft);font-weight:600;font-variant-numeric:tabular-nums;
   text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 

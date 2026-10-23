@@ -44,6 +44,8 @@ npm run build       # release/web/ and release/HANZAI-ORIGINS-web.zip
 
 Every push to `main` deploys the site through `.github/workflows/deploy-pages.yml` (Settings → Pages → Source must be **GitHub Actions**). The workflow fetches the offline translator when `data/translation/files.json` is there, runs `node scripts/build.mjs --pages`, and publishes `release/pages/`. To build the same copy locally, run `npm run translation` once, then that command.
 
+The build stamps one hash into the page, its scripts and the service worker, so a browser that already has the site never runs one build's page on another build's code: the worker serves a build whole, and swaps to the next one with a reload once it has it.
+
 ### Android
 
 You need JDK 17 and the Android SDK (platform 34, build-tools 34.0.0). Both can live in `tools/`, which is gitignored.

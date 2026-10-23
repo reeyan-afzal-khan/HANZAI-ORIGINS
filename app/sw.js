@@ -1,18 +1,26 @@
 /* Service worker.
  *
- * App code is stale-while-revalidate: the cached copy is served straight away
- * (launch stays instant and offline still works), a fresh copy is fetched in
- * the background, and the next launch runs it. Cache-first on code would be
- * worse than stale — it can pair last week's core.js with this week's
- * reader.js and break the app outright, and the lookup ignores query strings
- * so a ?v= buster does not get you out of it either.
+ * One build at a time. The page, its scripts and its stylesheets all come out
+ * of this worker's own cache, which holds the build the worker shipped with:
+ * filled in one go on install, and never topped up with a newer copy of
+ * anything. So the page and the code that runs it are always the same build,
+ * online or off.
+ *
+ * The worker before this one fetched the page from the network and served the
+ * scripts from its cache. After a deploy that was the new page on the old
+ * build's code — a page that crashed on its first line that looked for
+ * something the new page no longer had, until the new worker took over and
+ * reloaded it. index.html still heals a page put together like that (heal(),
+ * in its <head>), since that worker is still installed out there.
+ *
+ * A new build is found the way the browser finds any worker update: it checks
+ * sw.js on every launch. The new worker fills its cache, takes over, drops the
+ * old build's cache and reloads the open pages, each of which is then the new
+ * build throughout.
  *
  * The syllabus data and the stroke shards never change within a build, so
  * those are cache-first and filled on demand rather than up front: precaching
  * 12.5 MB of stroke data on install would make the first launch unusable.
- *
- * CACHE is stamped by scripts/build.mjs, so a real deploy drops the old cache
- * outright.
  */
 const CACHE = "hskker-__BUILD__";
 /* scripts/build.mjs replaces __BUILD__ with a hash of everything it ships.
@@ -66,13 +74,10 @@ self.addEventListener("activate", e => {
       .then(() => upgraded && STAMPED);
   });
   e.waitUntil(taken);
-  /* Was there a build before this one? Its pages are still open on the old
-     code — the page itself is fetched network-first, the scripts and the
-     stylesheet cache-first, so a launch that found this update is showing
-     the new page on the previous build's code until this worker takes
-     over. Once it has, reload those pages so each is one build. Done from
-     here rather than from the page because the page that needs it is the
-     old one. A first install has nothing to replace and is left alone.
+  /* Was there a build before this one? Its pages are still open on its code,
+     and once this worker has taken over, whatever they load next would come
+     from this build. Reload them so each is one build. A first install has
+     nothing to replace and is left alone.
      The reload stays out of waitUntil. Once claimed, a page's requests come
      to this worker, and a worker holds every fetch until it has finished
      activating — which it does when waitUntil settles. A reload inside it
@@ -83,18 +88,26 @@ self.addEventListener("activate", e => {
 });
 
 /* The syllabus and the stroke shards are .js too, so "is this ours" is asked
-   about them first — otherwise a data file would fall into the
-   stale-while-revalidate path meant for code and be re-fetched every launch.
-   Stroke shards live under data/strokes/, so one prefix covers both. */
+   about them first — otherwise a data file would be taken for code. Stroke
+   shards live under data/strokes/, so one prefix covers both. */
 const isData = url => url.origin === self.location.origin
   && url.pathname.includes("/data/");
 
-/* Is this one of our own code files? Compared by path so a ?v= or a #hash does
-   not change the answer. */
+/* Is this one of our own code files? Compared by path, so the ?v= the build
+   puts on each one does not change the answer. */
 function isCode(url){
   if(url.origin !== self.location.origin || isData(url)) return false;
   const path = url.pathname;
   return CODE.some(c => path.endsWith(c.slice(1))) || path.endsWith("/");
+}
+
+/* This build's copy of a request: from this worker's own cache and no other.
+   caches.match() with no cache named searches every cache the site has, and
+   while the next build is installing, that includes its cache, half filled.
+   Our own files are matched by path alone, since ?v= only tells the HTTP
+   cache which build a file is; another site's query is part of what it is. */
+function mine(req, url){
+  return caches.open(CACHE).then(c => c.match(req, {ignoreSearch: url.origin === self.location.origin}));
 }
 
 function put(req, res){
@@ -116,35 +129,36 @@ self.addEventListener("fetch", e => {
      IndexedDB — except Google Fonts, which are kept below. */
   if(url.origin !== self.location.origin && !url.hostname.startsWith("fonts.g")) return;
 
-  // Navigations: network first, so a reload always gets the current page.
-  if(req.mode === "navigate" || req.destination === "document"){
-    e.respondWith(fetch(req, FRESH).then(res => put(req, res)).catch(() =>
-      caches.match(req, {ignoreSearch:true}).then(hit => hit || caches.match(SHELL))));
+  /* The page: this build's. The network only when the cache has lost it, and
+     then not kept: a page from the server may be a later build than the
+     scripts in here. Anything else opened in a tab — an icon, a data file —
+     is itself, from the network first. */
+  if(req.mode === "navigate"){
+    const page = url.pathname.endsWith("/") || url.pathname.endsWith("/index.html");
+    e.respondWith(page ? mine(new Request(SHELL), url).then(hit => hit || fetch(req, FRESH))
+                       : fetch(req).catch(() => mine(req, url)));
     return;
   }
 
-  // Our own code: serve the cached copy now, refresh it for next time.
+  // Our own code: this build's copy, put there on install.
   if(isCode(url)){
-    e.respondWith(caches.match(req, {ignoreSearch:true}).then(hit => {
-      const net = fetch(req, FRESH).then(res => put(req, res)).catch(() => hit);
-      return hit || net;
-    }));
+    e.respondWith(mine(req, url).then(hit => hit || fetch(req, FRESH)));
     return;
   }
 
   // Syllabus data and stroke files: immutable within a build, cached on use.
   if(isData(url)){
-    e.respondWith(caches.match(req).then(hit =>
+    e.respondWith(mine(req, url).then(hit =>
       hit || fetch(req, FRESH).then(res => put(req, res))));
     return;
   }
 
   // Icons and fonts: cache first, they are immutable.
   e.respondWith(
-    caches.match(req, {ignoreSearch:true}).then(hit => hit || fetch(req).then(res => {
+    mine(req, url).then(hit => hit || fetch(req).then(res => {
       if(res && res.ok && (req.url.startsWith(self.registration.scope) ||
                            req.url.includes("fonts.g"))) put(req, res);
       return res;
-    }).catch(() => hit))
+    }))
   );
 });

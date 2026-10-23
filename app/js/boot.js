@@ -1205,7 +1205,15 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   if(window.Capacitor){
     navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
   }else{
-    addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    /* A build cache with no worker behind it is left over: from a worker
+       index.html dropped to heal a page (heal), whose last fetches can file
+       a copy after the caches were cleared. Left there, the new worker would
+       take it for a build it is replacing, and reload this page for nothing. */
+    addEventListener("load", () => navigator.serviceWorker.getRegistration()
+      .then(r => r || caches.keys().then(ks => Promise.all(ks
+        .filter(k => k.startsWith("hskker-") && k !== "hskker-" + APP_BUILD).map(k => caches.delete(k)))))
+      .catch(() => {})
+      .then(() => navigator.serviceWorker.register("./sw.js")).catch(() => {}));
     // A page found running the previous build is reloaded by the new worker
     // itself once it has taken over — see the activate handler in sw.js.
   }

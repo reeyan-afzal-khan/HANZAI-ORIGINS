@@ -12,6 +12,11 @@ const $$ = s => [...document.querySelectorAll(s)];
    would be visible to anyone opening index.html directly. scripts/build.mjs
    asserts it against package.json instead, so the two cannot drift silently. */
 const APP_VERSION = "1.28.0";
+/* Which build of it: a hash of everything shipped, stamped by scripts/build.mjs
+   into this, index.html and sw.js alike — the page checks it is running its
+   own build's code (index.html, heal). A working copy says __BUILD__. */
+const APP_BUILD = "__BUILD__";
+const BUILT = !APP_BUILD.startsWith("__");
 
 /* The themes. Each lives as a JSON file in themes/skins/ and reaches the page
    through themes/themes.js, which `npm run themes` writes (with skins.css
@@ -287,7 +292,9 @@ function loadData(name){
     let tries = location.protocol === "file:" ? 1 : 3;
     const attempt = () => {
       const el = document.createElement("script");
-      el.src = `./data/${name}.js`;
+      /* With the build on it, so the HTTP cache cannot hand a new build last
+         build's data in the minutes a host lets it keep a copy. */
+      el.src = `./data/${name}.js${BUILT ? "?v=" + APP_BUILD : ""}`;
       el.async = false;
       const failed = () => {
         el.remove();

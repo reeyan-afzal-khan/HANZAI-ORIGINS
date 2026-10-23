@@ -5,9 +5,12 @@
  *   app/  ->  release/pages/        with --pages: the copy GitHub Pages serves
  *                                  (.github/workflows/deploy-pages.yml), no zip
  *
- * The one transform on the way through is stamping sw.js: the cache name is
- * derived from the hash of the files it caches, so shipping new code always
- * retires the old cache instead of leaving a stale mix behind.
+ * The one transform on the way through is stamping the build: a hash of every
+ * file shipped goes into sw.js (its cache name, so new code always retires the
+ * old cache), core.js (APP_BUILD) and index.html (PAGE_BUILD, and a ?v= on each
+ * script and stylesheet), so a page and its code can always tell they are the
+ * same build, and no cache in between can pair one build's page with
+ * another's scripts.
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, rmSync, mkdirSync, readdirSync,
@@ -75,21 +78,38 @@ console.log(`HANZAI-ORIGINS ${pkg.version} · build ${stamp} · ${files.length} 
 
 rmSync(WEB, {recursive: true, force: true});
 mkdirSync(WEB, {recursive: true});
-for(const f of files){
-  if(f === "sw.js") continue;
-  const dest = join(WEB, f);
-  mkdirSync(dirname(dest), {recursive: true});
-  copyFileSync(join(SRC, f), dest);
-}
-/* Targeted at the CACHE assignment specifically, and asserted: sw.js also
-   mentions __BUILD__ in a comment and in the check that tells a working copy
+/* Each stamp is aimed at one exact line and asserted: these files also
+   mention __BUILD__ in comments and in the checks that tell a working copy
    from a release, and a blind first-match replace would be one edit away from
    stamping the wrong one. */
-const swSrc = readFileSync(join(SRC, "sw.js"), "utf8");
-const swOut = swSrc.replace(/^const CACHE = "hskker-__BUILD__";$/m,
-                            `const CACHE = "hskker-${stamp}";`);
-if(swOut === swSrc) throw new Error("sw.js: the CACHE line did not match — nothing was stamped");
-writeFileSync(join(WEB, "sw.js"), swOut);
+function stampLine(f, re, line){
+  const src = readFileSync(join(SRC, f), "utf8");
+  if((src.match(new RegExp(re.source, "gm")) || []).length !== 1)
+    throw new Error(`${f}: the line to stamp (${re}) is not there exactly once`);
+  return src.replace(re, line);
+}
+const STAMPED = {
+  "sw.js": stampLine("sw.js", /^const CACHE = "hskker-__BUILD__";$/m, `const CACHE = "hskker-${stamp}";`),
+  "js/core.js": stampLine("js/core.js", /^const APP_BUILD = "__BUILD__";$/m, `const APP_BUILD = "${stamp}";`),
+};
+/* The page: its build, and the build on the address of every script and
+   stylesheet it loads, so the HTTP cache cannot answer for this build with a
+   file from the last one either (Pages lets a copy be kept ten minutes). */
+let page = stampLine("index.html", /^var PAGE_BUILD = "__BUILD__";$/m, `var PAGE_BUILD = "${stamp}";`);
+let tagged = 0;
+page = page.replace(/(<script src|<link rel="stylesheet" href)="(\.\/[^"?:]+\.(?:js|css))"/g,
+                    (_, tag, url) => (tagged++, `${tag}="${url}?v=${stamp}"`));
+const expect = (readFileSync(join(SRC, "index.html"), "utf8").match(/<script src="\.\/|<link rel="stylesheet" href="\.\//g) || []).length;
+if(tagged !== expect || tagged < 10)
+  throw new Error(`index.html: put the build on ${tagged} of its ${expect} local scripts and stylesheets`);
+STAMPED["index.html"] = page;
+
+for(const f of files){
+  const dest = join(WEB, f);
+  mkdirSync(dirname(dest), {recursive: true});
+  if(f in STAMPED) writeFileSync(dest, STAMPED[f]);
+  else copyFileSync(join(SRC, f), dest);
+}
 console.log("  ->", relative(ROOT, WEB));
 
 /* A zip of the web build, so the folder can be handed to a static host or

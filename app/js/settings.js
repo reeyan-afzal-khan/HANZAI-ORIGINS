@@ -25,7 +25,7 @@ async function renderAbout(){
     typeof talkMeta === "function" ? talkMeta() : null]);
   const row = (k, v) => `<div><span>${esc(k)}</span><b>${v}</b></div>`;
   $("#about").innerHTML = [
-    row("Version", APP_VERSION),
+    row("Version", BUILT ? `${APP_VERSION} <span class="build">· build ${APP_BUILD}</span>` : APP_VERSION),
     row("Standard", "HSK 3.0 (2021)"),
     row("Vocabulary", `${num(meta.totals.words)} words`),
     row("Characters", `${num(meta.totals.chars)} hanzi`),
