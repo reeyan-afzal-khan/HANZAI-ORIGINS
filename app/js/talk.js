@@ -48,10 +48,10 @@ const TK = {
   /* The last few topics and frames dealt, so the draw can steer around them. */
   recentCat: [], recentFrame: [],
   hist: [],
-  /* An ad-hoc deck built from a search or the saved list. */
+  /* An ad-hoc deck built from a selection in Browse or the saved list. */
   custom: null,
   /* Browsing. */
-  query: "", browse: false, fSens: new Set(), fStage: new Set(), fFreq: 0, fLevel: false, fSort: "freq",
+  browse: false, fSens: new Set(), fStage: new Set(), fFreq: 0, fLevel: false, fSort: "freq",
   results: [], shown: 0,
   /* The token lists behind every annotated line on screen, keyed by line id,
      and the word card open over one of them. */
@@ -240,12 +240,11 @@ async function renderTalk(){
   const snap = S.talkRun;
   if(snap && Date.now() - (snap.at || 0) > TK_RESUME_MS){ await bankTalkSnapshot(snap); }
 
-  $("#tksearch").value = TK.query;
-  $("#tk-browse").setAttribute("aria-pressed", String(TK.browse));
-  const browsing = TK.browse || !!TK.query.trim();
-  $("#talk-home").classList.toggle("hidden", browsing);
-  $("#talk-browse").classList.toggle("hidden", !browsing);
-  if(browsing){ paintTalkFilters(); talkSearch(); return; }
+  paintTalkHead();
+  for(const b of $$("#tk-view button")) b.setAttribute("aria-pressed", String((b.dataset.tkv === "browse") === TK.browse));
+  $("#talk-home").classList.toggle("hidden", TK.browse);
+  $("#talk-browse").classList.toggle("hidden", !TK.browse);
+  if(TK.browse){ paintTalkFilters(); talkSearch(); return; }
 
   /* The set-up panels open folded the first time, so the screen is the
      decks and not a page of switches; from then on it is whatever was left. */
@@ -273,6 +272,18 @@ async function renderTalk(){
 }
 
 /* ---------------- the decks screen ---------------- */
+/* The page's header: what the bank holds, how much of it reads at your
+   level, and what you have kept. */
+function paintTalkHead(){
+  const all = TK.data.q, L = levelLabel(S.level);
+  const readable = all.filter(tkAtLevel).length;
+  $("#tksub").textContent = `${num(all.length)} questions in Chinese and English, dealt as decks for talking with real people — each marked with the level it needs and given a sample answer.`;
+  $("#tkstats").innerHTML = `
+    <div class="ph-stat"><b>${num(all.length)}</b><span>Questions</span></div>
+    <div class="ph-stat"><b>${num(readable)}</b><span>Readable at HSK ${esc(L)}</span></div>
+    <div class="ph-stat"><b>${num(S.talkSaved.length)}</b><span>Saved</span></div>`;
+}
+
 function paintTalkResume(){
   const host = $("#talk-resume"), snap = S.talkRun;
   if(!snap || !TK.byId.get(snap.cur)){ host.hidden = true; host.innerHTML = ""; return; }
@@ -381,17 +392,11 @@ function paintTalkSaved(){
   $("#talk-saved-meta").textContent = list.length ? `${list.length} saved · tap one to ask it` : "nothing saved yet";
   $("#talk-saved-acts").classList.toggle("hidden", !list.length);
   $("#talk-saved").innerHTML = list.length
-    ? `<div class="hits">${list.map(q => talkHitHTML(q, "")).join("")}</div>`
+    ? `<div class="hits">${list.map(q => talkHitHTML(q)).join("")}</div>`
     : `<p class="pmeta">Tap the bookmark on a card to keep it here — the questions you want to come back to.</p>`;
 }
 
 /* ---------------- browse ---------------- */
-const tkStrip = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-let TK_INDEX = null;
-/* English, Chinese and the pinyin read off the syllabus, so "ni hao" finds
-   the question as well as 你好 does. */
-const tkIndex = () => TK_INDEX || (TK_INDEX = TK.data.q.map(q => `${tkStrip(q[Q.EN])} ${q[Q.ZH]} ${tkStrip(readingOf(q[Q.ZH]))}`));
-
 function paintTalkFilters(){
   const chip = (attr, v, label, on) => `<button class="fchip" data-${attr}="${v}" aria-pressed="${on}">${label}</button>`;
   $("#tk-f-sens").innerHTML = `<span class="lbl">Sensitivity</span>` + [1,2,3,4,5].map(n => chip("tks", n, `${n} ${TK_SENS[n - 1]}`, TK.fSens.has(n))).join("");
@@ -402,27 +407,16 @@ function paintTalkFilters(){
     .map(([k, l]) => chip("tko", k, l, k === TK.fSort)).join("");
 }
 
-/* Mark the run of text the search matched. The offset is found in the
-   stripped copy and the three pieces escaped separately, so a question with
-   an angle bracket in it cannot inject markup. */
-function tkHilite(text, term){
-  if(!term) return esc(text);
-  const i = tkStrip(text).indexOf(term);
-  if(i < 0) return esc(text);
-  return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + term.length)) + "</mark>" + esc(text.slice(i + term.length));
-}
-function talkHitHTML(q, term){
+function talkHitHTML(q){
   return `<button class="hit" data-talkopen="${q[Q.ID]}" style="--dc:${tkHeat(q[Q.ST])}">
     <span class="spine"></span>
-    <span><span class="he">${tkHilite(q[Q.EN], term)}</span>
+    <span><span class="he">${esc(q[Q.EN])}</span>
       <span class="hz">${esc(q[Q.ZH])}</span>
       <span class="hm">${tkLevelChip(q)} · ${TK_STAGE[q[Q.ST] - 1]} · sens ${q[Q.SE]} · freq ${q[Q.SC]} · ${esc(TK.data.categories[q[Q.CA]])}</span>
     </span></button>`;
 }
 
 async function talkSearch(){
-  const idx = tkIndex();
-  const term = tkStrip(TK.query.trim());
   const cnt = TK.fSort === "asked" ? await talkCounts() : null;
   const out = [];
   for(let i = 0; i < TK.data.q.length; i++){
@@ -431,7 +425,6 @@ async function talkSearch(){
     if(TK.fStage.size && !TK.fStage.has(q[Q.ST])) continue;
     if(TK.fFreq && q[Q.SC] < TK.fFreq) continue;
     if(TK.fLevel && !tkAtLevel(q)) continue;
-    if(term && !idx[i].includes(term)) continue;
     out.push(q);
   }
   if(TK.fSort === "freq")       out.sort((a, b) => b[Q.SC] - a[Q.SC] || a[Q.ID] - b[Q.ID]);
@@ -442,17 +435,17 @@ async function talkSearch(){
   paintTalkHits();
 }
 function paintTalkHits(){
-  const n = TK.results.length, term = tkStrip(TK.query.trim());
+  const n = TK.results.length;
   $("#tk-hitcount").textContent = `${num(n)} question${n === 1 ? "" : "s"}${TK.shown < n ? ` · showing ${TK.shown}` : ""}`;
   $("#tk-practice").disabled = !n;
   $("#tk-practice").textContent = n ? `Practise these ${num(n)}` : "Practise these";
   $("#tk-random").disabled = !n;
   if(!n){
-    $("#tk-hits").innerHTML = `<div class="empty">Nothing matches that.<br>Try fewer filters, or search the Chinese instead.</div>`;
+    $("#tk-hits").innerHTML = `<div class="empty">No question has all of that.<br>Try fewer filters.</div>`;
     $("#tk-more").classList.add("hidden");
     return;
   }
-  $("#tk-hits").innerHTML = TK.results.slice(0, TK.shown).map(q => talkHitHTML(q, term)).join("");
+  $("#tk-hits").innerHTML = TK.results.slice(0, TK.shown).map(q => talkHitHTML(q)).join("");
   const more = n - TK.shown;
   $("#tk-more").classList.toggle("hidden", more <= 0);
   $("#tk-more").textContent = `Show ${Math.min(TK_PAGE, more)} more · ${num(more)} left`;

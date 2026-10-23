@@ -7,8 +7,9 @@
   "scripts": {
     "sources": "node scripts/fetch-sources.mjs",
     "db": "node scripts/build-db.mjs",
-    "data": "node scripts/build-db.mjs && node scripts/build-data.mjs && node scripts/build-examples.mjs",
+    "data": "node scripts/build-db.mjs && node scripts/build-data.mjs && node scripts/build-examples.mjs && node scripts/build-radicals.mjs",
     "examples": "node scripts/build-examples.mjs",
+    "radicals": "node scripts/build-radicals.mjs",
     "strokes": "node scripts/build-strokes.mjs",
     "icons": "node scripts/make-icons.mjs",
     "themes": "node scripts/build-themes.mjs",

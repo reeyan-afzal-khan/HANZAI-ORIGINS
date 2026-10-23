@@ -9,7 +9,8 @@ There is no account and no server. Everything runs on your device, and your prog
 ## Features
 
 - **Home**: a word of the day, the book and the conversation you left off, and every section with what is behind it at your level.
-- **Characters & Grammar**: browse by level, search in hanzi, pinyin or English, with how far into the level you are at the top of each page. Characters animate their stroke order and can be practised by hand; the grid is headed by letter, frequency band or stroke count, and filters to the characters not started, being learned or mastered. Most grammar points have an explanation and example sentences, with the pattern marked in each, listed under the standard's own sections. On a wide screen the character or point you pick opens beside the list, and the arrow keys move through it.
+- **Characters & Grammar**: browse by level, with how far into the level you are at the top of each page. Characters animate their stroke order and can be practised by hand; the grid is headed by letter, frequency band or stroke count, and filters to the characters not started, being learned or mastered. Most grammar points have an explanation and example sentences, with the pattern marked in each, listed under the standard's own sections. On a wide screen the character or point you pick opens beside the list, and the arrow keys move through it.
+  - Any character can be found by its radical, the way a dictionary's radical index (Pleco's, say) finds it: the radicals in one grid in order of their strokes, a numbered key at the head of each count; pick one and its characters follow by the strokes left after it, each marked with its level; pick a character and it opens.
   - The characters can also be laid out as a tree on an open canvas, like a game's skill tree: a radical, sound family or other part on the left, the characters built on it branching to the right tier by tier (木 → 林 → 森), and what it is made of to its left. The tree grows through every level, with the characters above yours drawn locked, and opens its deepest branches first. A big family is gathered into a card per level, with the levels above yours folded onto one shelf until you open them. Drag to pan, scroll or pinch to zoom, use the map in the corner on a big tree, go full window, and grow a new tree from any tile. Tiles show when they are in your deck or mastered. A panel beside the canvas (a sheet on a phone) tells you about the tile picked: its stroke order, which part gives the meaning and which the sound, what it builds into, and the words it is in.
 - **Read**: open an EPUB or paste text. Every word is coloured by HSK level.
   - Tap a word for its card.
@@ -21,7 +22,7 @@ There is no account and no server. Everything runs on your device, and your prog
 - **Talk**: 4,228 conversation questions in Chinese and English, dealt as decks for chatting with real people. Each question is marked with the level needed to read it and comes with a sample answer.
 - **Profiles & display**: several people per device, optional passcodes, JSON backup, and light and dark themes with a choice of Chinese and English fonts.
 
-Shortcuts: `1`–`6` switch sections, `/` searches, `[` folds the sidebar, and `?` lists the rest.
+Shortcuts: `1`–`6` switch sections, `[` folds the sidebar, and `?` lists the rest.
 
 ## Running it
 
@@ -29,7 +30,7 @@ The app needs no build step; just open `app/index.html`. To regenerate its data:
 
 ```bash
 npm install
-npm run data        # data/ → data/hskker.db → app/data/
+npm run data        # data/ → data/hskker.db → app/data/, the radical index with it
 npm run strokes     # stroke-order files
 npm run talk        # conversation questions (after `data`)
 npm run translation # offline translator: downloads it into data/translation/, packs it into app/data/mt/

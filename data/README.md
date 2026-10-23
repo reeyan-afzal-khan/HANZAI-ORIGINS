@@ -23,8 +23,8 @@ talk/                         ──[npm run talk]──────────
 translation/                  ──[npm run translation]─────────────────────────>  app/data/mt/
 ```
 
-`npm run data` runs the syllabus build and then the example-sentence build
-that reads it. `npm run talk` needs `npm run data` to have run first, since
+`npm run data` runs the syllabus build, then the example-sentence build that
+reads it, then the radical index (`npm run radicals` on its own). `npm run talk` needs `npm run data` to have run first, since
 it reads the lexicon the export wrote. Nothing in `app/data/` is edited by
 hand.
 
@@ -34,6 +34,7 @@ hand.
 | ----------------------------------------- | ------------------------------------- | --------------------------------- |
 | fix a word, character or grammar point    | `hsk3/*.csv` (see its README)         | `npm run data`                    |
 | fix a meaning or a character's reading    | `dictionary/*.json`                   | `npm run data`                    |
+| fix a radical's strokes or name           | `dictionary/radicals.json`            | `npm run radicals`                |
 | fix a grammar explanation or example      | `grammar/hsk*.mjs`                    | `npm run data`                    |
 | fix a question, deck or model answer      | `talk/*.json`                         | `npm run data && npm run talk`    |
 | refresh the upstream lists                | nothing — `npm run sources` rewrites `hsk3/` and `dictionary/` | `npm run data` |

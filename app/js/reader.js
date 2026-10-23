@@ -43,6 +43,7 @@ async function renderRead(){
 function paintShelf(){
   $("#read-library").classList.remove("hidden");
   $("#read-book").classList.add("hidden");
+  paintReadHead();
 
   if(!R.shelf.length){
     $("#booklist").innerHTML = `<div class="empty">
@@ -92,6 +93,17 @@ function paintShelf(){
     </div></div>`;
   $("#booklist").querySelector(".bk-add [data-shelf-add]").onclick = pickBookFile;
   $("#booklist").querySelector(".bk-add [data-shelf-paste]").onclick = togglePaste;
+}
+
+/* The page's header: what is on the shelf — how many books, how many of
+   them under way, and how much reading that is. */
+function paintReadHead(){
+  const books = R.shelf, going = books.filter(b => b.chapter || b.ratio).length;
+  const chars = books.reduce((n, b) => n + (b.hanzi || 0), 0);
+  $("#rstats").innerHTML = `
+    <div class="ph-stat"><b>${num(books.length)}</b><span>Book${books.length === 1 ? "" : "s"}</span></div>
+    <div class="ph-stat"><b>${num(going)}</b><span>Under way</span></div>
+    <div class="ph-stat"><b>${chars >= 10000 ? `${num(Math.round(chars / 1000))}k` : num(chars)}</b><span>Characters</span></div>`;
 }
 
 /* The two ways onto the shelf, offered on the shelf itself: a file, or text
@@ -4632,80 +4644,4 @@ async function mineWords(list){
   paintAnalysis();
   await renderRail();
   toast(added ? `Added ${added} card${added === 1 ? "" : "s"} to your deck` : "Those are already in your deck");
-}
-
-/* ---------------- finding a word in the book ---------------- */
-
-/* A concordance, which is the reading equivalent of a flashcard: the same word
- * met in six different sentences by the same author teaches more about how it
- * is used than six repetitions of its gloss. Matching is on the surface string
- * rather than on the segmentation, so a search for 学 finds it inside 学习 and
- * 大学 too — which is usually what somebody looking up a character wants. */
-function findInBook(query){
-  const q = String(query).trim();
-  const host = $("#rd-hits");
-  if(q.length < 1){ host.innerHTML = ""; return; }
-
-  const hits = [];
-  outer:
-  for(let c = 0; c < R.book.chapters.length; c++){
-    const ch = R.book.chapters[c];
-    for(let b = 0; b < ch.blocks.length; b++){
-      const text = ch.blocks[b].text;
-      if(!text.includes(q)) continue;
-      /* The sentence, not the paragraph: a paragraph is too much to scan and
-         the sentence is the unit the word is actually used in. */
-      for(const sentence of text.split(/(?<=[。！？；])/)){
-        if(!sentence.includes(q)) continue;
-        hits.push({c, b, sentence: sentence.trim()});
-        if(hits.length >= 60) break outer;
-      }
-    }
-  }
-
-  if(!hits.length){
-    host.innerHTML = `<p class="pmeta" style="margin-top:11px">Not in this book.</p>`;
-    return;
-  }
-
-  const mark = s => esc(s).split(esc(q)).join(`<mark>${esc(q)}</mark>`);
-  host.innerHTML = `<p class="pmeta" style="margin:11px 0 7px">${num(hits.length)}${hits.length >= 60 ? "+" : ""}
-      sentence${hits.length === 1 ? "" : "s"}</p>
-    <div class="rd-hits">${hits.map(h => `
-      <button class="rd-hit" data-goto="${h.c}:${h.b}">
-        <span class="rd-hit-t hz">${mark(h.sentence)}</span>
-        <span class="rd-hit-c">${esc(R.book.chapters[h.c].title)}</span>
-      </button>`).join("")}</div>`;
-}
-
-/* The page a block starts on: its first fragment's column. */
-function pageOfBlock(el){
-  const cols = $("#rd-cols");
-  const rects = el.getClientRects();
-  if(!rects.length) return R.page;
-  const stride = R.colW + R.gap;
-  const x = rects[0].left - cols.getBoundingClientRect().left;   // untransformed offset
-  return clamp(Math.floor((x + 2) / stride / R.per), 0, R.pages - 1);
-}
-function goToBlock(el){
-  R.page = pageOfBlock(el);
-  applyPage();
-}
-
-/* Jump to a sentence, from the concordance. The chapter is repainted if it is
-   not the one on screen, and the paragraph is flashed rather than merely
-   scrolled to — arriving in the middle of a page with no idea which line you
-   came for is its own small failure. */
-async function gotoBlock(chapter, block){
-  if(chapter !== R.chapter){
-    R.chapter = chapter;
-    R.meta.chapter = chapter;
-    await dbPut("books", R.meta);
-    paintReader(0);
-  }
-  const el = $(`#rd-prose .blk[data-b="${block}"]`);
-  if(!el) return;
-  goToBlock(el);
-  el.classList.add("rd-flash");
-  setTimeout(() => el.classList.remove("rd-flash"), 1600);
 }

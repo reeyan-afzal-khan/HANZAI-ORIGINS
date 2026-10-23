@@ -233,11 +233,12 @@ function ctMakings(root){
   return out;
 }
 
-/* The roots worth starting from at a level, in three shelves: the radicals,
-   which give their characters a meaning (口, 扌, 氵); the sound families,
-   whose characters mostly rhyme with them (青 qīng → 请 清 情); and the
-   other parts characters are built from (艹 aside, 又, 人). Each the parts
-   the most characters are built on directly, commonest first. */
+/* The roots worth starting from at a level besides the radicals, which the
+   index has (radicals.js): the sound families, whose characters mostly rhyme
+   with them (青 qīng → 请 清 情), and the other parts characters are built
+   from (又, 人). A part that gives most of its characters their meaning is a
+   radical, and is left to the index. Each the parts the most characters are
+   built on directly, commonest first. */
 function ctShelf(){
   const lv = ctLevel();
   if(CT.shelf.has(lv)) return CT.shelf.get(lv);
@@ -257,9 +258,8 @@ function ctShelf(){
   const rank = p => (CT.g.by.get(p) || {}).rank ?? 1e9;
   for(const list of Object.values(kinds)) list.sort((a, b) => b[1] - a[1] || rank(a[0]) - rank(b[0]));
   const out = [
-    ["radicals", "Radicals", kinds.radicals.slice(0, 30)],
-    ["sounds", "Sound families", kinds.sounds.slice(0, 20)],
-    ["parts", "Other parts", kinds.parts.slice(0, 16)],
+    ["sounds", "Sound families", kinds.sounds.slice(0, 40)],
+    ["parts", "Other parts", kinds.parts.slice(0, 40)],
   ].filter(s => s[2].length);
   CT.shelf.set(lv, out);
   return out;
@@ -360,15 +360,13 @@ async function renderCharTree(){
   await ctLoadKnown();
   ctWire();
   ctDock();
-  paintCharTree();
   sizeCharTree();
   /* A first visit starts at 木, the tree, which grows the most legible tree
      there is: 林 and 森, 本 and 体, 果 and 课. One asked for from an entry
      (treeGrowFrom) goes on from the tree there was, with the way back. */
   const want = CT.next || CT.root || S.treeRoot || "木", asked = !!CT.next;
   CT.next = "";
-  const first = (ctShelf()[0] || [0, 0, [["口"]]])[2][0][0];
-  const root = CT.g.by.has(want) || CT.g.kids.has(want) ? want : first;
+  const root = CT.g.by.has(want) || CT.g.kids.has(want) ? want : "口";
   if(root !== CT.root){ ctStart(root, {fresh: !CT.root, trail: asked}); return; }
   /* the same root at another level: grown again, what was open kept open */
   CT.tree = ctGrow(CT.root);
@@ -381,78 +379,6 @@ async function renderCharTree(){
 /* Whether a key is somewhere in the tree as grown, open or not. */
 const ctPlaced = h => h === CT.root || CT.tree.parent.has(h) || ctMakingsHave(h);
 const ctMakingsHave = h => [...(CT.makes || new Map()).values()].some(list => list.includes(h));
-
-/* The bar of roots: the three shelves, or, with a query, what matches it. A
-   tile is the part, what it means — or for a sound family how it is read —
-   and how many characters are built on it. */
-function paintCharTree(){
-  if(!CT.g) return;
-  const track = $("#ct-track");
-  const q = C.query.trim();
-  const tile = (h, sub, n) => `<button class="ct-root" data-root="${esc(h)}" aria-pressed="${h === CT.root}"
-      title="${esc(h)} ${esc(ctAbout(h).en || "component")}${n ? ` · ${n} character${n === 1 ? "" : "s"} built on it` : ""}">
-      <span class="hz">${esc(h)}</span><small>${esc(sub || "")}</small>${n ? `<i>${n}</i>` : ""}</button>`;
-  const shelf = (id, name, n, tiles) => `<div class="ct-shelf" data-shelf="${id}">
-      <span class="ct-shelf-h"><b>${esc(name)}</b><small>${n}</small></span>${tiles}</div>`;
-  if(q){
-    const hit = ctMatches(q);
-    track.innerHTML = shelf("hits", "Matches", hit.length >= 40 ? "40+" : hit.length, hit.length
-      ? hit.map(h => { const a = ctAbout(h); return tile(h, a.c ? a.c.p : a.short, 0); }).join("")
-      : `<span class="ct-none-hit">Nothing matches that — try a reading such as “mu”, or a meaning.</span>`);
-  }else{
-    track.innerHTML = ctShelf().map(([id, name, list]) => shelf(id, name, list.length, list.map(([p, n]) => {
-      const a = ctAbout(p);
-      return tile(p, id === "sounds" && a.c ? a.c.p : a.short || (a.c ? a.c.p : ""), n);
-    }).join(""))).join("");
-  }
-  track.scrollLeft = 0;
-  ctBarReveal();
-  ctBarEnds();
-}
-
-/* The root's tile scrolled into the bar's view, if it is on the bar. */
-function ctBarReveal(){
-  const track = $("#ct-track"), on = track && track.querySelector('.ct-root[aria-pressed="true"]');
-  if(!on) return;
-  const a = on.offsetLeft - 56, b = on.offsetLeft + on.offsetWidth + 56;
-  if(a < track.scrollLeft) track.scrollLeft = a;
-  else if(b > track.scrollLeft + track.clientWidth) track.scrollLeft = b - track.clientWidth;
-}
-/* The bar's arrows show only where there is more to scroll to. */
-function ctBarEnds(){
-  const track = $("#ct-track"), bar = $("#croots");
-  if(!track) return;
-  bar.classList.toggle("at-start", track.scrollLeft < 4);
-  bar.classList.toggle("at-end", track.scrollLeft + track.clientWidth > track.scrollWidth - 4);
-}
-
-/* What a search in the tree finds: the characters the grid's search would,
-   best first — the character itself, then a reading typed whole (ma: 妈 马
-   吗), then one begun, then a whole English word, then any — and a part
-   typed as itself (氵, 扌), which has no entry to be found by. */
-function ctMatches(q){
-  const low = q.toLowerCase(), qp = flatPinyin(low);
-  const word = new RegExp(`(^|[^a-z])${low.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`);
-  const reads = c => [c.p, ...c.pAlt].map(flatPinyin);
-  const rank = c => c.h === low || c.t === low ? 0
-    : reads(c).includes(qp) ? 1
-    : reads(c).some(p => p.startsWith(qp)) ? 2
-    : c.en.some(e => word.test(e.toLowerCase())) ? 3 : 4;
-  const out = charsMatching(q).map((c, i) => [c, rank(c), i])
-    .sort((a, b) => a[1] - b[1] || a[2] - b[2]).slice(0, 40).map(([c]) => c.h);
-  if([...q].length === 1 && CT.g.kids.has(q) && !CT.g.by.has(q)) out.unshift(q);
-  return out;
-}
-/* Enter in the search: the first match grows its tree, and the search clears. */
-function treeSearchPick(){
-  const first = CT.g && ctMatches(C.query.trim())[0];
-  if(!first) return;
-  ctStart(first);
-  const box = $("#csearch");
-  box.value = ""; C.query = "";
-  paintCharTree();
-  box.blur();
-}
 
 /* The header's title: the way back, the trail of roots, then the root
    itself, what it means and how much grows from it. */
@@ -507,7 +433,6 @@ function sizeCharTree(){
   for(let e = stage; e; e = e.offsetParent) top += e.offsetTop;
   const want = max ? "" : `${Math.max(phone ? 440 : 400, Math.round(window.innerHeight - top - pad))}px`;
   const wide = el.clientWidth;
-  ctBarEnds();
   if(stage.style.height === want && CT.wide === wide && CT.high === el.clientHeight) return;
   stage.style.height = want;
   CT.wide = el.clientWidth;
@@ -553,8 +478,7 @@ function ctStart(root, opts = {}){
   ctFit(opts.fresh ? 0 : 520);
   ctPaintHead();
   ctPaintInsp();
-  for(const b of $$("#ct-track .ct-root")) b.setAttribute("aria-pressed", String(b.dataset.root === root));
-  ctBarReveal();
+  paintIndexRoot();
 }
 
 /* A tree opens itself on arrival as far as it can while the whole of it
@@ -1434,6 +1358,7 @@ function ctSelect(key, opts = {}){
   ctPaintInsp();
   if(key && opts.focus){ const r = CT.recs.get(key); if(r) r.el.focus({preventScroll: true}); }
   if(key && opts.reveal !== false) ctReveal(key);
+  paintIndexSel();
 }
 
 /* A character's branch opened or folded. Opened, a character in a group
@@ -1505,7 +1430,7 @@ function ctEnsure(key){
    takes the whole window, G grows a tree from the tile picked and Backspace
    goes back along the trail. */
 function treeKey(e){
-  if(S.view !== "chars" || S.charView !== "tree" || !CT.lay || C.query.trim()) return false;
+  if(S.view !== "chars" || S.charView !== "tree" || !CT.lay) return false;
   const k = e.key, onButton = e.target && e.target.closest && e.target.closest("button");
   if(k === "+" || k === "="){ e.preventDefault(); ctZoomBy(1.25); return true; }
   if(k === "-" || k === "_"){ e.preventDefault(); ctZoomBy(.8); return true; }
@@ -2001,25 +1926,6 @@ function ctWire(){
     const swap = () => { CT.insp = ""; ctPaintInsp(); };
     if(mq.addEventListener) mq.addEventListener("change", swap);
   }
-
-  /* The bar of roots: a tile grows its tree; the arrows, and a mouse's wheel,
-     slide it. */
-  const bar = $("#croots"), track = $("#ct-track");
-  bar.addEventListener("click", e => {
-    const nav = e.target.closest("[data-bar]");
-    if(nav){ track.scrollBy({left: +nav.dataset.bar * track.clientWidth * .8, behavior: REDUCED() ? "auto" : "smooth"}); return; }
-    const b = e.target.closest("button[data-root]");
-    if(!b) return;
-    const searching = !!C.query.trim();
-    ctStart(b.dataset.root, {trail: false});
-    if(searching){ const q = $("#csearch"); q.value = ""; C.query = ""; paintCharTree(); }
-  });
-  track.addEventListener("scroll", ctBarEnds, {passive: true});
-  track.addEventListener("wheel", e => {
-    if(e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || track.scrollWidth <= track.clientWidth) return;
-    e.preventDefault();
-    track.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 18 : 1);
-  }, {passive: false});
 }
 
 /* A card added or taken out — from the panel, an entry the tree or the
@@ -2029,7 +1935,7 @@ function treeDeckChanged(){
   if(S.view !== "chars") return;
   if(S.charView === "grid") return ctLoadKnown().then(() => paintChars());
   if(!CT.tree) return;
-  return ctLoadKnown().then(() => { ctRender(0); ctPaintInsp(); paintCharsHead(); });
+  return ctLoadKnown().then(() => { ctRender(0); ctPaintInsp(); paintCharsHead(); paintIndex(); });
 }
 
 /* "Explore in the tree", from an entry: the Characters tab in tree form,

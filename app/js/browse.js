@@ -290,7 +290,7 @@ async function openWord(id){
 
 /* the 3,000 characters, and one character in detail. */
 
-const C = {level:"1", query:"", sort:"syllabus", limit:300, all:null, status:"all", sel:"",
+const C = {level:"1", sort:"syllabus", limit:300, all:null, status:"all", sel:"",
            shown:[], writer:null, panelKey:""};
 /* From this width the character picked opens in a panel beside the grid, as
    Grammar's point does beside its list; below it a cell opens the entry. */
@@ -336,6 +336,7 @@ async function renderChars(){
     <button class="fchip" data-reach="all" aria-pressed="${!level}" title="Through every level, the ones above yours drawn locked">Every level</button>
     <button class="fchip" data-reach="level" aria-pressed="${level}" title="Only as far as your level">Up to HSK ${levelLabel(C.level)}</button></span>`;
   if(!C.all) C.all = await getChars();
+  await rxLoad();
   /* what you have met, for the header's count and the grid's marks; the
      graph, for what the panel says each part does */
   if(!CT.g) CT.g = ctGraph(C.all);
@@ -344,32 +345,18 @@ async function renderChars(){
   if(S.charView === "tree") await renderCharTree();
 }
 
-/* The characters a search finds: by the character itself, by a reading typed
-   with or without its tones, or by a word of the meaning. */
-function charsMatching(query){
-  const q = String(query || "").trim().toLowerCase(), qp = flatPinyin(q);
-  if(!q || !C.all) return [];
-  return C.all.filter(c =>
-    c.h === q || c.t === q ||
-    flatPinyin(c.p).startsWith(qp) ||
-    c.pAlt.some(p => flatPinyin(p).startsWith(qp)) ||
-    c.en.some(e => e.toLowerCase().includes(q)));
-}
-
 /* The page's header: what the view is, and how far into the level you are —
    how many of its characters you have met and mastered, and the share met on
-   a ring. The level's, whatever the search, since the level is what you are
-   working through. */
-function paintCharsHead(found = null){
+   a ring. */
+function paintCharsHead(){
   if(!C.all) return;
-  const q = C.query.trim(), tree = S.charView === "tree", L = levelLabel(C.level);
+  const tree = S.charView === "tree", L = levelLabel(C.level);
   const lv = C.all.filter(c => c.lv === C.level);
   const met = lv.filter(c => ctKnown(c.h) > 0).length, mastered = lv.filter(c => ctKnown(c.h) === 2).length;
   const share = lv.length ? met / lv.length : 0;
   $("#csub").innerHTML = tree
-    ? `How characters grow from the parts they are built on: pick a family below, or search for any character.`
-    : q ? (found ? `<b>${num(found)}</b> character${found === 1 ? "" : "s"} match “${esc(q)}”, across every level.` : `No character matches “${esc(q)}”.`)
-    : `Stroke order, readings and how each one is built, for the 3,000 characters of the standard.`;
+    ? `How characters grow from the parts they are built on. Pick a radical below, then a character, to see where it sits.`
+    : `Stroke order, readings and how each one is built, for the 3,000 characters of the standard. Any of them is a radical and a stroke count away in the index below.`;
   $("#cstats").innerHTML = `
     <div class="ph-ring" title="${Math.round(share * 100)}% of HSK ${esc(L)} met">
       <svg viewBox="0 0 40 40" aria-hidden="true"><circle class="ph-ring-t" cx="20" cy="20" r="16.5"/>${share
@@ -382,39 +369,29 @@ function paintCharsHead(found = null){
 }
 
 function paintChars(){
-  const q = C.query.trim().toLowerCase();
   const tree = S.charView === "tree";
   $("#v-chars").classList.toggle("treeview", tree);
   $("#cstage").classList.toggle("hidden", tree);
   $("#ctstage").classList.toggle("hidden", !tree);
-  $("#croots").classList.toggle("hidden", !tree);
   $("#creach").classList.toggle("hidden", !tree);
   $("#cgridbar").classList.toggle("hidden", tree);
-  /* The tree keeps its level while a search runs: the level is what it grows to. */
-  $("#clevels").classList.toggle("hidden", !!q && !tree);
-  if(tree){
-    paintCharsHead();
-    paintCharTree();
-    return;
-  }
+  paintCharsHead();
+  paintIndex();
+  if(tree) return;
 
-  const base = q ? charsMatching(q) : C.all.filter(c => c.lv === C.level);
-  paintCharsHead(base.length);
+  const base = C.all.filter(c => c.lv === C.level);
 
   /* The tabs over the grid, each with how many it holds. A tab left empty by
-     a new level or search hands back to All. */
+     a new level hands back to All. */
   const counts = {all: base.length, new: 0, learning: 0, mastered: 0};
   for(const c of base) counts[cStatus(c.h)]++;
   if(C.status !== "all" && !counts[C.status]) C.status = "all";
   $("#cstatus").innerHTML = CSTATUS.map(([k, nm]) => `<button class="ptab" data-status="${k}" aria-pressed="${C.status === k}"${
     k !== "all" && !counts[k] ? " disabled" : ""}>${nm}<small>${num(counts[k])}</small></button>`).join("");
 
-  /* A search spans the levels, so it is headed by level, in the order picked
-     within each. */
-  const cmp = SORTS[C.sort].cmp;
   const list = (C.status === "all" ? base : base.filter(c => cStatus(c.h) === C.status))
-    .slice().sort(q ? (a, b) => (+a.lv - +b.lv) || cmp(a, b) : cmp);
-  const sec = q ? c => `HSK ${levelLabel(c.lv)}` : SORTS[C.sort].sec;
+    .slice().sort(SORTS[C.sort].cmp);
+  const sec = SORTS[C.sort].sec;
   const total = new Map();
   for(const c of list){ const k = sec(c); total.set(k, (total.get(k) || 0) + 1); }
 
@@ -430,28 +407,25 @@ function paintChars(){
       html += `<div class="csec"><b>${esc(k)}</b><i aria-hidden="true"></i><small>${num(total.get(k))}</small></div>`;
       last = k;
     }
-    html += cCellHTML(c, q);
+    html += cCellHTML(c);
   }
   $("#cgrid").innerHTML = shown.length ? html
-    : `<div class="empty" style="grid-column:1/-1">${q ? "No characters match that." : "None here yet."}</div>`;
+    : `<div class="empty" style="grid-column:1/-1">None here yet.</div>`;
 
   const more = list.length > C.limit;
   $("#cmore").classList.toggle("hidden", !more);
   if(more) $("#cmore").textContent = `Show more (${num(list.length - C.limit)} left)`;
-  settleList("#clist", `${C.level}|${C.query}|${C.sort}|${C.status}`);
+  settleList("#clist", `${C.level}|${C.sort}|${C.status}`);
   paintCharPanel();
 }
 
 /* A cell: the character, its reading and the first of its senses; a tick
-   once it is met, a star once mastered; in a search, which spans the
-   levels, its level on a plate in the level's colour; in frequency order,
-   its rank. */
-function cCellHTML(c, q){
+   once it is met, a star once mastered; in frequency order, its rank. */
+function cCellHTML(c){
   const k = ctKnown(c.h);
   return `<button class="cell v${c.lv}${k === 2 ? " mastered" : k ? " met" : ""}${cWide() && C.sel === c.h ? " on" : ""}" data-csel="${esc(c.h)}"
     title="${esc(c.h)} ${esc(c.p)} — ${esc(c.en.slice(0, 2).join("; "))}${c.rank ? ` · frequency #${c.rank}` : ""}">
-    ${!q && C.sort === "frequency" && c.rank ? `<span class="cr">#${c.rank}</span>` : ""}
-    ${q ? `<span class="clv">${esc(levelLabel(c.lv))}</span>` : ""}
+    ${C.sort === "frequency" && c.rank ? `<span class="cr">#${c.rank}</span>` : ""}
     ${k ? `<span class="cst">${k === 2 ? CT_STAR : CT_TICK}</span>` : ""}
     <span class="ch">${esc(c.h)}</span>
     <span class="cp">${esc(c.p)}</span>
@@ -515,7 +489,7 @@ function paintCharPanel(){
   el.hidden = !on;
   $("#cstage").classList.toggle("with-panel", on);
   if(!on){ el.innerHTML = ""; C.writer = null; C.panelKey = ""; return; }
-  const key = [c.h, ctKnown(c.h), CT.deck.get(c.h) || 0, S.level, C.shown.indexOf(c.h), C.shown.length, C.query].join("|");
+  const key = [c.h, ctKnown(c.h), CT.deck.get(c.h) || 0, S.level, C.shown.indexOf(c.h), C.shown.length].join("|");
   if(C.panelKey === key) return;
   C.panelKey = key;
   el.innerHTML = cPanelHTML(c);
@@ -538,7 +512,7 @@ function cPanelHTML(c){
     : inDeck ? `<span class="ct-chip met">${CT_TICK}In your deck</span>`
     : known ? `<span class="ct-chip met">${CT_TICK}In your words</span>`
     : +c.lv > +S.level ? `<span class="ct-chip lock">${CT_LOCK}Above your level</span>` : "";
-  const at = C.shown.indexOf(c.h), q = C.query.trim();
+  const at = C.shown.indexOf(c.h);
   const ops = [...String(c.dec || "")].filter(x => IDS[x]);
   const built = c.comp.length ? `<section class="ct-i-sec">
       <h4 class="ct-i-h"><span>How it is built</span>${ops.length ? `<small>${esc(IDS[ops[0]])}</small>` : ""}</h4>
@@ -560,7 +534,7 @@ function cPanelHTML(c){
     c.rad ? `<span>radical <b class="hz">${esc(c.rad)}</b></span>` : "", c.inWords ? `<span>in <b>${num(c.inWords)}</b> words</span>` : ""].filter(Boolean).join("");
   return `
     <div class="ct-i-scroll">
-      <div class="ct-i-kicker">${q ? `Match ${num(at + 1)} of ${num(C.shown.length)}` : `HSK ${esc(levelLabel(c.lv))} · ${num(at + 1)} of ${num(C.shown.length)}`}</div>
+      <div class="ct-i-kicker">HSK ${esc(levelLabel(c.lv))} · ${num(at + 1)} of ${num(C.shown.length)}</div>
       <div class="ct-i-hero">
         <div class="ct-i-glyph">
           <svg class="ct-i-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0v100M0 50h100M0 0l100 100M100 0 0 100"/></svg>
@@ -829,7 +803,7 @@ const closeWriting = () => closeDialog($("#writing"));
    picked is open beside the list, which keeps its place, and the arrows step
    through them; on a narrow one a row opens the sheet. */
 
-const G = {level:"1", query:"", all:null, sel:0, deck:new Set(), sec:""};
+const G = {level:"1", all:null, sel:0, deck:new Set(), sec:""};
 const gWide = () => !!window.matchMedia && matchMedia("(min-width:1100px)").matches;
 
 async function renderGrammar(){
@@ -844,14 +818,9 @@ async function gLoadDeck(){
   G.deck = new Set((await dbAll("cards")).filter(c => c.kind === "grammar").map(c => +c.ref));
 }
 
-/* The points a level holds, or a search finds across every level; and of
-   those, the ones on show — all, or one of the standard's sections. */
-function gAll(){
-  const q = G.query.trim().toLowerCase();
-  if(!q) return G.all.filter(g => g.lv === G.level);
-  return G.all.filter(g => [g.title, g.summary, g.topic, g.topicZh, g.category, g.categoryZh, g.content]
-    .join(" ").toLowerCase().includes(q));
-}
+/* The points a level holds; and of those, the ones on show — all, or one of
+   the standard's sections. */
+const gAll = () => G.all.filter(g => g.lv === G.level);
 function gList(){
   const all = gAll();
   return G.sec ? all.filter(g => g.group === G.sec) : all;
@@ -862,12 +831,10 @@ function gList(){
 const gZh = s => esc(s).replace(/[\p{Script=Han}][\p{Script=Han}…·、／/]*/gu, m => `<span class="hz">${m}</span>`);
 
 function paintGrammar(){
-  const q = G.query.trim().toLowerCase();
   const all = gAll();
-  $("#glevels").classList.toggle("hidden", !!q);
-  paintGrammarHead(all.length);
+  paintGrammarHead();
 
-  /* The standard's sections this level (or search) touches, in its order,
+  /* The standard's sections this level touches, in its order,
      each a tab with how many points it holds. A tab a new level leaves empty
      hands back to All. */
   const secs = [];
@@ -885,33 +852,29 @@ function paintGrammar(){
   if(gWide() && list.length && !list.some(g => g.id === G.sel)) G.sel = list[0].id;
 
   /* The rows under the standard's headings, a heading for each run of points
-     a section holds — or, for a search, which spans the levels, under each
-     level. */
-  const head = g => q ? `HSK ${levelLabel(g.lv)}` : g.group;
+     a section holds. */
   const runs = [];
   for(const g of list){
     const last = runs[runs.length - 1];
-    if(last && last.h === head(g)) last.list.push(g); else runs.push({h: head(g), zh: q ? "" : g.groupZh, list: [g]});
+    if(last && last.h === g.group) last.list.push(g); else runs.push({h: g.group, zh: g.groupZh, list: [g]});
   }
   $("#grows").innerHTML = list.length ? runs.map(r => `
     <div class="gsec"><b>${esc(r.h)}</b>${r.zh ? `<span class="hz">${esc(r.zh)}</span>` : ""}<small>${num(r.list.length)}</small></div>
-    ${r.list.map(g => gRowHTML(g, q)).join("")}`).join("")
-    : `<div class="empty">Nothing matches that.<br>Try an English keyword such as “complement”, or a Chinese pattern.</div>`;
-  settleList("#glist", `${G.level}|${G.query}|${G.sec}`);
+    ${r.list.map(g => gRowHTML(g)).join("")}`).join("")
+    : `<div class="empty">No points at this level yet.</div>`;
+  settleList("#glist", `${G.level}|${G.sec}`);
   paintGrammarPoint();
 }
 
 /* The page's header: what it holds, and how far into the level you are —
    its points, how many are explained, how many are in your deck, and that
-   share on a ring. A search says what it found. */
-function paintGrammarHead(found){
-  const q = G.query.trim(), L = levelLabel(G.level);
+   share on a ring. */
+function paintGrammarHead(){
+  const L = levelLabel(G.level);
   const lv = G.all.filter(g => g.lv === G.level);
   const done = lv.filter(g => g.summary).length, mine = lv.filter(g => G.deck.has(g.id)).length;
   const share = lv.length ? mine / lv.length : 0;
-  $("#gsub").innerHTML = q
-    ? (found ? `<b>${num(found)}</b> point${found === 1 ? "" : "s"} match “${esc(q)}”, across every level.` : `No point matches “${esc(q)}”.`)
-    : done ? `The standard's ${num(G.all.length)} points under its own headings: what each one does, with examples of it in use.`
+  $("#gsub").innerHTML = done ? `The standard's ${num(G.all.length)} points under its own headings: what each one does, with examples of it in use.`
     : `HSK ${esc(L)}'s points are listed as the standard gives them; their explanations are still to be written.`;
   $("#gstats").innerHTML = `
     <div class="ph-ring" title="${Math.round(share * 100)}% of HSK ${esc(L)} in your deck">
@@ -926,12 +889,12 @@ function paintGrammarHead(found){
 
 /* A row: the point's number, its title, the first line of what it says, its
    category, and a tick once it is in the deck. */
-const gRowHTML = (g, q) => `
+const gRowHTML = g => `
   <button class="grow${gWide() && G.sel === g.id ? " on" : ""}" data-gsel="${g.id}">
     <span class="gno">${g.id}</span>
     <span class="gt">${gZh(g.title)}</span>
     <span class="gs">${gZh(g.summary || g.content || `${g.group} · ${g.category}`)}</span>
-    <span class="gx"><span class="gcat">${esc(g.category)}</span>${q ? lvChip(g.lv) : ""}${G.deck.has(g.id) ? `<span class="gdk" title="In your deck">${CT_TICK}</span>` : ""}</span>
+    <span class="gx"><span class="gcat">${esc(g.category)}</span>${G.deck.has(g.id) ? `<span class="gdk" title="In your deck">${CT_TICK}</span>` : ""}</span>
   </button>`;
 
 /* The point picked, open beside the list. */

@@ -23,6 +23,7 @@ export const DICT = {
   glosses: `${DATA}/dictionary/glosses.json`,
   chardict: `${DATA}/dictionary/chardict.json`,
   charextra: `${DATA}/dictionary/charextra.json`,
+  radicals: `${DATA}/dictionary/radicals.json`,
 }
 
 export const TALK = {

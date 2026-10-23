@@ -387,13 +387,6 @@ $("#help").addEventListener("click", e => { if(e.target === $("#help")) closeDia
 
 
 /* ---------------- browsers ---------------- */
-/* The lists' searches paint once the typing pauses (as Talk's does): on a
-   phone every key — every step of a pinyin composition — repainting a list
-   of hundreds is typing that lags behind the fingers. Clearing the box
-   paints at once. */
-const typed = (paint, ms = 90) => { let t = 0; return value => { clearTimeout(t); if(!value) paint(); else t = setTimeout(paint, ms); }; };
-const paintCharsSoon = typed(() => paintChars()), paintGrammarSoon = typed(() => paintGrammar());
-$("#csearch").addEventListener("input", e => { C.query = e.target.value; C.limit = 300; paintCharsSoon(C.query); });
 $("#cmore").onclick = () => { C.limit += 300; paintChars(); };
 $("#cview").onclick = e => {
   const b = e.target.closest("button[data-cv]");
@@ -405,10 +398,6 @@ $("#creach").onclick = e => {
   S.treeReach = b.dataset.reach; save();
   safely("grow the tree", renderChars);
 };
-/* Enter in the search, with the tree up, grows the tree from the first match. */
-$("#csearch").addEventListener("keydown", e => {
-  if(e.key === "Enter" && S.charView === "tree" && C.query.trim()){ e.preventDefault(); treeSearchPick(); }
-});
 $("#csort").onclick = e => {
   const b = e.target.closest("button[data-s]");
   if(!b) return;
@@ -430,7 +419,6 @@ $("#v-chars").addEventListener("click", e => {
   if(e.target.closest('[data-cp="strokes"]') && C.writer) C.writer.animate();
 });
 
-$("#gsearch").addEventListener("input", e => { G.query = e.target.value; paintGrammarSoon(G.query); });
 /* All of a level's points, or one of the standard's sections. */
 $("#gsecs").onclick = e => {
   const b = e.target.closest("button[data-gsec]");
@@ -454,13 +442,13 @@ if(window.matchMedia){
 }
 
 /* ---------------- talk ---------------- */
-let tkTimer = 0;
-$("#tksearch").addEventListener("input", e => {
-  clearTimeout(tkTimer);
-  TK.query = e.target.value;
-  tkTimer = setTimeout(() => safely("search the questions", renderTalk), 140);
-});
-$("#tk-browse").onclick = () => { TK.browse = !TK.browse; safely("browse the questions", renderTalk); };
+/* The decks, or the whole bank to browse and filter. */
+$("#tk-view").onclick = e => {
+  const b = e.target.closest("button[data-tkv]");
+  if(!b || (b.dataset.tkv === "browse") === TK.browse) return;
+  TK.browse = b.dataset.tkv === "browse";
+  safely("browse the questions", renderTalk);
+};
 $("#tk-level").onclick = () => {
   S.talkLevelOnly = !S.talkLevelOnly; save();
   toast(S.talkLevelOnly ? `Only questions readable at HSK ${levelLabel(S.level)}` : "Every question");
@@ -516,11 +504,10 @@ $("#talk-browse").addEventListener("click", e => {
 });
 $("#tk-clearf").onclick = () => {
   TK.fSens.clear(); TK.fStage.clear(); TK.fFreq = 0; TK.fLevel = false; TK.fSort = "freq";
-  TK.query = ""; $("#tksearch").value = "";
   paintTalkFilters(); safely("search the questions", talkSearch);
 };
 $("#tk-more").onclick = () => { TK.shown = Math.min(TK.results.length, TK.shown + TK_PAGE); paintTalkHits(); };
-$("#tk-practice").onclick = () => talkPractise(TK.results, TK.query.trim() ? `“${TK.query.trim()}”` : "Your selection");
+$("#tk-practice").onclick = () => talkPractise(TK.results, "Your selection");
 $("#tk-random").onclick = () => { const q = TK.results[Math.floor(Math.random() * TK.results.length)]; if(q) talkOpenQuestion(q[Q.ID]); };
 /* Everything on the decks screen that opens, resumes or starts a run. */
 $("#v-talk").addEventListener("click", e => {
@@ -712,26 +699,6 @@ $("#r-rdsize").addEventListener("input", e => {
   sizeTimer = setTimeout(() => { if(R.book) paginate(); }, 120);
 });
 $("#rd-contents").onclick = () => showContents();
-$("#rd-find-btn").onclick = () => {
-  const panel = $("#rd-find");
-  const shown = !panel.classList.toggle("hidden");
-  $("#rd-find-btn").setAttribute("aria-expanded", String(shown));
-  $("#rd-find-btn").classList.toggle("on", shown);
-  sizeReader();
-  if(shown) $("#rd-q").focus();
-};
-let findTimer = 0;
-$("#rd-q").addEventListener("input", e => {
-  clearTimeout(findTimer);
-  const q = e.target.value;
-  findTimer = setTimeout(() => safely("search this book", () => { findInBook(q); sizeReader(); }), 160);
-});
-$("#rd-hits").addEventListener("click", e => {
-  const b = e.target.closest("[data-goto]");
-  if(!b) return;
-  const [c, blk] = b.dataset.goto.split(":").map(Number);
-  safely("go to that sentence", () => gotoBlock(c, blk));
-});
 $("#rd-analyse").onclick = () => safely("read through the text", openAnalysis);
 $("#rd-mark").onclick = e => {
   const b = e.target.closest("button[data-mark]");
@@ -1033,7 +1000,7 @@ $("#rc-who").onclick = showProfiles;
 
 /* ---------------- keyboard ---------------- */
 const HELP = [
-  ["Anywhere", [["1 – 6", "Jump to a section"], ["/", "Search this section"], ["[", "Fold or unfold the sidebar"], ["?", "This list"], ["Esc", "Close a dialog, or clear a search"]]],
+  ["Anywhere", [["1 – 6", "Jump to a section"], ["[", "Fold or unfold the sidebar"], ["?", "This list"], ["Esc", "Close a dialog"]]],
   ["The character grid", [["← → ↑ ↓", "Move across the grid, beside the character open"], ["Enter", "Open its full entry"]]],
   ["The character tree", [["← → ↑ ↓", "Walk the tree: along a branch, back to the root, between siblings"], ["Enter", "Open the entry of the tile picked"], ["Space", "Open or fold its branch"], ["G", "Grow a tree from the tile picked"], ["Backspace", "Back to the root before"], ["+ −", "Zoom in and out"], ["0", "Fit the whole tree"], ["F", "Fill the window with the tree, and back"], ["Esc", "Put the tile down"]]],
   ["Talking",   [["→", "Deeper — one level down"], ["←", "Lighter — back off a level"], ["Space", "Another question like this one"], ["X", "Skip this one"], ["S", "Save it for later"], ["C", "Copy it — the Chinese, then the English"], ["R", "Reveal the other language"], ["B", "Back to the previous card"]]],
@@ -1136,13 +1103,6 @@ document.addEventListener("keydown", e => {
     e.preventDefault(); e.target.click(); return;
   }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-  /* Escape in a search box: an empty box gives the keyboard back; one with a
-     query in it clears the query first, and the list follows. */
-  if(e.key === "Escape" && e.target.matches && e.target.matches('input[type="search"]')){
-    if(e.target.value){ e.target.value = ""; e.target.dispatchEvent(new Event("input", {bubbles: true})); }
-    else e.target.blur();
-    return;
-  }
   /* Escape with the reading settings open puts them away, even from the
      text-size slider, which is an input and would otherwise keep the key. */
   if(e.key === "Escape" && !$("#rd-panel").classList.contains("hidden") && !$("#detail").open){
@@ -1152,12 +1112,6 @@ document.addEventListener("keydown", e => {
 
   if(e.key === "?"){ e.preventDefault(); showHelp(); return; }
   if(e.key === "[" && !$("#detail").open){ e.preventDefault(); setRail(!S.railMin); return; }
-  /* Slash to search: whichever search box the view on screen has. */
-  if(e.key === "/"){
-    const box = $(`#v-${S.view} input[type="search"]`);
-    if(box && box.offsetParent){ e.preventDefault(); box.focus(); box.select(); }
-    return;
-  }
   /* Escape with a word sheet up puts the sheet away and nothing else. Caught
      here, at keydown, as well as on the dialog's cancel event: cancel is at
      the browser's discretion — it can skip it when it judges there was no

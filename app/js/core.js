@@ -115,6 +115,9 @@ let S = {
   charView:"tree", treeRoot:"", treeReach:"all",
   /* The panel beside the tree on a wide screen: shown, or put away. */
   treeInsp:true,
+  /* The tab's radical index (radicals.js): the radical whose characters it
+     shows, "" for the radicals; and whether it shows every row or a few. */
+  charRad:"", charIdxTall:false,
 };
 try{
   const raw = localStorage.getItem(LS);

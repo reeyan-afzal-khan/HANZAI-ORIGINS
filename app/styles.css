@@ -1296,9 +1296,6 @@ body.selecting .prose{cursor:text}
 .cell .cp{font-size:11px;color:var(--muted);font-style:italic;max-width:100%;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .cell .ce{margin-top:1px;font-size:10.5px;color:var(--ink-soft);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cell .clv{position:absolute;top:6px;right:6px;min-width:18px;height:16px;padding:0 5px;border-radius:8px;
-  font:700 9px/16px var(--font-ui);background:var(--lvc);color:#fff}
-:root[data-mode="dark"] .cell .clv{color:var(--void)}
 .cell .cst{position:absolute;top:6px;left:6px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;
   border:1.5px solid var(--acc);color:var(--acc);background:var(--surface)}
 .cell .cst svg,.cstat svg{width:9px;height:9px}
@@ -1326,48 +1323,6 @@ body.selecting .prose{cursor:text}
 .cview{flex:none}
 .cview button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 15px}
 .cview svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-
-/* The bar of roots: shelves of tiles in one row that slides sideways — each
-   shelf headed by its name and size, a line between shelves, and an arrow at
-   either end only where there is more to slide to. A tile is the part, what
-   it means (or for a sound family how it reads), and its count in a badge. */
-.ct-bar{position:relative;display:flex;align-items:stretch;margin-top:-8px;min-width:0;
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
-.ct-track{position:relative;flex:1;min-width:0;display:flex;align-items:stretch;gap:18px;overflow-x:auto;overscroll-behavior-x:contain;
-  scrollbar-width:none;padding:10px 16px 9px}
-.ct-track::-webkit-scrollbar{display:none}
-.ct-shelf{display:flex;align-items:stretch;gap:7px;flex:none}
-.ct-shelf + .ct-shelf{padding-left:18px;border-left:1px solid var(--line)}
-.ct-shelf-h{display:flex;flex-direction:column;justify-content:center;gap:4px;padding-right:5px;min-width:64px}
-.ct-shelf-h b{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);line-height:1.3;max-width:84px}
-.ct-shelf-h small{font-size:10.5px;color:var(--muted);opacity:.75;font-variant-numeric:tabular-nums}
-.ct-root{position:relative;flex:none;width:60px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  border-radius:12px;border:1px solid var(--line);color:var(--ink);text-align:center;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 70%, var(--surface)), var(--surface-2));
-  transition:border-color .14s ease,background-color .14s ease,box-shadow .14s ease,transform .08s ease,translate .2s var(--ease)}
-@media (hover:hover){.ct-root:hover{border-color:var(--acc);background:var(--surface);translate:0 -2px}}
-.ct-root:active{transform:translateY(1px)}
-.ct-root:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:12px}
-.ct-root .hz{font-size:22px;line-height:1.05}
-.ct-root small{font-size:9.5px;color:var(--muted);max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
-.ct-root i{position:absolute;top:-7px;right:-7px;min-width:19px;height:17px;padding:0 5px;border-radius:9px;
-  font:700 9px/15px var(--font-ui);font-style:normal;text-align:center;font-variant-numeric:tabular-nums;
-  background:var(--surface);border:1px solid var(--line);color:var(--muted)}
-.ct-root[aria-pressed="true"]{background:var(--acc);border-color:transparent;color:var(--on-acc);
-  box-shadow:0 1px 2px rgba(0,0,0,.25),0 0 0 3px color-mix(in srgb, var(--acc) 20%, transparent);animation:ct-pick .36s var(--ease)}
-/* the root picked springs into place on the bar */
-@keyframes ct-pick{0%{scale:.84}60%{scale:1.07}100%{scale:1}}
-html.still .ct-root[aria-pressed="true"]{animation:none}
-.ct-root[aria-pressed="true"] small{color:inherit;opacity:.85}
-.ct-root[aria-pressed="true"] i{background:var(--on-acc);color:var(--acc);border-color:transparent}
-.ct-none-hit{align-self:center;font-size:12px;color:var(--muted);white-space:nowrap}
-.ct-nav{position:absolute;top:0;bottom:0;z-index:1;width:46px;display:grid;place-items:center;color:var(--ink-soft);
-  transition:opacity .16s ease,color .14s ease}
-.ct-nav.ct-prev{left:0;border-radius:var(--r) 0 0 var(--r);background:linear-gradient(90deg, var(--surface) 50%, transparent)}
-.ct-nav.ct-next{right:0;border-radius:0 var(--r) var(--r) 0;background:linear-gradient(270deg, var(--surface) 50%, transparent)}
-.ct-nav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@media (hover:hover){.ct-nav:hover{color:var(--acc)}}
-.ct-bar.at-start .ct-nav.ct-prev,.ct-bar.at-end .ct-nav.ct-next{opacity:0;pointer-events:none}
 
 /* The stage: the canvas, and beside it, where the window is wide enough and
    the reader has not put it away, the panel that tells about the tile
@@ -1796,12 +1751,6 @@ body.ct-max #v-chars::before{content:"";position:fixed;inset:0;z-index:59;backgr
   .wrap:has(#v-chars:not(.hidden) #ctstage:not(.hidden)){padding-bottom:12px}
   .cview button{padding:0 12px}
   .cview span{display:none}
-  .ct-track{padding:8px 10px 7px;gap:12px}
-  .ct-shelf{gap:6px}
-  .ct-shelf + .ct-shelf{padding-left:12px}
-  .ct-shelf-h{min-width:54px}
-  .ct-root{width:54px;height:52px}
-  .ct-nav{display:none}
   .ct-tiers{display:none}
   .ct-title{max-width:calc(100% - 120px)}
   .ct-tool[aria-label="Levels"]{display:none}
@@ -2746,24 +2695,6 @@ body.immersive .wrap{padding:8px 10px 10px;--wrap-y:18px;gap:9px}
   .prose{--rd-size:22px}
 }
 
-/* ---------- the concordance ---------- */
-.rd-hits{display:flex;flex-direction:column;gap:1px;max-height:min(46vh,420px);overflow-y:auto}
-.rd-hit{display:grid;gap:2px;padding:9px 2px;border-bottom:1px solid var(--line);width:100%}
-.rd-hit:last-child{border-bottom:none}
-@media (hover:hover){.rd-hit:hover{background:var(--surface-2)}}
-.rd-hit-t{font-size:14px;line-height:1.75;color:var(--ink-soft)}
-.rd-hit-t mark{background:var(--acc-wash);color:var(--acc);border-radius:3px;padding:0 2px}
-.rd-hit-c{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
-@media (hover:hover){.rd-hit:hover .rd-hit-t{color:var(--ink)}}
-
-/* Arriving from the concordance, the paragraph says which one it was. Without
-   it you land mid-page with no idea which line you came for. */
-@keyframes rdflash{
-  from{background:var(--acc-wash);box-shadow:0 0 0 6px var(--acc-wash)}
-  to{background:transparent;box-shadow:0 0 0 6px transparent}
-}
-.prose .blk.rd-flash{animation:rdflash 1.6s ease-out;border-radius:6px}
-
 /* ---------- continue reading ---------- */
 /* A card, not a row: it is the one thing on the home screen that is not about
    the deck, and it has to be findable at a glance among things that are. */
@@ -3002,16 +2933,6 @@ html.still body.locked .wrap{filter:blur(10px)}
 /* Tighter than the other views' rhythm: these are small cards, not tables. */
 #talk-idle,#talk-home,#talk-browse{gap:12px}
 @media (min-width:900px){#talk-idle,#talk-home,#talk-browse{gap:14px}}
-/* The search and its two switches share a line where there is room. */
-/* A search and its chips on one line: the ceiling every browsing tab
-   shares (Talk, Read), so the tabs start at the same height. */
-.searchrow,.talk-search{display:flex;flex-direction:column;gap:8px}
-.searchrow .search,.searchrow .filters,.talk-search .search,.talk-search .filters{margin:0}
-@media (min-width:700px){
-  .searchrow,.talk-search{flex-direction:row;align-items:center;gap:10px}
-  .searchrow .search,.talk-search .search{flex:1;min-width:0}
-  .searchrow .filters,.talk-search .filters{flex:none;flex-wrap:nowrap}
-}
 /* The question of the day and the person box pair up as soon as there is
    room; the options and the topics do the same. */
 .talk-top,.talk-two{display:flex;flex-direction:column;gap:12px}
@@ -3182,7 +3103,7 @@ html.still body.locked .wrap{filter:blur(10px)}
   #main .filters::-webkit-scrollbar{display:none}
   #main .filters > *{flex:none}
   #main .filters > .lbl{flex:0 0 auto;min-width:64px;margin-right:2px}
-  #main section > .filters,#main .filterrow > .filters,#main .searchrow > .filters,#main .talk-search > .filters{
+  #main section > .filters,#main .filterrow > .filters{
     margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}
   .filterrow{gap:10px}
   /* On a phone the page scrolls, not the list inside it: sizeScroller leaves
@@ -3604,20 +3525,9 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
   font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 .ph-ring small{font-size:9px;font-weight:700;color:var(--muted);margin-left:1px}
 
-/* --- the tools: the search, the level, the view --- */
+/* --- the tools: the level on the left, the view's own switches on the right --- */
 .ptools{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
-.psearch{position:relative;flex:1 1 190px;min-width:0;display:flex;align-items:center}
-.psearch > svg{position:absolute;left:14px;width:17px;height:17px;fill:none;stroke:var(--muted);stroke-width:1.9;
-  stroke-linecap:round;pointer-events:none;transition:stroke .15s ease}
-.psearch .search{height:42px;padding:0 44px 0 41px;border-radius:11px;font-size:13.5px;
-  transition:border-color .15s ease,box-shadow .15s ease}
-.psearch .search:focus{border-color:var(--acc-dim);box-shadow:0 0 0 3px color-mix(in srgb, var(--acc) 15%, transparent)}
-.psearch:focus-within > svg{stroke:var(--acc)}
-.psearch kbd{position:absolute;right:11px;min-width:21px;height:21px;padding:0 6px;border-radius:6px;display:grid;place-items:center;
-  font:600 11px/1 var(--font-ui);color:var(--muted);background:var(--surface-2);border:1px solid var(--line);
-  box-shadow:inset 0 -1px 0 var(--line);pointer-events:none;transition:opacity .15s ease}
-.psearch:focus-within kbd,.psearch .search:not(:placeholder-shown) ~ kbd{opacity:0}
-@media (hover:none){.psearch kbd{display:none}}
+.ptools-end{margin-left:auto;display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
 
 /* --- the switches: the level, the order, the reach, grid or tree --- */
 #v-chars .lvseg,#v-grammar .lvseg,#v-chars .segtrack,#v-chars .cview{display:inline-flex;align-items:stretch;flex-wrap:nowrap;
@@ -3662,16 +3572,99 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
 .ptab[aria-pressed="true"] small{color:var(--acc);background:color-mix(in srgb, var(--acc) 16%, transparent)}
 .ptab:disabled{opacity:.42;cursor:default}
 .ptab:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;border-radius:6px}
-#v-chars .ct-bar{margin-top:-6px}
+
+/* --- the radical index (radicals.js) ---
+   A dictionary's radical index, laid out the way Pleco lays out its own: one
+   grid of square keys, a numbered key in the accent at the head of each
+   stroke count and the radicals after it — or, a radical picked, its
+   characters after the strokes left once it is taken away. The grid keeps
+   a set number of rows, so the canvas or the grid under it stays put as the
+   index changes; it scrolls, and its head jumps to a count. */
+.cidx{--rx-key:38px;--rx-gap:4px;--rx-rows:3;display:flex;flex-direction:column;min-width:0;margin-top:-6px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.cidx-head{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;min-height:50px;padding:8px 10px 8px 16px;
+  border-bottom:1px solid var(--line)}
+.rx-title{display:flex;align-items:baseline;gap:10px;min-width:0}
+.rx-title b{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+.rx-title small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.rx-jump{display:flex;align-items:center;gap:1px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.rx-jump::-webkit-scrollbar{display:none}
+.rx-jump button{flex:none;min-width:25px;height:25px;padding:0 5px;border-radius:7px;font:600 11.5px/1 var(--font-ui);
+  color:var(--muted);font-variant-numeric:tabular-nums;transition:color .14s ease,background-color .14s ease}
+@media (hover:hover){.rx-jump button:hover{color:var(--ink);background:var(--surface-2)}}
+.rx-jump button.on{color:var(--acc);background:var(--acc-wash)}
+.rx-end{margin-left:auto;display:flex;align-items:center;gap:10px}
+.rx-tall,.rx-back{flex:none;height:30px;border-radius:8px;border:1px solid var(--line);color:var(--ink-soft);
+  display:inline-flex;align-items:center;justify-content:center;transition:color .14s ease,background-color .14s ease}
+.rx-tall{width:30px}
+.rx-back{gap:3px;padding:0 11px 0 6px;font-size:12px;font-weight:600}
+.rx-tall svg,.rx-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rx-tall svg{transition:transform .25s var(--ease)}
+.rx-tall[aria-pressed="true"] svg{transform:rotate(180deg)}
+@media (hover:hover){.rx-tall:hover,.rx-back:hover{color:var(--ink);background:var(--surface-2)}}
+.rx-sel{display:flex;align-items:center;gap:11px;min-width:0}
+.rx-sel > .hz{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:9px;
+  background:var(--acc);color:var(--on-acc);font-size:21px;line-height:1}
+.rx-sel > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rx-sel > span > b{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+.rx-sel small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* the tree's three pages, as the toolbar's switches are drawn */
+.rx-pages,#tk-view{display:inline-flex;align-items:stretch;gap:2px;padding:3px;border-radius:11px;
+  background:var(--seg-track);border:1px solid var(--line)}
+.rx-pages button,#tk-view button{flex:none;height:26px;padding:0 11px;border-radius:8px;font-size:12px;font-weight:600;
+  color:var(--muted);white-space:nowrap;transition:color .14s ease,background-color .14s ease}
+#tk-view button{height:32px;padding:0 14px;font-size:12.5px}
+@media (hover:hover){.rx-pages button:hover:not([aria-pressed="true"]),#tk-view button:hover:not([aria-pressed="true"]){
+  color:var(--ink);background:color-mix(in srgb, var(--ink) 6%, transparent)}}
+.rx-pages button[aria-pressed="true"],#tk-view button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:700;
+  box-shadow:var(--seg-on-shadow)}
+/* the keys */
+.cidx-keys{display:flex;flex-wrap:wrap;align-content:flex-start;gap:var(--rx-gap);padding:10px 12px 10px 16px;
+  height:calc(var(--rx-rows) * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 20px);
+  overflow-y:auto;overscroll-behavior:contain;
+  /* the row after the last one shown fades out under the edge rather than
+     being cut there: the grid reads as going on, and scrolls */
+  -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 10px), transparent);
+  mask-image:linear-gradient(to bottom, #000 calc(100% - 10px), transparent)}
+.cidx.tall .cidx-keys{height:min(54vh, calc(10 * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 20px))}
+.rx-n,.rx-k{flex:none;width:var(--rx-key);height:var(--rx-key);border-radius:9px;display:grid;place-items:center}
+.rx-n{font:700 13.5px/1 var(--font-ui);font-variant-numeric:tabular-nums;color:var(--on-acc);background:var(--acc)}
+.rx-k{position:relative;font-family:var(--font-zh);font-size:20px;line-height:1;color:var(--ink);
+  background:var(--surface-2);border:1px solid color-mix(in srgb, var(--line) 65%, transparent);
+  transition:background-color .12s ease,border-color .12s ease,color .12s ease,transform .08s ease}
+@media (hover:hover){.rx-k:hover{background:var(--surface-3);border-color:var(--acc-dim)}}
+.rx-k:active{transform:translateY(1px)}
+.rx-k:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.rx-k[aria-pressed="true"]{color:var(--acc);background:var(--acc-wash);border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+/* a character: its level a bar along the foot of the key, faded above your
+   level, and a dot in the corner once it is in your deck or your words */
+.rx-c{--lvc:var(--line-hot)}
+.rx-c::after{content:"";position:absolute;left:8px;right:8px;bottom:3px;height:2.5px;border-radius:2px;background:var(--lvc)}
+.rx-c.up{color:color-mix(in srgb, var(--ink) 55%, transparent)}
+.rx-c.up::after{opacity:.5}
+.rx-c.met::before,.rx-c.mastered::before{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;
+  background:var(--acc)}
+.rx-c.mastered::before{background:var(--hsk-1);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--hsk-1) 30%, transparent)}
+.cidx .v1{--lvc:var(--hsk-1)} .cidx .v2{--lvc:var(--hsk-2)} .cidx .v3{--lvc:var(--hsk-3)} .cidx .v4{--lvc:var(--hsk-4)}
+.cidx .v5{--lvc:var(--hsk-5)} .cidx .v6{--lvc:var(--hsk-6)} .cidx .v7{--lvc:var(--hsk-7)}
+.rx-none{margin:auto;font-size:12px;color:var(--muted)}
+/* the tree wants its height: on a short window the index keeps two rows */
+@media (max-height:820px){#v-chars.treeview .cidx{--rx-rows:2}}
+@media (max-width:699px){
+  .cidx{--rx-key:36px;--rx-gap:4px;margin-top:-2px}
+  .cidx-head{gap:8px 10px;padding:8px 8px 8px 12px}
+  /* the head's switches take rows of their own under its name, the fold
+     beside the name */
+  .rx-end{display:contents}
+  .rx-tall{order:2;margin-left:auto}
+  .rx-pages{order:3;flex-basis:100%}
+  .rx-pages button{flex:1 1 0;padding:0 6px}
+  .rx-jump{order:4;flex-basis:100%;margin:0 -2px}
+  .cidx-keys{padding:8px 8px 8px 12px}
+  #v-chars.treeview .cidx{--rx-rows:2}
+}
 /* the tree's tiles in a level's card leave the level to the card's name */
 .ct-n.ct-cell .ct-lv{display:none}
-/* the bar of roots: each family's size a quiet figure in its tile's corner,
-   not a badge over it */
-#v-chars .ct-root{width:64px;height:58px}
-#v-chars .ct-root i{top:5px;right:6px;min-width:0;height:auto;padding:0;border:0;border-radius:0;background:none;
-  font:600 9px/1 var(--font-ui);color:var(--muted);opacity:.85}
-#v-chars .ct-root[aria-pressed="true"] i{background:none;color:inherit;opacity:.75}
-#v-chars .ct-root .hz{margin-top:4px}
 
 /* --- the grid, and beside it the character picked --- */
 .cstage{display:block;min-width:0}
@@ -3720,7 +3713,6 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
   .ph-stat b{font-size:20px}
   .ph-stat span{font-size:9px;letter-spacing:.09em}
   .ph-ring{width:46px;height:46px;margin-right:6px}
-  .psearch{flex-basis:100%}
   #v-chars .lvseg,#v-grammar .lvseg{flex:1 1 auto;justify-content:space-between}
   #v-chars .lvseg .fchip,#v-grammar .lvseg .fchip{flex:1 1 0;min-width:0;padding:0 4px}
   #v-chars .cview button span{display:none}

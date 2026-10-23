@@ -182,34 +182,34 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
       </div>
       <div class="ph-stats" id="cstats"></div>
     </header>
-    <!-- The search, the level, and how the characters are shown: the grid of
-         a level, or the tree of what is built from what (tree.js). -->
+    <!-- The level, and how the characters are shown: the grid of a level, or
+         the tree of what is built from what (tree.js) — and, for the tree,
+         how far it grows. -->
     <div class="ptools">
-      <label class="psearch">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.25"/><path d="m15.4 15.4 4.6 4.6"/></svg>
-        <input class="search" id="csearch" type="search" placeholder="Search characters, pinyin or meanings" autocomplete="off" aria-label="Search the characters by character, pinyin or meaning">
-        <kbd title="Press / to search">/</kbd>
-      </label>
       <div class="filters lvseg" id="clevels" role="group" aria-label="Level"></div>
+      <div class="ptools-end">
       <div class="filters pseg hidden" id="creach"></div>
       <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
         <button data-cv="grid" aria-pressed="false" title="The characters of a level, in a grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
         <button data-cv="tree" aria-pressed="true" title="What each part builds into, as a tree"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="3" width="5" height="5" rx="1.4"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="16" width="5" height="5" rx="1.4"/><path d="M7.5 12h9M10.5 12c0-4.5 2-6.5 6-6.5M10.5 12c0 4.5 2 6.5 6 6.5"/></svg><span>Tree</span></button>
       </div>
+      </div>
     </div>
+    <!-- The radical index, kept the way a dictionary keeps one (radicals.js):
+         the radicals in order of their strokes, a numbered key at the head of
+         each count; a radical picked gives its characters the same way, by
+         the strokes left once it is taken away. In the tree it is also where
+         the sound families and the other parts are. -->
+    <section class="cidx" id="cidx" aria-label="Radical index">
+      <div class="cidx-head" id="cidx-head"></div>
+      <div class="cidx-keys" id="cidx-keys"></div>
+    </section>
     <!-- Under that, for the grid: which characters, by how far you are with
          each, and in what order. (The tree's own switch, how far it grows,
          is in the row above.) -->
     <div class="psub" id="cgridbar">
       <div class="ptabs" id="cstatus" role="group" aria-label="Show"></div>
       <div class="filters pseg" id="csort"></div>
-    </div>
-    <!-- The tree's starting points, shelved as radicals, sound families and
-         other parts — or, while a search runs, what it matches. -->
-    <div class="ct-bar hidden" id="croots">
-      <button class="ct-nav ct-prev" data-bar="-1" aria-label="Scroll the roots back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
-      <div class="ct-track" id="ct-track"></div>
-      <button class="ct-nav ct-next" data-bar="1" aria-label="Scroll the roots on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
     </div>
     <!-- The grid, and beside it on a wide screen the character picked. -->
     <div class="cstage" id="cstage">
@@ -283,11 +283,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
       <div class="ph-stats" id="gstats"></div>
     </header>
     <div class="ptools">
-      <label class="psearch">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.25"/><path d="m15.4 15.4 4.6 4.6"/></svg>
-        <input class="search" id="gsearch" type="search" placeholder="Search a pattern — 把, complement, 越……越……" autocomplete="off" aria-label="Search the grammar">
-        <kbd title="Press / to search">/</kbd>
-      </label>
       <div class="filters lvseg" id="glevels" role="group" aria-label="Level"></div>
     </div>
     <!-- The standard's own sections, each a tab with how many points it holds. -->
@@ -308,6 +303,14 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 
     <div id="read-library">
       <input type="file" id="bookfile" accept=".epub,.txt,.md,text/plain,application/epub+zip" hidden>
+      <header class="phead">
+        <div class="ph-text">
+          <h2 class="ph-title">Read <span class="hz">阅读</span></h2>
+          <p class="ph-sub" id="rsub">Your own books and texts, every word coloured by its HSK level: tap one for its card, hold and drag
+            across a passage for its pinyin, a word-by-word reading or a translation.</p>
+        </div>
+        <div class="ph-stats" id="rstats"></div>
+      </header>
 
       <div class="panel hidden" id="paste-panel">
         <h3>Paste something to read</h3>
@@ -359,10 +362,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         <button class="rdbtn" id="rd-ruby-btn" aria-pressed="false" title="Pinyin above the characters">
           <i class="rdglyph" aria-hidden="true">ā</i>
           <span>Pinyin</span>
-        </button>
-        <button class="rdbtn" id="rd-find-btn" aria-expanded="false" title="Find in this book">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-          <span>Find</span>
         </button>
         <button class="rdbtn" id="rd-contents" title="Contents">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
@@ -440,13 +439,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         </div>
       </div>
 
-      <div class="rdtools hidden" id="rd-find">
-        <span class="lbl">Every sentence in this book that uses a word</span>
-        <input class="search" id="rd-q" type="search" placeholder="汉语, 长城, a word you keep meeting…"
-          autocomplete="off" style="margin-top:7px">
-        <div id="rd-hits"></div>
-      </div>
-
       <div class="rdbody" id="rd-body">
         <div class="rdmain">
             <!-- The page. The chapter is laid out in columns the height of
@@ -478,18 +470,24 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 
   <!-- ============ TALK ============ -->
   <section id="v-talk" class="hidden">
-    <!-- The decks. A search box that turns the screen into a query over the
-         whole bank; under it, the question of the day, who the conversation is
-         with, the nine decks, and the panels that set a run up. -->
+    <!-- The decks: the page's name and what it holds, then the decks or the
+         whole bank to browse and filter; under that the question of the day,
+         who the conversation is with, the nine decks, and the panels that set
+         a run up. -->
     <div id="talk-idle">
-      <!-- The search and its two switches on one line, like the other
-           browsing tabs' search and chips. -->
-      <div class="talk-search">
-        <input class="search" id="tksearch" type="search" placeholder="Search 4,228 questions in English, 中文 or pinyin…" autocomplete="off">
-        <div class="filters">
-          <button class="fchip" id="tk-browse" aria-pressed="false">Browse and filter</button>
-          <button class="fchip" id="tk-level" aria-pressed="false">Readable at HSK 1</button>
+      <header class="phead">
+        <div class="ph-text">
+          <h2 class="ph-title">Talk <span class="hz">对话</span></h2>
+          <p class="ph-sub" id="tksub"></p>
         </div>
+        <div class="ph-stats" id="tkstats"></div>
+      </header>
+      <div class="ptools">
+        <div class="seg tkview" id="tk-view" role="group" aria-label="Show">
+          <button data-tkv="decks" aria-pressed="true">Decks</button>
+          <button data-tkv="browse" aria-pressed="false">Browse and filter</button>
+        </div>
+        <button class="fchip" id="tk-level" aria-pressed="false">Readable at HSK 1</button>
       </div>
 
       <div id="talk-home">
@@ -821,6 +819,7 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <script src="./js/study.js"></script>
 <script src="./js/browse.js"></script>
 <script src="./js/tree.js"></script>
+<script src="./js/radicals.js"></script>
 <script src="./js/home.js"></script>
 <script src="./js/epub.js"></script>
 <script src="./js/segment.js"></script>
