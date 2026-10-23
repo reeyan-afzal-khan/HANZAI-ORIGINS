@@ -228,9 +228,16 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
       </div>
       <div class="ph-stats" id="cstats"></div>
     </header>
-    <!-- The level, and how the characters are shown: the grid of a level, or
-         the tree of what is built from what (tree.js) — and, for the tree,
-         how far it grows. -->
+    <!-- One panel for what is shown and how to find a character in it. On
+         top, the level, and how the characters are shown: the grid of a
+         level, or the tree of what is built from what (tree.js) — and, for
+         the tree, how far it grows. Under that the radical index, kept the
+         way a dictionary keeps one (radicals.js): the radicals in order of
+         their strokes, each count's number before them; a radical picked
+         gives its characters the same way, by the strokes left once it is
+         taken away. In the tree it is also where the sound families and the
+         other parts are. -->
+    <div class="cdeck" id="cdeck">
     <div class="ptools">
       <div class="filters lvseg" id="clevels" role="group" aria-label="Level"></div>
       <div class="ptools-end">
@@ -241,15 +248,11 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
       </div>
       </div>
     </div>
-    <!-- The radical index, kept the way a dictionary keeps one (radicals.js):
-         the radicals in order of their strokes, a numbered key at the head of
-         each count; a radical picked gives its characters the same way, by
-         the strokes left once it is taken away. In the tree it is also where
-         the sound families and the other parts are. -->
     <section class="cidx" id="cidx" aria-label="Radical index">
       <div class="cidx-head" id="cidx-head"></div>
       <div class="cidx-keys" id="cidx-keys"></div>
     </section>
+    </div>
     <!-- Under that, for the grid: which characters, by how far you are with
          each, and in what order. (The tree's own switch, how far it grows,
          is in the row above.) -->

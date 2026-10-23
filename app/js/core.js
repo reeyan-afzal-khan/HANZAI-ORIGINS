@@ -636,6 +636,27 @@ const sizeLists = () => {
   if(typeof sizeCharTree === "function") sizeCharTree();
 };
 
+/* Puts a row of switches in place. Where the row already holds the same
+   options and only which one is pressed has changed, the pressed states are
+   moved and the row is left standing — so its thumb or underline slides
+   across to the new one rather than the row being drawn again under it. */
+function paintSwitches(el, html){
+  if(typeof el === "string") el = $(el);
+  if(!el) return;
+  const sig = html.replace(/\saria-pressed="(?:true|false)"/g, "");
+  if(el.dataset.sig === sig){
+    const t = document.createElement("template");
+    t.innerHTML = html;
+    const now = el.querySelectorAll("[aria-pressed]"), next = t.content.querySelectorAll("[aria-pressed]");
+    if(now.length === next.length){
+      now.forEach((b, i) => b.setAttribute("aria-pressed", next[i].getAttribute("aria-pressed")));
+      return;
+    }
+  }
+  el.innerHTML = html;
+  el.dataset.sig = sig;
+}
+
 /* A list starts at the top when what it shows has changed — a new level, a
    new search, a different filter — and keeps its place when it has only grown
    by a page. The paint knows nothing about which control fired; it hands over

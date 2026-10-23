@@ -27,6 +27,7 @@ const RX = {
   page: "radicals",    // in the tree, also "sounds" and "parts"
   pick: "",            // the character last picked from the index
   wired: false,
+  deckH: 0,            // the panel's height the page was last sized for
 };
 const getRadicals = () => loadData("radicals");
 
@@ -80,7 +81,8 @@ function paintIndex(){
   box.dataset.page = rad ? "chars" : RX.page;
   /* Drawn again over the same page — a sort changed under it, a card was
      added — the grid stays where it was scrolled to. */
-  const showing = `${tree}|${RX.page}|${rad ? rad.f : ""}`, kept = box.dataset.showing === showing ? $("#cidx-keys").scrollTop : 0;
+  const showing = `${tree}|${RX.page}|${rad ? rad.f : ""}`, same = box.dataset.showing === showing;
+  const kept = same ? $("#cidx-keys").scrollTop : 0;
   box.dataset.showing = showing;
 
   /* the keys: numbered heads and the keys under them, and the counts the
@@ -118,32 +120,49 @@ function paintIndex(){
         title="${esc(p)}${a.c ? ` ${esc(a.c.p)}` : ""} ${esc(a.short || "")} · ${num(n)} character${n === 1 ? "" : "s"} built on it">${esc(p)}</button>`;
     }
   }
-  $("#cidx-keys").innerHTML = keys || `<p class="rx-none">Nothing here at this level.</p>`;
-  $("#cidx-keys").scrollTop = kept;
-  $("#cidx-keys").setAttribute("aria-label", rad ? `The characters filed under ${rad.f}` : RX.page === "radicals" ? "The radicals" : "The tree's starting points");
+  const grid = $("#cidx-keys");
+  grid.innerHTML = keys || `<p class="rx-none">Nothing here at this level.</p>`;
+  grid.scrollTop = kept;
+  grid.setAttribute("aria-label", rad ? `The characters filed under ${rad.f}` : RX.page === "radicals" ? "The radicals" : "The tree's starting points");
+  /* a new page of keys settles in rather than appearing; a repaint of the
+     same one (a card added, a sort changed) does not stir */
+  grid.classList.remove("enter");
+  if(!same && !REDUCED()){ void grid.offsetWidth; grid.classList.add("enter"); }
 
-  /* the head: what the grid holds, the counts to jump to, and its switches */
-  const jump = counts.length > 1 ? `<nav class="rx-jump" aria-label="${rad ? "Strokes left" : "Strokes"}">${counts.map(n =>
-    `<button data-rxjump="${n}" title="${rad ? `${n} more stroke${n === 1 ? "" : "s"}` : `${n} stroke${n === 1 ? "" : "s"}`}">${n}</button>`).join("")}</nav>` : "";
-  const pages = tree ? `<div class="rx-pages" role="group" aria-label="Start the tree from">${[["radicals", "Radicals"], ["sounds", "Sound families"], ["parts", "Other parts"]]
-    .map(([k, nm]) => `<button data-rxpage="${k}" aria-pressed="${rad ? k === "radicals" : RX.page === k}">${nm}</button>`).join("")}</div>` : "";
-  const tall = `<button class="rx-tall" data-rxtall aria-pressed="${!!S.charIdxTall}" aria-label="${S.charIdxTall ? "Fewer rows" : "Every row"}"
-    title="${S.charIdxTall ? "Show fewer rows" : "Show every row"}">${RX_MORE}</button>`;
+  /* the head: what the grid holds — its pages as tabs, or the radical open
+     and the way back — then the counts to jump to, and the fold */
+  const pl = n => n === 1 ? "" : "s";
   let what;
   if(rad){
     const at = rad.chars.filter(h => +(CT.g.by.get(h) || {}).lv <= +S.level).length;
     what = `<button class="rx-back" data-rxback title="Back to the radicals">${RX_BACK}<span>Radicals</span></button>
+      <span class="rx-split" aria-hidden="true"></span>
       <div class="rx-sel"><b class="hz">${esc(rad.f)}</b><span><b>${esc(rad.en)}</b>
-        <small>${rad.s} stroke${rad.s === 1 ? "" : "s"} · ${num(rad.chars.length)} character${rad.chars.length === 1 ? "" : "s"}${
+        <small>${rad.s} stroke${pl(rad.s)} · ${num(rad.chars.length)} character${pl(rad.chars.length)}${
           at < rad.chars.length ? ` · ${num(at)} up to HSK ${esc(levelLabel(S.level))}` : ""}</small></span></div>`;
-  }else if(RX.page === "radicals"){
-    what = `<div class="rx-title"><b>Radical index</b><small>${num(RX.list.length)} radicals, by strokes</small></div>`;
+  }else if(tree){
+    const shelves = new Map(ctShelf().map(([id, , list]) => [id, list.length]));
+    what = `<div class="rx-tabs" role="group" aria-label="Start the tree from">${[["radicals", "Radicals", RX.list.length],
+      ["sounds", "Sound families", shelves.get("sounds")], ["parts", "Other parts", shelves.get("parts")]]
+      .filter(([, , n]) => n).map(([k, nm, n]) => `<button class="rx-tab" data-rxpage="${k}" aria-pressed="${RX.page === k}">${nm}<small>${num(n)}</small></button>`).join("")}</div>`;
   }else{
-    const shelf = (ctShelf().find(([id]) => id === RX.page) || [0, 0, []])[2];
-    what = `<div class="rx-title"><b>${RX.page === "sounds" ? "Sound families" : "Other parts"}</b><small>${num(shelf.length)}, by strokes</small></div>`;
+    what = `<div class="rx-tabs"><span class="rx-tab on">Radical index<small>${num(RX.list.length)}</small></span></div>`;
   }
-  $("#cidx-head").innerHTML = `${what}${jump}<div class="rx-end">${pages}${tall}</div>`;
+  const jump = counts.length > 1 ? `<span class="lbl" aria-hidden="true">${rad ? "Strokes left" : "Strokes"}</span>
+    <nav class="rx-jump" aria-label="${rad ? "Strokes left" : "Strokes"}">${counts.map(n =>
+      `<button data-rxjump="${n}" title="${rad ? `${n} more stroke${pl(n)}` : `${n} stroke${pl(n)}`}">${n}</button>`).join("")}</nav>` : "";
+  const tall = `<button class="rx-tall" data-rxtall aria-pressed="${!!S.charIdxTall}" aria-label="More rows" title="More rows">${RX_MORE}</button>`;
+  /* drawn as two parts, each left standing where only what is pressed has
+     changed — so a tab's rule and the fold's chevron move rather than blink */
+  const top = $("#cidx-head");
+  if(!top.querySelector(":scope > .rx-what"))
+    top.innerHTML = `<div class="rx-what"></div><div class="rx-nav"></div>`;
+  paintSwitches(top.querySelector(".rx-what"), what);
+  paintSwitches(top.querySelector(".rx-nav"), `${jump}${tall}`);
+  /* the fold only where there are rows to fold out, or back in */
+  top.querySelector(".rx-tall").hidden = !S.charIdxTall && grid.scrollHeight <= grid.clientHeight + 1;
   rxJumpMark();
+  rxSettle();
 }
 
 /* The character the index shows as picked: the tree's tile where the tree
@@ -164,19 +183,42 @@ function paintIndexSel(){
   for(const b of $$("#cidx-keys [data-rxc]")) b.setAttribute("aria-pressed", String(b.dataset.rxc === h));
 }
 
+/* Where a key sits in the grid, from the grid's top, scrolled or not. (Not
+   offsetTop: the index is a container for its own queries, which makes it
+   the offset parent of the keys but not of the grid.) */
+const rxAt = (el, keys) => el.getBoundingClientRect().top - keys.getBoundingClientRect().top + keys.scrollTop;
+
 /* The count at the top of the grid, lit in the head as the grid scrolls. */
 function rxJumpMark(){
   const keys = $("#cidx-keys");
   if(!keys) return;
   /* the head of the top row's first count, once its row reaches the edge */
-  const edge = keys.scrollTop + parseFloat(getComputedStyle(keys).paddingTop) + 8;
+  const edge = keys.scrollTop + 8;
   let cur = null, row = -1;
   for(const n of keys.querySelectorAll(".rx-n[data-n]")){
-    const top = n.offsetTop - keys.offsetTop;
+    const top = rxAt(n, keys);
     if(top > edge) break;
     if(top > row){ row = top; cur = n.dataset.n; }
   }
-  for(const b of $$("#cidx-head [data-rxjump]")) b.classList.toggle("on", b.dataset.rxjump === cur);
+  const rail = $("#cidx-head .rx-jump");
+  if(!rail) return;
+  const bs = [...rail.querySelectorAll("[data-rxjump]")], at = bs.findIndex(b => b.dataset.rxjump === cur);
+  bs.forEach((b, i) => b.classList.toggle("on", i === at));
+  /* the thumb behind the rail follows the count, and the rail keeps it in view */
+  rail.classList.toggle("lit", at >= 0);
+  if(at >= 0){
+    const b = bs[at];
+    rail.style.setProperty("--x", `${b.offsetLeft}px`);
+    rail.style.setProperty("--w", `${b.offsetWidth}px`);
+    if(b.offsetLeft < rail.scrollLeft || b.offsetLeft + b.offsetWidth > rail.scrollLeft + rail.clientWidth)
+      rail.scrollLeft = b.offsetLeft - rail.clientWidth / 2;
+  }
+  rxRailEnds(rail);
+}
+/* which ends of the rail go on past what shows */
+function rxRailEnds(rail){
+  rail.classList.toggle("more-l", rail.scrollLeft > 2);
+  rail.classList.toggle("more-r", rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 2);
 }
 
 /* ---------------- picking ---------------- */
@@ -210,21 +252,20 @@ function rxBack(){
   RX.pick = "";
   paintIndex();
   const keys = $("#cidx-keys"), b = was && keys.querySelector(`[data-rx="${CSS.escape(was)}"]`);
-  if(b) keys.scrollTop = Math.max(0, b.offsetTop - keys.offsetTop - keys.clientHeight / 2 + b.offsetHeight / 2);
+  if(b) keys.scrollTop = Math.max(0, rxAt(b, keys) - keys.clientHeight / 2 + b.offsetHeight / 2);
   rxJumpMark();
 }
 
 function rxJump(n){
   const keys = $("#cidx-keys"), at = keys.querySelector(`.rx-n[data-n="${CSS.escape(String(n))}"]`);
   if(!at) return;
-  keys.scrollTo({top: at.offsetTop - keys.offsetTop - 6, behavior: REDUCED() ? "auto" : "smooth"});
+  keys.scrollTo({top: rxAt(at, keys), behavior: REDUCED() ? "auto" : "smooth"});
 }
 
 /* Every row, or a few: the canvas or the grid under it takes what is left. */
 function rxTall(){
   S.charIdxTall = !S.charIdxTall; save();
   paintIndex();
-  requestAnimationFrame(() => { sizeLists(); if(S.charView === "tree") sizeCharTree(); });
 }
 
 function rxWire(){
@@ -242,4 +283,26 @@ function rxWire(){
     else if(b.hasAttribute("data-rxtall")) rxTall();
   });
   $("#cidx-keys").addEventListener("scroll", rxJumpMark, {passive: true});
+  /* the rail is redrawn with the head, so its scroll is listened for here */
+  $("#cidx-head").addEventListener("scroll", e => { if(e.target.matches(".rx-jump")) rxRailEnds(e.target); }, {passive: true, capture: true});
+  /* The panel's height decides where the canvas or the grid under it starts.
+     paintIndex sizes them again itself when its own rows change; this is for
+     everything else that moves it — a narrower window wrapping the head, a
+     face arriving late. */
+  if(window.ResizeObserver){
+    let queued = false;
+    new ResizeObserver(() => {
+      if(queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; rxSettle(); });
+    }).observe($("#cdeck"));
+  }
+}
+
+/* What is under the panel, sized again — once a height, however often asked. */
+function rxSettle(){
+  const deck = $("#cdeck"), h = deck ? deck.offsetHeight : 0;
+  if(!h || h === RX.deckH) return;
+  RX.deckH = h;
+  sizeLists();
 }

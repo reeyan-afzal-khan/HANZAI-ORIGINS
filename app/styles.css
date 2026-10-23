@@ -3493,12 +3493,12 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
    then the list, with what is picked open beside it on a wide screen. The
    switches are quiet, a recessed track with the option picked raised out of
    it, so the accent is left for what is picked and what can be done. */
-#v-chars,#v-grammar{
+#v-chars,#v-grammar,#v-talk{
   --seg-track:color-mix(in srgb, var(--ink) 6%, var(--surface));
   --seg-on:color-mix(in srgb, var(--ink) 15%, var(--surface));
   --seg-on-shadow:0 1px 2px rgba(0,0,0,.3),inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
 }
-:root[data-mode="light"] #v-chars,:root[data-mode="light"] #v-grammar{
+:root[data-mode="light"] #v-chars,:root[data-mode="light"] #v-grammar,:root[data-mode="light"] #v-talk{
   --seg-track:color-mix(in srgb, var(--ink) 7%, var(--surface));
   --seg-on:var(--surface);
   --seg-on-shadow:0 1px 2px rgba(0,0,0,.12),0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
@@ -3530,28 +3530,74 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
 .ptools{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
 .ptools-end{margin-left:auto;display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
 
-/* --- the switches: the level, the order, the reach, grid or tree --- */
-#v-chars .lvseg,#v-grammar .lvseg,#v-chars .segtrack,#v-chars .cview{display:inline-flex;align-items:stretch;flex-wrap:nowrap;
-  gap:2px;margin:0;padding:3px;border-radius:11px;background:var(--seg-track);border:1px solid var(--line);overflow:visible}
-#v-chars .lvseg > .lbl,#v-grammar .lvseg > .lbl{flex:none;display:flex;align-items:center;min-width:0;margin:0;padding:0 7px 0 9px;
-  font-size:10px;letter-spacing:.13em}
-#v-chars .lvseg .fchip,#v-grammar .lvseg .fchip,#v-chars .segtrack .fchip,#v-chars .cview button{flex:none;height:32px;padding:0 12px;
-  border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;line-height:1;
-  box-shadow:none;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:7px}
-#v-chars .lvseg .fchip,#v-grammar .lvseg .fchip{min-width:36px;padding:0 9px;font-variant-numeric:tabular-nums}
+/* --- the switches: the level, the order, the reach, grid or tree, Talk's
+   two views. A recessed track, and the option picked raised out of it on a
+   thumb that slides across to the next one picked. The options share the
+   track equally, so the thumb's place is simply which option it is: the
+   track counts its options (--n) and finds the one pressed (--i) for
+   itself, whoever set aria-pressed. --- */
+.segtrack,#v-chars .cview,#tk-view{--n:1;--i:0;position:relative;isolation:isolate;
+  display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;margin:0;padding:3px;
+  border:0;border-radius:10px;background:var(--seg-track);overflow:visible;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent)}
+:is(#v-chars,#v-grammar,#v-talk) :where(.segtrack,.cview,#tk-view) > button{position:relative;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;height:30px;min-width:0;padding:0 13px;
+  border:0;border-radius:7px;background:transparent;box-shadow:none;color:var(--muted);
+  font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;transform:none;
+  transition:color .2s ease,background-color .2s ease}
 @media (hover:hover){
-  #v-chars .lvseg .fchip:hover,#v-grammar .lvseg .fchip:hover,#v-chars .segtrack .fchip:hover,#v-chars .cview button:hover{
-    color:var(--ink);background:color-mix(in srgb, var(--ink) 6%, transparent)}
+  :is(#v-chars,#v-grammar,#v-talk) :where(.segtrack,.cview,#tk-view) > button:hover:not([aria-pressed="true"]){
+    color:var(--ink);background:color-mix(in srgb, var(--ink) 5%, transparent)}
 }
-#v-chars .lvseg .fchip[aria-pressed="true"],#v-grammar .lvseg .fchip[aria-pressed="true"],#v-chars .segtrack .fchip[aria-pressed="true"],
-#v-chars .cview button[aria-pressed="true"],#v-chars .lvseg .fchip[aria-pressed="true"]:hover,#v-grammar .lvseg .fchip[aria-pressed="true"]:hover,
-#v-chars .segtrack .fchip[aria-pressed="true"]:hover,#v-chars .cview button[aria-pressed="true"]:hover{
-  background:var(--seg-on);color:var(--ink);font-weight:700;box-shadow:var(--seg-on-shadow)}
-#v-chars .lvseg .fchip[aria-pressed="true"],#v-grammar .lvseg .fchip[aria-pressed="true"]{color:var(--acc)}
+:is(#v-chars,#v-grammar,#v-talk) :where(.segtrack,.cview,#tk-view) > button[aria-pressed="true"]{
+  color:var(--ink);background:var(--seg-on);box-shadow:var(--seg-on-shadow)}
+:is(#v-chars,#v-grammar,#v-talk) :where(.segtrack,.cview,#tk-view) > button:focus-visible{
+  outline:2px solid var(--acc);outline-offset:-2px;border-radius:7px}
+/* Where the browser can find the pressed option from the track (:has), the
+   thumb is the track's own, and slides; elsewhere the option is raised. */
+@supports selector(:has(a)){
+  :is(.segtrack,#v-chars .cview,#tk-view)::before{content:"";position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;
+    width:calc((100% - 6px - (var(--n) - 1) * 2px) / var(--n));translate:calc(var(--i) * (100% + 2px)) 0;
+    border-radius:7px;background:var(--seg-on);box-shadow:var(--seg-on-shadow);
+    transition:translate .34s var(--ease),opacity .2s ease}
+  :is(.segtrack,#v-chars .cview,#tk-view):not(:has(> [aria-pressed="true"]))::before{opacity:0}
+  :is(#v-chars,#v-grammar,#v-talk) :where(.segtrack,.cview,#tk-view) > button[aria-pressed="true"]{
+    background:transparent;box-shadow:none}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(2)){--n:2}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(3)){--n:3}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(4)){--n:4}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(5)){--n:5}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(6)){--n:6}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(7)){--n:7}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(2)[aria-pressed="true"]){--i:1}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(3)[aria-pressed="true"]){--i:2}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(4)[aria-pressed="true"]){--i:3}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(5)[aria-pressed="true"]){--i:4}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(6)[aria-pressed="true"]){--i:5}
+  :is(.segtrack,#v-chars .cview,#tk-view):has(> :nth-child(7)[aria-pressed="true"]){--i:6}
+}
+@media (prefers-reduced-motion:reduce){
+  :is(.segtrack,#v-chars .cview,#tk-view)::before{transition:none}
+}
+/* the level: HSK, then its levels as numbers, the one picked in the accent */
+.lvseg{display:inline-flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0}
+.lvseg > .lbl{flex:none;min-width:0;margin:0;font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
+:is(#v-chars,#v-grammar) .lvseg .segtrack > button{min-width:40px;padding:0 6px;font-size:13px;font-variant-numeric:tabular-nums}
+:is(#v-chars,#v-grammar) .lvseg .segtrack > button[aria-pressed="true"]{color:var(--acc);font-weight:700}
+/* each level's colour, as a short rule under its number: the key to the
+   rules under the characters in the index and the tree */
+:is(#v-chars,#v-grammar) .lvseg .segtrack > button::after{content:"";position:absolute;left:50%;bottom:4px;width:12px;height:2px;
+  margin-left:-6px;border-radius:2px;background:var(--lvc,transparent);opacity:.55;transition:opacity .2s ease,width .25s var(--ease),margin .25s var(--ease)}
+:is(#v-chars,#v-grammar) .lvseg .segtrack > button[aria-pressed="true"]::after{opacity:1;width:16px;margin-left:-8px}
+.lvseg [data-lv="1"]{--lvc:var(--hsk-1)} .lvseg [data-lv="2"]{--lvc:var(--hsk-2)} .lvseg [data-lv="3"]{--lvc:var(--hsk-3)}
+.lvseg [data-lv="4"]{--lvc:var(--hsk-4)} .lvseg [data-lv="5"]{--lvc:var(--hsk-5)} .lvseg [data-lv="6"]{--lvc:var(--hsk-6)}
+.lvseg [data-lv="7"]{--lvc:var(--hsk-7)}
+:is(#v-chars,#v-grammar) .lvseg .segtrack > .none:not([aria-pressed="true"]){opacity:.5}
 #v-chars .cview{flex:none}
+#v-chars .cview > button{padding:0 14px}
 #v-chars .cview svg{width:15px;height:15px}
 .pseg{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
-#v-chars .pseg > .lbl{flex:none;min-width:0;margin:0}
+.pseg > .lbl{flex:none;min-width:0;margin:0;font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
 
 /* --- under the tools: tabs, each with its count, and the view's own switch --- */
 /* the tabs give way before the switch beside them does: they scroll */
@@ -3574,95 +3620,145 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
 .ptab:disabled{opacity:.42;cursor:default}
 .ptab:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;border-radius:6px}
 
+/* --- the panel: the level and the view over the radical index --- */
+.cdeck{display:flex;flex-direction:column;min-width:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:var(--shadow)}
+.cdeck > .ptools{padding:10px 12px 10px 16px;border-bottom:1px solid var(--line)}
+
 /* --- the radical index (radicals.js) ---
    A dictionary's radical index, laid out the way Pleco lays out its own: one
-   grid of square keys, a numbered key in the accent at the head of each
-   stroke count and the radicals after it — or, a radical picked, its
-   characters after the strokes left once it is taken away. The grid keeps
-   a set number of rows, so the canvas or the grid under it stays put as the
-   index changes; it scrolls, and its head jumps to a count. */
-.cidx{--rx-key:38px;--rx-gap:4px;--rx-rows:3;--rx-pad:10px;display:flex;flex-direction:column;min-width:0;margin-top:-6px;
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
-.cidx-head{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;min-height:50px;padding:8px 10px 8px 16px;
+   grid, each stroke count's number and then its radicals — or, a radical
+   picked, its characters after the strokes left once it is taken away. The
+   numbers are a wash of the accent, the radicals plain, and the one solid
+   key in the grid is the one picked. The grid takes the rows it fills, up
+   to a set number; past that it scrolls a row at a time, never to part of
+   one, and the head jumps to a count. */
+.cidx{--rx-key:40px;--rx-gap:3px;--rx-rows:3;display:flex;flex-direction:column;min-width:0;container-type:inline-size}
+.cidx-head{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;min-height:48px;padding:0 10px 0 16px;
   border-bottom:1px solid var(--line)}
-.rx-title{display:flex;align-items:baseline;gap:10px;min-width:0}
-.rx-title b{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
-.rx-title small{font-size:11.5px;color:var(--muted);white-space:nowrap}
-.rx-jump{display:flex;align-items:center;gap:1px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.rx-what{display:contents}
+/* its pages, as tabs that sit on the head's rule; in the grid, the one page's name */
+.rx-tabs{display:flex;align-items:stretch;align-self:stretch;gap:22px;min-width:0;min-height:47px}
+.rx-tab{position:relative;display:inline-flex;align-items:center;gap:8px;padding:0 1px;font-size:13px;font-weight:600;
+  color:var(--muted);white-space:nowrap;transition:color .2s ease}
+.rx-tab::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;
+  background:var(--acc);transform:scaleX(0);transition:transform .3s var(--ease)}
+.rx-tab small{min-width:22px;padding:2px 7px;border-radius:999px;text-align:center;font-size:10.5px;font-weight:700;
+  color:var(--muted);background:color-mix(in srgb, var(--ink) 8%, transparent);font-variant-numeric:tabular-nums;
+  transition:color .2s ease,background-color .2s ease}
+@media (hover:hover){button.rx-tab:hover{color:var(--ink)}}
+.rx-tab[aria-pressed="true"],.rx-tab.on{color:var(--ink)}
+.rx-tab[aria-pressed="true"]::after,.rx-tab.on::after{transform:none}
+.rx-tab[aria-pressed="true"] small,.rx-tab.on small{color:var(--acc);background:color-mix(in srgb, var(--acc) 15%, transparent)}
+button.rx-tab:focus-visible{outline:2px solid var(--acc);outline-offset:-6px;border-radius:8px}
+/* the strokes to jump to, the one at the top of the grid on a thumb that follows it */
+.rx-nav{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0}
+.rx-nav > .lbl{flex:none;margin:0;font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--muted);white-space:nowrap}
+.rx-jump{position:relative;isolation:isolate;display:flex;align-items:center;gap:1px;min-width:0;
+  overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
 .rx-jump::-webkit-scrollbar{display:none}
-.rx-jump button{flex:none;min-width:25px;height:25px;padding:0 5px;border-radius:7px;font:600 11.5px/1 var(--font-ui);
-  color:var(--muted);font-variant-numeric:tabular-nums;transition:color .14s ease,background-color .14s ease}
-@media (hover:hover){.rx-jump button:hover{color:var(--ink);background:var(--surface-2)}}
-.rx-jump button.on{color:var(--acc);background:var(--acc-wash)}
-.rx-end{margin-left:auto;display:flex;align-items:center;gap:10px}
-.rx-tall,.rx-back{flex:none;height:30px;border-radius:8px;border:1px solid var(--line);color:var(--ink-soft);
-  display:inline-flex;align-items:center;justify-content:center;transition:color .14s ease,background-color .14s ease}
-.rx-tall{width:30px}
-.rx-back{gap:3px;padding:0 11px 0 6px;font-size:12px;font-weight:600}
+.rx-jump::before{content:"";position:absolute;z-index:-1;left:0;top:50%;width:var(--w,26px);height:26px;margin-top:-13px;
+  border-radius:7px;background:color-mix(in srgb, var(--acc) 14%, transparent);
+  translate:var(--x,0) 0;transition:translate .3s var(--ease),width .3s var(--ease),opacity .2s ease}
+.rx-jump:not(.lit)::before{opacity:0}
+/* a rail wider than its row fades out at the end it goes on past */
+.rx-jump.more-r{-webkit-mask-image:linear-gradient(to right, #000 calc(100% - 26px), transparent);
+  mask-image:linear-gradient(to right, #000 calc(100% - 26px), transparent)}
+.rx-jump.more-l{-webkit-mask-image:linear-gradient(to left, #000 calc(100% - 26px), transparent);
+  mask-image:linear-gradient(to left, #000 calc(100% - 26px), transparent)}
+.rx-jump.more-l.more-r{-webkit-mask-image:linear-gradient(to right, transparent, #000 26px, #000 calc(100% - 26px), transparent);
+  mask-image:linear-gradient(to right, transparent, #000 26px, #000 calc(100% - 26px), transparent)}
+.rx-jump button{flex:none;width:26px;height:26px;padding:0;border-radius:7px;font:600 12px/1 var(--font-ui);
+  color:var(--muted);font-variant-numeric:tabular-nums;transition:color .2s ease}
+@media (hover:hover){.rx-jump button:hover{color:var(--ink)}}
+.rx-jump button.on{color:var(--acc);font-weight:700}
+.rx-jump button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+@media (prefers-reduced-motion:reduce){.rx-jump::before,.rx-tab::after{transition:none}}
+.rx-tall,.rx-back{flex:none;height:30px;border-radius:8px;color:var(--ink-soft);
+  display:inline-flex;align-items:center;justify-content:center;transition:color .2s ease,background-color .2s ease}
+.rx-tall{width:30px;border:1px solid var(--line)}
+.rx-tall[hidden]{display:none}
+.rx-back{gap:3px;padding:0 10px 0 4px;margin-left:-6px;font-size:12.5px;font-weight:600}
 .rx-tall svg,.rx-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rx-tall svg{transition:transform .25s var(--ease)}
+.rx-tall svg{transition:transform .3s var(--ease)}
 .rx-tall[aria-pressed="true"] svg{transform:rotate(180deg)}
-@media (hover:hover){.rx-tall:hover,.rx-back:hover{color:var(--ink);background:var(--surface-2)}}
-.rx-sel{display:flex;align-items:center;gap:11px;min-width:0}
-.rx-sel > .hz{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:9px;
-  background:var(--acc);color:var(--on-acc);font-size:21px;line-height:1}
+@media (hover:hover){.rx-tall:hover,.rx-back:hover{color:var(--ink);background:color-mix(in srgb, var(--ink) 6%, transparent)}}
+.rx-tall:focus-visible,.rx-back:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+/* the radical picked, as a key of its own beside its name */
+.rx-sel{flex:1 1 0;display:flex;align-items:center;gap:11px;min-width:0;padding:6px 0}
+.rx-sel > .hz{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:8px;
+  background:var(--acc);color:var(--on-acc);font-size:20px;line-height:1}
 .rx-sel > span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .rx-sel > span > b{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
 .rx-sel small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* the tree's three pages, as the toolbar's switches are drawn */
-.rx-pages,#tk-view{display:inline-flex;align-items:stretch;gap:2px;padding:3px;border-radius:11px;
-  background:var(--seg-track);border:1px solid var(--line)}
-.rx-pages button,#tk-view button{flex:none;height:26px;padding:0 11px;border-radius:8px;font-size:12px;font-weight:600;
-  color:var(--muted);white-space:nowrap;transition:color .14s ease,background-color .14s ease}
-#tk-view button{height:32px;padding:0 14px;font-size:12.5px}
-@media (hover:hover){.rx-pages button:hover:not([aria-pressed="true"]),#tk-view button:hover:not([aria-pressed="true"]){
-  color:var(--ink);background:color-mix(in srgb, var(--ink) 6%, transparent)}}
-.rx-pages button[aria-pressed="true"],#tk-view button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:700;
-  box-shadow:var(--seg-on-shadow)}
-/* the keys */
-.cidx-keys{display:flex;flex-wrap:wrap;align-content:flex-start;gap:var(--rx-gap);padding:var(--rx-pad) 12px var(--rx-pad) 16px;
-  height:calc(var(--rx-rows) * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 2 * var(--rx-pad));
-  overflow-y:auto;overscroll-behavior:contain;
-  /* the keys stop at the foot of the padding's inner edge, so the top of
-     the next row never shows as a sliver under the last one */
-  -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - var(--rx-pad)), transparent calc(100% - var(--rx-pad)));
-  mask-image:linear-gradient(to bottom, #000 calc(100% - var(--rx-pad)), transparent calc(100% - var(--rx-pad)))}
-.cidx.tall .cidx-keys{height:min(54vh, calc(10 * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap) + 2 * var(--rx-pad)))}
-.rx-n,.rx-k{flex:none;width:var(--rx-key);height:var(--rx-key);border-radius:9px;display:grid;place-items:center}
-.rx-n{font:700 13.5px/1 var(--font-ui);font-variant-numeric:tabular-nums;color:var(--on-acc);background:var(--acc)}
-.rx-k{position:relative;font-family:var(--font-zh);font-size:20px;line-height:1;color:var(--ink);
-  background:var(--surface-2);border:1px solid color-mix(in srgb, var(--line) 65%, transparent);
-  transition:background-color .12s ease,border-color .12s ease,color .12s ease,transform .08s ease}
-@media (hover:hover){.rx-k:hover{background:var(--surface-3);border-color:var(--acc-dim)}}
-.rx-k:active{transform:translateY(1px)}
-.rx-k:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-.rx-k[aria-pressed="true"]{color:var(--acc);background:var(--acc-wash);border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
-/* a character: its level a bar along the foot of the key, faded above your
-   level, and a dot in the corner once it is in your deck or your words */
+.rx-split{flex:none;width:1px;height:22px;background:var(--line)}
+/* the keys: as many rows as they fill, up to a set number, scrolled a row
+   at a time — a radical with a dozen characters is one row, not one row
+   and a gap the height of two */
+.cidx-keys{display:grid;grid-template-columns:repeat(auto-fill, var(--rx-key));grid-auto-rows:var(--rx-key);
+  justify-content:space-between;align-content:start;gap:var(--rx-gap);margin:10px 10px 12px 14px;padding-right:4px;
+  max-height:calc(var(--rx-rows) * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap));
+  overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scroll-padding:0}
+/* every row, up to nine */
+.cidx.tall .cidx-keys{max-height:calc(9 * (var(--rx-key) + var(--rx-gap)) - var(--rx-gap))}
+.rx-n,.rx-k{flex:none;width:var(--rx-key);height:var(--rx-key);border-radius:8px;display:grid;place-items:center;scroll-snap-align:start}
+.rx-n{font:700 12.5px/1 var(--font-ui);font-variant-numeric:tabular-nums;color:var(--acc);
+  background:color-mix(in srgb, var(--acc) 11%, transparent)}
+.rx-k{position:relative;font-family:var(--font-zh);font-size:21px;line-height:1;color:var(--ink);
+  background:color-mix(in srgb, var(--ink) 3.5%, transparent);
+  transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}
+@media (hover:hover){.rx-k:hover{background:color-mix(in srgb, var(--ink) 9%, transparent)}}
+.rx-k:active{background:color-mix(in srgb, var(--ink) 13%, transparent)}
+.rx-k:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.rx-k[aria-pressed="true"],.rx-k[aria-pressed="true"]:hover{color:var(--on-acc);background:var(--acc);
+  box-shadow:0 2px 6px -2px color-mix(in srgb, var(--acc) 70%, transparent)}
+.rx-k[aria-pressed="true"]:focus-visible{outline-color:var(--ink)}
+/* a character: its level a short rule under it, faded above your level, and
+   a dot in the corner once it is in your deck or your words */
 .rx-c{--lvc:var(--line-hot)}
-.rx-c::after{content:"";position:absolute;left:8px;right:8px;bottom:3px;height:2.5px;border-radius:2px;background:var(--lvc)}
-.rx-c.up{color:color-mix(in srgb, var(--ink) 55%, transparent)}
-.rx-c.up::after{opacity:.5}
-.rx-c.met::before,.rx-c.mastered::before{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;
+.rx-c::after{content:"";position:absolute;left:12px;right:12px;bottom:4px;height:2px;border-radius:2px;background:var(--lvc)}
+.rx-c.up{color:color-mix(in srgb, var(--ink) 50%, transparent)}
+.rx-c.up::after{opacity:.45}
+.rx-c[aria-pressed="true"]::after{background:var(--on-acc);opacity:.75}
+.rx-c.met::before,.rx-c.mastered::before{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;
   background:var(--acc)}
 .rx-c.mastered::before{background:var(--hsk-1);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--hsk-1) 30%, transparent)}
+.rx-c[aria-pressed="true"]::before{background:var(--on-acc)}
 .cidx .v1{--lvc:var(--hsk-1)} .cidx .v2{--lvc:var(--hsk-2)} .cidx .v3{--lvc:var(--hsk-3)} .cidx .v4{--lvc:var(--hsk-4)}
 .cidx .v5{--lvc:var(--hsk-5)} .cidx .v6{--lvc:var(--hsk-6)} .cidx .v7{--lvc:var(--hsk-7)}
-.rx-none{margin:auto;font-size:12px;color:var(--muted)}
+.rx-none{grid-column:1/-1;margin:auto;padding-top:12px;font-size:12px;color:var(--muted)}
+/* a page changed — a radical opened, back, another shelf — fades its keys
+   in. The grid moves as a whole: a key moved on its own is a snap point
+   moved, and the grid would snap after it and stay a few pixels down. */
+.cidx-keys.enter{animation:rx-in .3s var(--ease) both}
+@keyframes rx-in{from{opacity:0;translate:0 4px}}
+@media (prefers-reduced-motion:reduce){.cidx-keys.enter{animation:none}}
 /* the tree wants its height: on a short window the index keeps two rows */
 @media (max-height:820px){#v-chars.treeview .cidx{--rx-rows:2}}
+/* Where the head has not the width for its pages and the strokes side by
+   side, the strokes take a row of their own under them. */
+@container (max-width:980px){
+  .rx-nav{order:3;flex-basis:100%;margin:0 -10px 0 -16px;padding:6px 10px 6px 16px;border-top:1px solid var(--line)}
+  .rx-jump{flex:1 1 auto}
+  .rx-jump button{flex:1 0 26px;max-width:38px}
+}
+@container (max-width:560px){
+  .rx-nav{margin:0 -8px 0 -12px;padding:5px 8px 5px 10px}
+  .rx-nav > .lbl,.rx-tab small,.rx-split{display:none}
+  .rx-tabs{gap:16px;flex:1 1 auto;overflow-x:auto;scrollbar-width:none}
+  .rx-tabs::-webkit-scrollbar{display:none}
+}
 @media (max-width:699px){
-  .cidx{--rx-key:36px;--rx-gap:4px;--rx-pad:8px;margin-top:-2px}
-  .cidx-head{gap:8px 10px;padding:8px 8px 8px 12px}
-  /* the head's switches take rows of their own under its name, the fold
-     beside the name */
-  .rx-end{display:contents}
-  .rx-tall{order:2;margin-left:auto}
-  .rx-pages{order:3;flex-basis:100%}
-  .rx-pages button{flex:1 1 0;padding:0 6px}
-  .rx-jump{order:4;flex-basis:100%;margin:0 -2px}
-  .cidx-keys{padding:var(--rx-pad) 8px var(--rx-pad) 12px}
+  .cdeck > .ptools{padding:10px 10px 10px 12px}
+  .cidx{--rx-key:38px;--rx-gap:2px}
+  .cidx-head{gap:0 12px;padding:0 8px 0 12px}
+  .cidx-keys{margin:8px 6px 10px 10px}
   #v-chars.treeview .cidx{--rx-rows:2}
+  /* the level across the width; the tree's reach and the view under it */
+  :is(#v-chars,#v-grammar) .lvseg > .lbl{min-width:0;margin-right:0}
+  :is(#v-chars,#v-grammar) .lvseg > .segtrack{flex:1 1 auto}
+  #v-chars .ptools-end{flex:1 1 100%;justify-content:space-between;margin-left:0}
+  #v-chars .ptools-end > .pseg > .lbl{display:none}
 }
 /* the tree's tiles in a level's card leave the level to the card's name */
 .ct-n.ct-cell .ct-lv{display:none}
@@ -3714,8 +3810,10 @@ body.bk-opening #read-book{opacity:0;will-change:opacity}
   .ph-stat b{font-size:20px}
   .ph-stat span{font-size:9px;letter-spacing:.09em}
   .ph-ring{width:46px;height:46px;margin-right:6px}
-  #v-chars .lvseg,#v-grammar .lvseg{flex:1 1 auto;justify-content:space-between}
-  #v-chars .lvseg .fchip,#v-grammar .lvseg .fchip{flex:1 1 0;min-width:0;padding:0 4px}
+  #v-chars .lvseg,#v-grammar .lvseg{flex:1 1 100%}
+  .lvseg .segtrack{flex:1 1 auto}
+  :is(#v-chars,#v-grammar) .lvseg .segtrack > button{min-width:0;padding:0 2px}
+  #v-chars .cview > button{padding:0 12px}
   #v-chars .cview button span{display:none}
   .psub{margin-top:-4px;flex-wrap:wrap}
   .psub .pseg{margin:2px 0 8px}

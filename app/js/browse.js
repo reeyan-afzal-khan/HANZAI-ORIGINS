@@ -224,11 +224,11 @@ function setLevel(lv){
 /* counts: how much each level holds, in its title — a level with nothing
    is shown quieter, still there to be picked. */
 function levelChips(hostId, current, onPick, levels = LEVELS, counts = null){
-  $(hostId).innerHTML = `<span class="lbl" aria-hidden="true">HSK</span>` + levels.map(lv => {
+  paintSwitches(hostId, `<span class="lbl" aria-hidden="true">HSK</span><span class="segtrack">${levels.map(lv => {
     const n = counts ? counts[lv] || 0 : null;
     return `<button class="fchip${n === 0 ? " none" : ""}" data-lv="${lv}" aria-pressed="${lv === current}"
       aria-label="HSK ${levelLabel(lv)}" title="HSK ${levelLabel(lv)}${n === 0 ? ": nothing yet" : n ? `: ${num(n)}` : ""}">${levelLabel(lv)}</button>`;
-  }).join("");
+  }).join("")}</span>`);
   $(hostId).onclick = e => {
     const b = e.target.closest("button[data-lv]");
     if(b) onPick(b.dataset.lv);
@@ -327,14 +327,14 @@ async function renderChars(){
   levelChips("#clevels", C.level, lv => {
     setLevel(lv); C.limit = 300; renderChars();
   });
-  $("#csort").innerHTML = `<span class="lbl">Sort</span><span class="segtrack">${Object.entries(SORTS).map(([k, v]) =>
-    `<button class="fchip" data-s="${k}" aria-pressed="${C.sort === k}" title="${esc(v.long)}">${esc(v.nm)}</button>`).join("")}</span>`;
+  paintSwitches("#csort", `<span class="lbl">Sort</span><span class="segtrack">${Object.entries(SORTS).map(([k, v]) =>
+    `<button class="fchip" data-s="${k}" aria-pressed="${C.sort === k}" title="${esc(v.long)}">${esc(v.nm)}</button>`).join("")}</span>`);
   /* The tree's reach, where the grid has its order: through every level with
      the ones above yours drawn locked, or only up to the level. */
   const level = S.treeReach === "level";
-  $("#creach").innerHTML = `<span class="lbl">Grow</span><span class="segtrack">
+  paintSwitches("#creach", `<span class="lbl">Grow</span><span class="segtrack">
     <button class="fchip" data-reach="all" aria-pressed="${!level}" title="Through every level, the ones above yours drawn locked">Every level</button>
-    <button class="fchip" data-reach="level" aria-pressed="${level}" title="Only as far as your level">Up to HSK ${levelLabel(C.level)}</button></span>`;
+    <button class="fchip" data-reach="level" aria-pressed="${level}" title="Only as far as your level">Up to HSK ${levelLabel(C.level)}</button></span>`);
   if(!C.all) C.all = await getChars();
   await rxLoad();
   /* what you have met, for the header's count and the grid's marks; the
@@ -386,8 +386,8 @@ function paintChars(){
   const counts = {all: base.length, new: 0, learning: 0, mastered: 0};
   for(const c of base) counts[cStatus(c.h)]++;
   if(C.status !== "all" && !counts[C.status]) C.status = "all";
-  $("#cstatus").innerHTML = CSTATUS.map(([k, nm]) => `<button class="ptab" data-status="${k}" aria-pressed="${C.status === k}"${
-    k !== "all" && !counts[k] ? " disabled" : ""}>${nm}<small>${num(counts[k])}</small></button>`).join("");
+  paintSwitches("#cstatus", CSTATUS.map(([k, nm]) => `<button class="ptab" data-status="${k}" aria-pressed="${C.status === k}"${
+    k !== "all" && !counts[k] ? " disabled" : ""}>${nm}<small>${num(counts[k])}</small></button>`).join(""));
 
   const list = (C.status === "all" ? base : base.filter(c => cStatus(c.h) === C.status))
     .slice().sort(SORTS[C.sort].cmp);
