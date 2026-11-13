@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1D2021">
-<meta name="description" content="The complete HSK 3.0 standard as a study app: 11,092 words, 3,000 characters with stroke order, and all 573 grammar points — offline, on your device.">
+<meta name="description" content="Learn to read and write Chinese characters with stroke-order practice and your own books. Offline, on your device.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="./manifest.webmanifest">
-<!-- The tab icon is the logo (scripts/make-icons.mjs cuts every size from
+<!-- The tab icon is the logo (tools/make-icons.mjs cuts every size from
      themes/hanzai-origins-logo.png): the browser takes the size that suits
      the screen. ?v= is bumped when the logo changes, since browsers hold on
      to a tab icon long after the page itself has changed. -->
@@ -94,7 +94,7 @@ window.boom = function(what, detail){
   el.appendChild(dismiss);
 };
 
-/* Which build this page is. scripts/build.mjs stamps the same hash here, in
+/* Which build this page is. tools/build.mjs stamps the same hash here, in
    core.js (APP_BUILD) and in sw.js, so a page can tell whether the scripts it
    was handed are its own. They were not, after a deploy, wherever the
    previous service worker was still installed: it fetched the page from the
@@ -176,11 +176,10 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 
   <div class="rail">
     <nav class="navrow" id="nav" aria-label="Main">
-      <button data-v="home" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>Home</span></button>
       <button data-v="chars" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 19 8 8.5 18.5 4 20l1.5-4.5z"/><path d="M13.5 6.5 17 10"/></svg><span>Characters</span></button>
-      <button data-v="grammar" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 8h14M7 21h10"/><path d="M9 3h6"/></svg><span>Grammar</span></button>
-      <button data-v="talk" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V13"/><path d="M16 9h2.5A1.5 1.5 0 0 1 20 10.5v6a1.5 1.5 0 0 1-1.5 1.5H18v3l-3.5-3H11"/></svg><span>Talk</span></button>
       <button data-v="read" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10.5 5 8.3 4.3 4 4.5v13c4.3-.2 6.5.5 8 2 1.5-1.5 3.7-2.2 8-2v-13c-4.3-.2-6.5.5-8 2z"/><path d="M12 6.5v13"/></svg><span>Read</span></button>
+      <div class="nav-progress" id="cstats" aria-label="Character progress"></div>
+      <div class="nav-progress" id="rstats" aria-label="Reading progress"></div>
       <button data-v="settings" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg><span>Settings</span></button>
     </nav>
 
@@ -192,42 +191,15 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="M17 20l4-4-4-4"/><path d="M21 16H8"/></svg>
         </span>
       </button>
-      <!-- Rail only, like the card it sits in: folds the sidebar to its icons
-           so a wide table or a page of text gets the room. Beside whose record
-           this is rather than a row of its own under the tabs. -->
-      <button class="railtoggle" id="b-rail" aria-pressed="false" aria-label="Collapse the sidebar" title="Collapse the sidebar ([)">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 7-5 5 5 5"/><path d="m18 7-5 5 5 5"/></svg><span>Collapse</span></button>
     </div>
   </div>
 
   <main id="main" tabindex="-1">
 
-  <!-- ============ HOME ============ -->
-  <section id="v-home">
-    <!-- The front door. A greeting and a word for the day; the book and the
-         conversation you last touched; every section with the size of what is
-         behind it; and the level ladder. -->
-    <div class="hero" id="home-hero"></div>
-    <div class="pickup" id="home-pickup" hidden></div>
-
-    <div class="launch" id="home-launch"></div>
-
-    <div class="panel" data-fold="home-level">
-      <h3>Your level <span class="lbl" style="font-weight:500">what every tab works at</span></h3>
-      <div class="board" id="home-board"></div>
-    </div>
-  </section>
-
   <!-- ============ CHARACTERS ============ -->
   <section id="v-chars" class="hidden">
     <!-- The page's name, what it holds, and how far into the level you are. -->
-    <header class="phead">
-      <div class="ph-text">
-        <h2 class="ph-title">Characters <span class="hz">汉字</span></h2>
-        <p class="ph-sub" id="csub"></p>
-      </div>
-      <div class="ph-stats" id="cstats"></div>
-    </header>
+    <p id="csub" hidden></p>
     <!-- One panel for what is shown and how to find a character in it. On
          top, the level, and how the characters are shown: the grid of a
          level, or the tree of what is built from what (tree.js) — and, for
@@ -241,6 +213,7 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     <div class="ptools">
       <div class="filters lvseg" id="clevels" role="group" aria-label="Level"></div>
       <div class="ptools-end">
+      <button class="rx-toggle" id="radical-picker" aria-controls="cidx" aria-expanded="false">Radicals <span aria-hidden="true">⌄</span></button>
       <div class="filters pseg hidden" id="creach"></div>
       <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
         <button data-cv="grid" aria-pressed="false" title="The characters of a level, in a grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
@@ -322,44 +295,12 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     </div>
   </section>
 
-  <!-- ============ GRAMMAR ============ -->
-  <section id="v-grammar" class="hidden">
-    <header class="phead">
-      <div class="ph-text">
-        <h2 class="ph-title">Grammar <span class="hz">语法</span></h2>
-        <p class="ph-sub" id="gsub"></p>
-      </div>
-      <div class="ph-stats" id="gstats"></div>
-    </header>
-    <div class="ptools">
-      <div class="filters lvseg" id="glevels" role="group" aria-label="Level"></div>
-    </div>
-    <!-- The standard's own sections, each a tab with how many points it holds. -->
-    <div class="psub">
-      <div class="ptabs" id="gsecs" role="group" aria-label="Section"></div>
-    </div>
-    <!-- The list, and beside it on a wide screen the point picked, open. -->
-    <div class="gstage">
-      <div class="list-scroll" id="glist">
-        <div class="rows" id="grows"></div>
-      </div>
-      <article class="gdetail" id="gdetail" aria-live="polite" hidden></article>
-    </div>
-  </section>
-
   <!-- ============ READ ============ -->
   <section id="v-read" class="hidden">
 
     <div id="read-library">
       <input type="file" id="bookfile" accept=".epub,.txt,.md,text/plain,application/epub+zip" hidden>
-      <header class="phead">
-        <div class="ph-text">
-          <h2 class="ph-title">Read <span class="hz">阅读</span></h2>
-          <p class="ph-sub" id="rsub">Your own books and texts, every word coloured by its HSK level: tap one for its card, hold and drag
-            across a passage for its pinyin, a word-by-word reading or a translation.</p>
-        </div>
-        <div class="ph-stats" id="rstats"></div>
-      </header>
+
 
       <div class="panel hidden" id="paste-panel">
         <h3>Paste something to read</h3>
@@ -517,229 +458,9 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     </div>
   </section>
 
-  <!-- ============ TALK ============ -->
-  <section id="v-talk" class="hidden">
-    <!-- The decks: the page's name and what it holds, then the decks or the
-         whole bank to browse and filter; under that the question of the day,
-         who the conversation is with, the nine decks, and the panels that set
-         a run up. -->
-    <div id="talk-idle">
-      <header class="phead">
-        <div class="ph-text">
-          <h2 class="ph-title">Talk <span class="hz">对话</span></h2>
-          <p class="ph-sub" id="tksub"></p>
-        </div>
-        <div class="ph-stats" id="tkstats"></div>
-      </header>
-      <div class="ptools">
-        <div class="seg tkview" id="tk-view" role="group" aria-label="Show">
-          <button data-tkv="decks" aria-pressed="true">Decks</button>
-          <button data-tkv="browse" aria-pressed="false">Browse and filter</button>
-        </div>
-        <button class="fchip" id="tk-level" aria-pressed="false">Readable at HSK 1</button>
-      </div>
-
-      <div id="talk-home">
-        <div class="pickup" id="talk-resume" hidden></div>
-
-        <div class="talk-top">
-          <div class="panel">
-            <h3>Question of the day <span class="lbl" style="font-weight:500" id="talk-qotd-meta"></span></h3>
-            <div class="qotd" id="talk-qotd"></div>
-          </div>
-          <div class="panel" id="talk-who">
-            <h3>Who are you talking to? <span class="lbl" style="font-weight:500" id="talk-who-meta"></span></h3>
-            <p class="pmeta">Optional. Named, they are never asked the same question twice — and your
-              best openers come back fresh for the next person.</p>
-            <input class="search" id="talk-partner" type="text" maxlength="24"
-                   placeholder="Their name or handle — Lin, or @linlin" autocomplete="off">
-            <div class="people" id="talk-people"></div>
-          </div>
-        </div>
-
-        <div class="decks" id="talk-decks"></div>
-
-        <div class="talk-two">
-        <div class="panel" data-fold="talk-options">
-          <h3>How a card is shown</h3>
-          <span class="lbl">Which side first</span>
-          <div class="seg mini-seg" id="tk-mode" style="margin:6px 0 4px">
-            <button data-m="both" aria-pressed="true">Both</button>
-            <button data-m="en" aria-pressed="false">English · say it in 中文</button>
-            <button data-m="zh" aria-pressed="false">中文 · check the English</button>
-          </div>
-          <p class="pmeta" style="margin:0 0 6px">The English first hides the Chinese until you have
-            tried to produce it; the Chinese first hides the English until you have understood it.</p>
-          <div class="row">
-            <div><b>Pinyin over each character</b><p>Instead of one line of pinyin under the sentence.</p></div>
-            <button class="sw" id="sw-tk-ruby" aria-pressed="false" aria-label="Pinyin over each character"></button>
-          </div>
-          <div class="row">
-            <div><b>Colour words by HSK level</b><p>The same colouring as the reader.</p></div>
-            <button class="sw" id="sw-tk-tint" aria-pressed="true" aria-label="Colour words by HSK level"></button>
-          </div>
-          <div class="row">
-            <div><b>Open the study panel on every card</b><p>The words and the sample answer, without a tap.</p></div>
-            <button class="sw" id="sw-tk-study" aria-pressed="false" aria-label="Open the study panel on every card"></button>
-          </div>
-          <span class="lbl" style="display:block;margin:12px 0 6px">Run length</span>
-          <div class="seg mini-seg" id="tk-goal">
-            <button data-g="0" aria-pressed="true">Open</button>
-            <button data-g="10" aria-pressed="false">10</button>
-            <button data-g="20" aria-pressed="false">20</button>
-            <button data-g="40" aria-pressed="false">40</button>
-          </div>
-          <p class="pmeta" style="margin:8px 0 0">A goal only paces the run — nothing stops when you
-            reach it, the bar fills and the recap says you got there.</p>
-        </div>
-
-        <div class="panel" data-fold="talk-topics">
-          <h3>Mute topics <span class="lbl" style="font-weight:500"><span id="talk-muted-n">0</span> muted</span></h3>
-          <p class="pmeta">A muted topic stays out of every shipped deck. A selection you make by hand
-            in Browse ignores this.</p>
-          <div class="topics" id="talk-topics"></div>
-        </div>
-        </div>
-
-        <div class="panel" data-fold="talk-saved">
-          <h3>Saved questions <span class="lbl" style="font-weight:500" id="talk-saved-meta"></span></h3>
-          <div class="act-row hidden" id="talk-saved-acts" style="margin-bottom:12px">
-            <button class="btn sm" id="tk-practice-saved">Practise the saved ones</button>
-            <button class="ghost" id="tk-copy-saved">Copy as text</button>
-            <button class="ghost danger" id="tk-clear-saved">Clear all</button>
-          </div>
-          <div id="talk-saved"></div>
-        </div>
-
-        <div class="panel" data-fold="talk-how">
-          <h3>How it works</h3>
-          <p class="note">
-            <b>Every question carries a sensitivity from 1 to 5 and a stage from icebreaker to intimate.</b>
-            You start on safe ground. After each one you tap <span class="k">deeper</span> or
-            <span class="k">lighter</span> and the deck moves exactly one step — never further. Getting
-            past sensitivity 3 asks you to confirm the other person is up for it, which with somebody
-            you met an hour ago is the whole point.<br><br>
-            <b>Every card is HSK-aware.</b> Its Chinese is cut into words and coloured by level; the
-            <span class="k">HSK n</span> chip is the level the question is readable at — the lowest
-            that covers nine words in ten. Tap any word for its card and stroke order, and add it to
-            your review deck from the study panel. <b>Readable at HSK n</b> above the decks keeps
-            every run to questions you can already read.<br><br>
-            <b>On a phone:</b> swipe the card right to go deeper, left to go lighter, up to skip.
-            <b>On a keyboard:</b> <span class="k">←</span> <span class="k">→</span> to change level,
-            <span class="k">space</span> for the next question, <span class="k">S</span> to save,
-            <span class="k">C</span> to copy it — press <span class="k">?</span> for the rest.
-          </p>
-        </div>
-      </div>
-
-      <!-- Browsing: the whole bank as a query. -->
-      <div id="talk-browse" class="hidden">
-        <div class="filters" id="tk-f-sens"></div>
-        <div class="filters" id="tk-f-stage"></div>
-        <div class="filters" id="tk-f-freq"></div>
-        <div class="filters" id="tk-f-sort"></div>
-        <div class="act-row">
-          <button class="btn sm" id="tk-practice">Practise these</button>
-          <button class="ghost" id="tk-random">Surprise me</button>
-          <button class="ghost" id="tk-clearf">Clear filters</button>
-        </div>
-        <p class="pmeta" id="tk-hitcount"></p>
-        <div class="hits" id="tk-hits"></div>
-        <button class="more hidden" id="tk-more">Show more</button>
-      </div>
-    </div>
-
-    <!-- A run. The card, the study panel and the controls in one column; how
-         the run is set up — the goal bar and the five-rung gauge — beside it
-         on a wide screen, above it on a phone. -->
-    <div id="talk-run" class="hidden">
-      <div class="runside" id="tk-side">
-        <div class="goal" id="tk-goalbar">
-          <span class="gl" id="tk-goal-l">This run</span>
-          <span class="gv" id="tk-goal-v">0 asked · 0:00</span>
-          <span class="gtrack"><span class="gfill" id="tk-goal-fill" style="width:0%"></span></span>
-          <span class="gwho hidden" id="tk-goal-who"></span>
-        </div>
-        <div class="gauge" id="tk-gauge">
-          <div class="gauge-head">
-            <strong id="tk-deck-name"></strong>
-            <span class="lbl" id="tk-deck-rule"></span>
-          </div>
-          <div class="rungs" id="tk-rungs"></div>
-        </div>
-      </div>
-
-      <article class="card" id="tk-card">
-        <div class="card-top" id="tk-chips"></div>
-        <div class="q-en" id="tk-en"></div>
-        <button class="reveal hidden" id="tk-reveal">Show the 中文</button>
-        <div id="tk-zhblock">
-          <div class="cpdialogue talk-zh" id="tk-zh" data-talkline="q" data-tint="level" data-ruby="off"></div>
-          <div class="q-py py" id="tk-py"></div>
-        </div>
-        <div class="q-foot">
-          <code id="tk-frame" title="The pattern the question is built on"></code>
-          <div class="foot-acts">
-            <span class="q-id" id="tk-id"></span>
-            <button class="mini" id="tk-save" aria-pressed="false" aria-label="Save this question" title="Save (S)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </button>
-            <button class="mini" id="tk-copy" aria-label="Copy this question — the Chinese, then the English" title="Copy (C)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-      </article>
-
-      <div class="study" id="tk-study">
-        <button class="study-h" id="tk-study-toggle" aria-expanded="false" aria-controls="tk-study-body">
-          <span class="lbl">Study this question</span>
-          <span class="study-sum" id="tk-study-sum"></span>
-          <span class="chev" aria-hidden="true"></span>
-        </button>
-        <div class="study-in hidden" id="tk-study-body">
-          <div class="seg mini-seg" id="tk-study-tabs">
-            <button data-s="words" aria-pressed="true">Words</button>
-            <button data-s="answer" aria-pressed="false">Sample answer</button>
-          </div>
-          <div id="tk-study-pane"></div>
-        </div>
-      </div>
-
-      <!-- Where to go next: one row of the three moves — lighter, another
-           like this one, deeper — and under it, one line of everything else:
-           back, skip, the run's numbers, end. -->
-      <div class="tk-controls" id="tk-ctl">
-        <button class="ctl cool" id="tk-cool"><b>← Lighter</b><small>Ease back a step</small></button>
-        <button class="next" id="tk-next">Another question like this one</button>
-        <button class="ctl warm" id="tk-warm"><b>Deeper →</b><small>Go one step further</small></button>
-      </div>
-      <div class="tk-foot" id="tk-stats">
-        <button class="ghost" id="tk-back" disabled>Previous card</button>
-        <button class="ghost" id="tk-skip">Skip this one</button>
-        <span class="stats">
-          <span>Asked <b id="tk-s-asked">0</b></span>
-          <span>Level <b id="tk-s-depth">1</b> of 5</span>
-          <span><b id="tk-s-left">0</b> more at this level</span>
-          <span>Saved <b id="tk-s-saved">0</b></span>
-        </span>
-        <button class="ghost" id="tk-end">End the conversation</button>
-      </div>
-
-      <!-- The word card, anchored to a word in the question or an answer. -->
-      <div id="tk-gloss" class="cpgloss" aria-hidden="true" aria-live="polite"><div class="gl-inner" id="tk-gloss-body"></div></div>
-    </div>
-
-    <div id="talk-done" class="hidden"></div>
-  </section>
-
   <!-- ============ SETTINGS ============ -->
   <section id="v-settings" class="hidden">
-    <div class="panel" data-fold="set-profile">
-      <h3>Profile</h3>
-      <div id="profile-body"></div>
-    </div>
-
+    <div class="settings-primary">
     <div class="panel" data-fold="set-display">
       <h3>Display</h3>
       <span class="lbl">Script</span>
@@ -768,30 +489,13 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         <button data-m="off" aria-pressed="false">Off</button>
       </div>
       <span class="lbl" style="display:block;margin:15px 0 0">Chinese font</span>
-      <p class="pmeta" style="margin:3px 0 0">Everything in hanzi — the reader, Talk, every card.
+      <p class="pmeta" style="margin:3px 0 0">Everything in hanzi — the reader and every card.
         Faces marked “from your device” use the font your system already has, and fall back to the
         default where there is none.</p>
       <div class="fontpick" id="font-zh"></div>
       <span class="lbl" style="display:block;margin:15px 0 0">English font</span>
       <p class="pmeta" style="margin:3px 0 0">The text around it — meanings, labels, this page.</p>
       <div class="fontpick" id="font-en"></div>
-    </div>
-
-    <div class="panel" data-fold="set-lookup">
-      <h3>Look up</h3>
-      <p class="pmeta">Every Chinese word in a book or a Talk question opens a card with its reading
-        and meaning. Tap for it, or let it open on its own.</p>
-      <div class="row">
-        <div><b>Open on hold</b><p>Rest the pointer on a word, or hold a finger on it, and the card opens
-          without a tap. Tapping still works either way.</p></div>
-        <button class="sw" id="sw-dwell" aria-pressed="true" aria-label="Open on hold"></button>
-      </div>
-      <div class="row" id="dwell-row">
-        <div><b>How long to hold</b><p>Shorter is quicker; longer means fewer cards opening under a
-          resting mouse.</p></div>
-        <b id="lbl-dwell" style="font-variant-numeric:tabular-nums">2.0 s</b>
-      </div>
-      <input type="range" id="r-dwell" min="500" max="4000" step="250" style="width:100%">
     </div>
 
     <div class="panel" data-fold="set-theme">
@@ -811,6 +515,29 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         <input type="range" id="r-tex" min="5" max="80" step="1" style="width:100%">
       </div>
     </div>
+    </div>
+    <div class="settings-secondary">
+    <div class="panel" data-fold="set-profile">
+      <h3>Profile</h3>
+      <div id="profile-body"></div>
+    </div>
+
+    <div class="panel" data-fold="set-lookup">
+      <h3>Look up</h3>
+      <p class="pmeta">Every Chinese word in a book opens a card with its reading
+        and meaning. Tap for it, or let it open on its own.</p>
+      <div class="row">
+        <div><b>Open on hold</b><p>Rest the pointer on a word, or hold a finger on it, and the card opens
+          without a tap. Tapping still works either way.</p></div>
+        <button class="sw" id="sw-dwell" aria-pressed="true" aria-label="Open on hold"></button>
+      </div>
+      <div class="row" id="dwell-row">
+        <div><b>How long to hold</b><p>Shorter is quicker; longer means fewer cards opening under a
+          resting mouse.</p></div>
+        <b id="lbl-dwell" style="font-variant-numeric:tabular-nums">2.0 s</b>
+      </div>
+      <input type="range" id="r-dwell" min="500" max="4000" step="250" style="width:100%">
+    </div>
 
     <div class="panel" data-fold="set-data">
       <h3>Your data</h3>
@@ -827,6 +554,7 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     <div class="panel" data-fold="set-about">
       <h3>About</h3>
       <div class="about" id="about"></div>
+    </div>
     </div>
   </section>
   </main>
@@ -848,18 +576,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <dialog id="writing"><div class="gate"><div class="gate-body" id="writing-body"></div></div></dialog>
 <dialog id="help"><div class="gate"><div class="gate-body" id="help-body"></div></div></dialog>
 <!-- The consent check, before a conversation goes past sensitivity 3. -->
-<dialog id="talk-gate"><div class="gate"><div class="gate-body">
-  <span class="lbl" style="color:var(--acc)">Consent check</span>
-  <h2 id="tk-gate-h">This is where it gets personal</h2>
-  <p id="tk-gate-p"></p>
-  <p class="pmeta" style="margin-top:9px">With someone you have only just met online, ask before you go here — and
-    read a non-answer as a no. Staying lighter costs you nothing, and a stranger who feels pushed will simply
-    stop replying.</p>
-  <div class="acts">
-    <button class="go" data-gate="yes">They're happy to</button>
-    <button class="no" data-gate="no">Stay lighter</button>
-  </div>
-</div></div></dialog>
 
 <script src="./vendor/hanzi-writer.min.js"></script>
 <script src="./js/profile.js"></script>
@@ -869,11 +585,10 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <script src="./js/browse.js"></script>
 <script src="./js/tree.js"></script>
 <script src="./js/radicals.js"></script>
-<script src="./js/home.js"></script>
+<script src="./js/navigation.js"></script>
 <script src="./js/epub.js"></script>
 <script src="./js/segment.js"></script>
 <script src="./js/reader.js"></script>
-<script src="./js/talk.js"></script>
 <script src="./js/settings.js"></script>
 <script src="./js/boot.js"></script>
 <script src="./js/native.js"></script>

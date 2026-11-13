@@ -6,13 +6,13 @@
 # home page). The build is Node with no npm install, since the scripts it runs
 # use only Node's own modules:
 #   1. The offline translator ("Compact" in the reader) is not in the repository.
-#      scripts/build-translation.mjs fetches it from its pinned sources, checks
+#      tools/build-translation.mjs fetches it from its pinned sources, checks
 #      each file against its SHA-256 and packs it into app/data/mt/. The
 #      downloads are cached between runs. Both steps are skipped while
 #      data/translation/files.json is absent: the site is then built without
 #      Compact, which the reader shows as not in this copy of the app.
-#   2. scripts/build.mjs --pages: app/ -> release/pages/, with the service
-#      worker stamped (see scripts/build.mjs).
+#   2. tools/build.mjs --pages: app/ -> release/pages/, with the service
+#      worker stamped (see tools/build.mjs).
 name: Deploy HANZAI-ORIGINS to GitHub Pages
 
 on:
@@ -58,9 +58,9 @@ jobs:
           key: translation-${{ hashFiles('data/translation/files.json') }}
       - name: Install the offline translator
         if: hashFiles('data/translation/files.json') != ''
-        run: node scripts/build-translation.mjs
+        run: node tools/build-translation.mjs
       - name: Build the site
-        run: node scripts/build.mjs --pages
+        run: node tools/build.mjs --pages
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

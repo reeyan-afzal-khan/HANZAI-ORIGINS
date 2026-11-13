@@ -21,16 +21,13 @@ function renderSettings(){
 
 
 async function renderAbout(){
-  const [meta, talk] = await Promise.all([getMeta(),
-    typeof talkMeta === "function" ? talkMeta() : null]);
+  const meta = await getMeta();
   const row = (k, v) => `<div><span>${esc(k)}</span><b>${v}</b></div>`;
   $("#about").innerHTML = [
     row("Version", BUILT ? `${APP_VERSION} <span class="build">· build ${APP_BUILD}</span>` : APP_VERSION),
     row("Standard", "HSK 3.0 (2021)"),
     row("Vocabulary", `${num(meta.totals.words)} words`),
     row("Characters", `${num(meta.totals.chars)} hanzi`),
-    row("Grammar", `${meta.totals.grammar} points · ${meta.totals.grammarWithNotes} explained`),
-    ...(talk ? [row("Talk", `${num(talk.questions)} questions · ${talk.decks} decks · ${talk.answers} model answers`)] : []),
     row("Data built", meta.generated),
   ].join("");
 }

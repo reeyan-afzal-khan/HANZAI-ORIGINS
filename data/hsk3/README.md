@@ -3,7 +3,7 @@
 The standard itself, as three CSV files (from [ivankra/hsk30](https://github.com/ivankra/hsk30),
 MIT). They are the spine of the app: every word, character and grammar point
 the app knows comes from here, and everything else is attached to them.
-Read by `scripts/lib/compile.mjs`; rebuild with `npm run data`.
+Read by `tools/lib/compile.mjs`; rebuild with `npm run data`.
 
 Levels are `1`–`6` and `7-9`. In the app and the database `7-9` is stored as
 `7` and shown as "7–9".
@@ -41,7 +41,7 @@ Readings, meanings, strokes and components are not here — see `../dictionary/`
 | ---------- | --------------------------------------------------------- | ---- |
 | `No`       | 1–573; the point's id, and the key into `../grammar/`     | yes  |
 | `Level`    | `1`–`6`, `7-9`                                            | yes  |
-| `Group`    | 词类 / 短语 / 句子成分 / 句子 … — translated by `scripts/lib/grammar-taxonomy.mjs` | yes |
+| `Group`    | 词类 / 短语 / 句子成分 / 句子 … — translated by `tools/lib/grammar-taxonomy.mjs` | yes |
 | `Category` | the sub-heading within the group (Chinese)                | yes  |
 | `Details`  | the point's own name, where the list gives one            | yes  |
 | `Content`  | the forms or examples the standard lists                  | yes  |
@@ -54,4 +54,4 @@ The English explanations of the points are not in this file: they live in
 Edit the CSV in place (UTF-8, keep the header row), then `npm run data`.
 `npm run sources` downloads the upstream lists again and overwrites these
 three files, so put a correction that should survive a refresh in the build
-(`scripts/lib/compile.mjs`) rather than in the CSV.
+(`tools/lib/compile.mjs`) rather than in the CSV.

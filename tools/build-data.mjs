@@ -63,14 +63,6 @@ emit('chars', rows(db, 'SELECT * FROM chars ORDER BY ord').map((c) => ({
   ex: c.examples, p: c.pinyin, pAlt: c.pinyin_alt, en: c.en, r: c.cedict_radical,
 })))
 
-// ---------------------------------------------------------------- grammar
-emit('grammar', rows(db, 'SELECT * FROM grammar ORDER BY ord').map((g) => ({
-  id: g.id, lv: g.level, group: g.grp, groupZh: g.grp_zh,
-  category: g.category, categoryZh: g.category_zh,
-  topic: g.topic, topicZh: g.topic_zh, content: g.content,
-  title: g.title, summary: g.summary, examples: g.examples,
-})))
-
 // ---------------------------------------------------------------- manifest
 const meta = Object.fromEntries(
   rows(db, 'SELECT key, value FROM meta').map((r) => [r.key, r.value]),

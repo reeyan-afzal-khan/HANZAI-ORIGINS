@@ -3,7 +3,7 @@
  * build reads. Run this only when refreshing the data; the reduced files are
  * committed, so a normal checkout builds offline.
  *
- *   node scripts/fetch-sources.mjs
+ *   node tools/fetch-sources.mjs
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -70,7 +70,7 @@ console.log('\nCC-CEDICT character dictionary')
 const gz = `${CACHE}/cedict.txt.gz`
 await download(CEDICT, gz)
 execFileSync('gunzip', ['-kf', gz])
-execFileSync('node', ['scripts/build-chardict.mjs', `${CACHE}/cedict.txt`], { stdio: 'inherit' })
+execFileSync('node', ['tools/build-chardict.mjs', `${CACHE}/cedict.txt`], { stdio: 'inherit' })
 
 if (!existsSync(DICT.chardict)) throw new Error('chardict.json was not produced')
 
@@ -80,6 +80,6 @@ await download(HANZIDB, `${CACHE}/hanziDB.csv`)
 await download(MAKEMEAHANZI, `${CACHE}/dictionary.txt`)
 // The two sources are 3 MB together and stay in the cache; only the
 // reduction is committed.
-execFileSync('node', ['scripts/build-charextra.mjs'], { stdio: 'inherit' })
+execFileSync('node', ['tools/build-charextra.mjs'], { stdio: 'inherit' })
 
 console.log('\nSources refreshed. Run `npm run data` to rebuild.')

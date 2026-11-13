@@ -5,7 +5,7 @@ levels 1–6, 425 of the 573, written for this project. The points themselves,
 and their Chinese names, are the official list in `../hsk3/grammar.csv`; this
 folder is what is said about them. The points of levels 7–9 have no note yet
 and keep the list's own name and forms.
-Read by `scripts/lib/compile.mjs`; rebuild the app with `npm run data`.
+Read by `tools/lib/compile.mjs`; rebuild the app with `npm run data`.
 
 ## hsk1.mjs … hsk6.mjs — one file per level
 
@@ -27,7 +27,7 @@ export default {
 | `examples` | sentences in Chinese (`zh`) and English (`en`)                         |
 
 The examples carry no pinyin: it is read off the syllabus at build time, as
-for every other sentence in the app (`scripts/lib/pinyin.mjs`). They are also
+for every other sentence in the app (`tools/lib/pinyin.mjs`). They are also
 where the word cards' examples come from: `npm run data` ends by picking, for
 each word of the syllabus, up to three of these sentences that use it
-(`scripts/build-examples.mjs`).
+(`tools/build-examples.mjs`).

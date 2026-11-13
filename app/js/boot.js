@@ -4,15 +4,15 @@
 /* ---------------- views ---------------- */
 /* Set once the opening view is on screen, so the first show() does not scroll. */
 let booted = false;
-const VIEWS = ["home", "chars", "grammar", "talk", "read", "settings"];
+const VIEWS = ["chars", "read", "settings"];
 const RENDER = {
-  home: renderHome, chars: renderChars,
-  grammar: renderGrammar, read: renderRead, talk: renderTalk,
+  chars: renderChars,
+  read: renderRead,
   settings: renderSettings,
 };
 
 function show(view){
-  if(!VIEWS.includes(view)) view = "home";
+  if(!VIEWS.includes(view)) view = "chars";
   // The gloss belongs to the page it was opened from; leaving takes it with you.
   if(view !== "read"){ closeGloss(); if(typeof TURN !== "undefined" && TURN.leaf) dropLeaf(); if(typeof riffleDrop === "function") riffleDrop(); }
   /* The book stays open so that coming back resumes it, but the full-screen
@@ -28,6 +28,7 @@ function show(view){
   if(view !== "chars") document.body.classList.remove("ct-max");
   const changed = S.view !== view;
   S.view = view; save();
+  document.body.dataset.view = view;
   VIEWS.forEach(v => $(`#v-${v}`).classList.toggle("hidden", v !== view));
   /* A new view arrives rather than appears: a short rise-and-fade, once,
      removed when it lands so nothing is left transformed under it. */
@@ -173,7 +174,7 @@ document.addEventListener("click", e => {
     safely("open that entry", () =>
       kind === "word" ? openWord(ref) :
       kind === "char" ? openChar(ref) :
-      kind === "grammar" ? openGrammar(ref) : null);
+      null);
     return;
   }
 
@@ -190,7 +191,7 @@ document.addEventListener("click", e => {
         toast(n === 1 ? "Added 1 card" : `Added ${n} cards`);
       }
       closeDetail();
-      await Promise.all([renderRail(), treeDeckChanged(), grammarDeckChanged()]);
+      await Promise.all([renderRail(), treeDeckChanged()]);
     });
     return;
   }
@@ -208,14 +209,6 @@ document.addEventListener("click", e => {
     safely("open that text", () => openBook(resume.dataset.resume));
     return;
   }
-  /* The home screen's pick-up card for a conversation: the tab opens
-     straight onto the card that was up. */
-  if(e.target.closest("[data-talkresume]") && S.view !== "talk"){
-    TK.resumeOnRender = true;
-    show("talk");
-    return;
-  }
-
   /* A launcher tile is a section. The nav's own listener only hears the nav. */
   const go = e.target.closest("[data-go]");
   if(go){ show(go.dataset.go); return; }
@@ -225,7 +218,7 @@ document.addEventListener("click", e => {
   if(lvcard){
     setLevel(lvcard.dataset.lv || lvcard.dataset.setlv);
     safely("switch level", async () => {
-      await renderHome();
+      await renderChars();
       toast(`Working at HSK ${levelLabel(S.level)}`);
     });
   }
@@ -249,7 +242,6 @@ const dismissWordCards = e => {
   if(e.target.closest("#gloss, #tk-gloss") || e.target.closest(".rdw[data-i]")) return;
   let spent = false;
   if(R.sheet){ closeGloss(); spent = true; }
-  if(TK.sheet){ closeTalkGloss(); spent = true; }
   /* The click from this same press must not then close a dialog too: the
      press meant "put the card away", and it is spent. */
   if(spent) pressSpent = true;
@@ -263,7 +255,6 @@ document.addEventListener("click", dismissWordCards, true);
    the word. */
 addEventListener("resize", () => {
   if(R.sheet) placePopover($("#gloss"), R.sheet.wordEl);
-  if(TK.sheet) placePopover($("#tk-gloss"), TK.sheet.wordEl);
 });
 
 /* Opening a card without a tap. Two gestures, one timer.
@@ -292,7 +283,6 @@ function armDwell(word, press){
     if(dwellPress) swallowClick = true;
     const blk = word.closest("#rd-prose .blk[data-b]");
     if(blk) openGloss(+blk.dataset.b, +word.dataset.i, {byDwell});
-    else if(word.closest("[data-talkline]")) openTalkGloss(word, {byDwell});
   }, S.glossDwellMs || 2000);
 }
 function clearDwell(){ clearTimeout(dwellTimer); dwellTimer = 0; dwellWord = null; dwellPress = false; }
@@ -329,11 +319,11 @@ document.addEventListener("click", e => {
    hover to lift. */
 let leaveTimer = 0;
 const dwellSheet = () => (R.sheet && R.sheet.byDwell) ? R.sheet
-                       : (TK.sheet && TK.sheet.byDwell) ? TK.sheet : null;
+                       : null;
 function inDwellCard(el){
   const sheet = dwellSheet();
   if(!sheet || !el || el.nodeType !== 1) return false;
-  const card = sheet === TK.sheet ? $("#tk-gloss") : $("#gloss");
+  const card = $("#gloss");
   return (sheet.wordEl && sheet.wordEl.contains(el)) || card.contains(el);
 }
 document.addEventListener("pointerout", e => {
@@ -342,7 +332,7 @@ document.addEventListener("pointerout", e => {
   leaveTimer = setTimeout(() => {
     const sheet = dwellSheet();
     if(!sheet) return;
-    if(sheet === TK.sheet) closeTalkGloss(); else closeGloss();
+    closeGloss();
   }, 220);
 });
 document.addEventListener("pointerover", e => {
@@ -419,167 +409,14 @@ $("#v-chars").addEventListener("click", e => {
   if(e.target.closest('[data-cp="strokes"]') && C.writer) C.writer.animate();
 });
 
-/* All of a level's points, or one of the standard's sections. */
-$("#gsecs").onclick = e => {
-  const b = e.target.closest("button[data-gsec]");
-  if(!b || b.dataset.gsec === G.sec) return;
-  G.sec = b.dataset.gsec;
-  paintGrammar();
-};
-/* A row, a point named in the panel, or the panel's previous and next. */
-$("#v-grammar").addEventListener("click", e => {
-  const b = e.target.closest("[data-gsel]");
-  if(b && !b.disabled) gPick(+b.dataset.gsel);
-});
 /* Across the width where the point opens beside the list, the list and the
    panel are laid out again. */
 if(window.matchMedia){
   const mq = matchMedia("(min-width:1100px)");
   if(mq.addEventListener) mq.addEventListener("change", () => {
-    if(S.view === "grammar" && G.all) paintGrammar();
     if(S.view === "chars" && S.charView !== "tree" && C.all) paintChars();
   });
 }
-
-/* ---------------- talk ---------------- */
-/* The decks, or the whole bank to browse and filter. */
-$("#tk-view").onclick = e => {
-  const b = e.target.closest("button[data-tkv]");
-  if(!b || (b.dataset.tkv === "browse") === TK.browse) return;
-  TK.browse = b.dataset.tkv === "browse";
-  safely("browse the questions", renderTalk);
-};
-$("#tk-level").onclick = () => {
-  S.talkLevelOnly = !S.talkLevelOnly; save();
-  toast(S.talkLevelOnly ? `Only questions readable at HSK ${levelLabel(S.level)}` : "Every question");
-  safely("filter the decks", renderTalk);
-};
-$("#talk-partner").addEventListener("change", e => safely("set who you are talking to", async () => {
-  await setTalkPartner(e.target.value);
-  paintTalkPeople(); paintTalkDecks();
-}));
-$("#tk-mode").onclick = e => {
-  const b = e.target.closest("button[data-m]"); if(!b) return;
-  S.talkMode = b.dataset.m; save(); paintTalkOptions();
-};
-$("#tk-goal").onclick = e => {
-  const b = e.target.closest("button[data-g]"); if(!b) return;
-  S.talkGoal = +b.dataset.g; save(); paintTalkOptions();
-};
-/* The three switches. Wired here rather than through bindToggle below, which
-   is a const this block would reach before it exists. */
-[["#sw-tk-ruby", "talkRuby"], ["#sw-tk-tint", "talkTint"], ["#sw-tk-study", "talkStudy"]]
-  .forEach(([sel, key]) => { $(sel).onclick = () => {
-    S[key] = !S[key]; save();
-    $(sel).setAttribute("aria-pressed", String(S[key]));
-    if(key === "talkRuby" || key === "talkTint") paintTalkQotd();
-  }; });
-$("#talk-topics").onclick = e => {
-  const b = e.target.closest("[data-talktopic]"); if(!b) return;
-  const i = +b.dataset.talktopic;
-  S.talkMuted = S.talkMuted.includes(i) ? S.talkMuted.filter(x => x !== i) : [...S.talkMuted, i];
-  save(); paintTalkTopics(); paintTalkDecks();
-};
-$("#tk-practice-saved").onclick = () => talkPractise(S.talkSaved.map(id => TK.byId.get(id)).filter(Boolean), "Saved questions");
-$("#tk-copy-saved").onclick = () => safely("copy the saved questions", async () => {
-  const rows = S.talkSaved.map(id => TK.byId.get(id)).filter(Boolean);
-  const ok = await copyText(rows.map(q => `${q[Q.ZH]}\n${q[Q.EN]}`).join("\n\n"));
-  toast(ok ? `Copied ${rows.length} question${rows.length === 1 ? "" : "s"}` : "Could not copy");
-});
-$("#tk-clear-saved").onclick = () => {
-  if(!S.talkSaved.length || !confirm("Clear every saved question?")) return;
-  S.talkSaved = []; save(); paintTalkSaved(); toast("Saved list cleared");
-};
-/* Browsing. */
-$("#talk-browse").addEventListener("click", e => {
-  const b = e.target.closest(".fchip"); if(!b) return;
-  const flip = (set, v) => { if(set.has(v)) set.delete(v); else set.add(v); };
-  if(b.dataset.tks) flip(TK.fSens, +b.dataset.tks);
-  else if(b.dataset.tkt) flip(TK.fStage, +b.dataset.tkt);
-  else if(b.dataset.tkq !== undefined) TK.fFreq = +b.dataset.tkq;
-  else if(b.dataset.tkl) TK.fLevel = !TK.fLevel;
-  else if(b.dataset.tko) TK.fSort = b.dataset.tko;
-  else return;
-  paintTalkFilters(); safely("search the questions", talkSearch);
-});
-$("#tk-clearf").onclick = () => {
-  TK.fSens.clear(); TK.fStage.clear(); TK.fFreq = 0; TK.fLevel = false; TK.fSort = "freq";
-  paintTalkFilters(); safely("search the questions", talkSearch);
-};
-$("#tk-more").onclick = () => { TK.shown = Math.min(TK.results.length, TK.shown + TK_PAGE); paintTalkHits(); };
-$("#tk-practice").onclick = () => talkPractise(TK.results, "Your selection");
-$("#tk-random").onclick = () => { const q = TK.results[Math.floor(Math.random() * TK.results.length)]; if(q) talkOpenQuestion(q[Q.ID]); };
-/* Everything on the decks screen that opens, resumes or starts a run. */
-$("#v-talk").addEventListener("click", e => {
-  const deck = e.target.closest("[data-talkdeck]");
-  if(deck){ talkStart(+deck.dataset.talkdeck); return; }
-  const open = e.target.closest("[data-talkopen]");
-  if(open){ talkOpenQuestion(+open.dataset.talkopen); return; }
-  const person = e.target.closest("[data-talkperson]");
-  if(person){
-    safely("switch person", async () => {
-      await setTalkPartner(person.dataset.talkperson === S.talkPartner ? "" : person.dataset.talkperson);
-      paintTalkPeople(); paintTalkDecks();
-      toast(S.talkPartner ? `Talking to ${S.talkPartner}` : "Talking to nobody in particular");
-    });
-    return;
-  }
-  if(e.target.closest("[data-talkresume]")){ safely("pick the conversation up", resumeTalkRun); return; }
-  if(e.target.closest("[data-talkdrop]")){ safely("close the conversation", async () => { await bankTalkSnapshot(S.talkRun); await renderTalk(); }); return; }
-  const again = e.target.closest("[data-talkagain]");
-  if(again){ talkStart(+again.dataset.talkagain); return; }
-  if(e.target.closest("[data-talkhome]")){ safely("open the decks", renderTalk); return; }
-  /* In a run: a word opens its writing card; the deck button on a word row
-     puts it in or out of the review deck. */
-  const word = e.target.closest("[data-talkword]");
-  if(word){
-    const [line, i] = word.dataset.talkword.split(":");
-    const tok = (TK.lines[line] || [])[+i];
-    closeTalkGloss();
-    if(tok && tok.t !== "x") safely("open that word", () => openWriting(tok.w, {nav: true, tok}));
-    return;
-  }
-  const dk = e.target.closest("[data-tkdeck]");
-  if(dk){
-    const [id, lv] = dk.dataset.tkdeck.split(":");
-    safely("update your deck", () => talkToggleDeckWord(id, lv));
-    return;
-  }
-  const tk = e.target.closest("[data-talkline] .rdw[data-i]");
-  if(tk){
-    const line = tk.closest("[data-talkline]");
-    const tok = (TK.lines[line.dataset.talkline] || [])[+tk.dataset.i];
-    closeTalkGloss();
-    if(tok && tok.t !== "x") safely("open that word", () => openWriting(tok.w, {nav: true, tok}));
-  }
-});
-/* The run's controls. */
-$("#tk-warm").onclick = () => talkMove(1);
-$("#tk-cool").onclick = () => talkMove(-1);
-$("#tk-skip").onclick = () => talkNext(3);
-$("#tk-next").onclick = () => talkNext(0);
-$("#tk-back").onclick = talkBack;
-$("#tk-end").onclick = () => safely("end the conversation", () => talkFinish(true));
-$("#tk-reveal").onclick = talkReveal;
-$("#tk-save").onclick = talkToggleSaved;
-$("#tk-copy").onclick = () => safely("copy the question", talkCopy);
-$("#tk-study-toggle").onclick = () => {
-  const open = $("#tk-study-body").classList.toggle("hidden");
-  $("#tk-study-toggle").setAttribute("aria-expanded", String(!open));
-  paintTalkStudy();
-};
-$("#tk-study-tabs").onclick = e => {
-  const b = e.target.closest("button[data-s]"); if(!b) return;
-  TK.studyTab = b.dataset.s; paintTalkStudy();
-};
-bindTalkSwipe();
-/* The consent gate closes through its two buttons; Escape reads as "stay lighter". */
-$("#talk-gate").addEventListener("click", e => {
-  const b = e.target.closest("[data-gate]");
-  if(b) answerTalkGate(b.dataset.gate);
-  else if(e.target === $("#talk-gate")) answerTalkGate("no");
-});
-$("#talk-gate").addEventListener("cancel", e => { e.preventDefault(); answerTalkGate("no"); });
 
 /* ---------------- reading ---------------- */
 $("#bookfile").onchange = e => {
@@ -749,7 +586,6 @@ addEventListener("resize", () => {
     sizeLists();
     if(typeof placeTalkStudy === "function") placeTalkStudy();
     /* The fold control's words depend on which layout is showing. */
-    setRail(S.railMin);
   }, 140);
 });
 
@@ -939,7 +775,7 @@ function showWelcome(opts){
     S.level = level;
     save();
     $("#welcome").close();
-    safely("set up your profile", async () => { await renderRail(); show("home"); });
+    safely("set up your profile", async () => { await renderRail(); show("chars"); });
   };
   $("#welcome-body").addEventListener("click", e => {
     if(!e.target.closest("[data-close-welcome]")) return;
@@ -1000,11 +836,9 @@ $("#rc-who").onclick = showProfiles;
 
 /* ---------------- keyboard ---------------- */
 const HELP = [
-  ["Anywhere", [["1 – 6", "Jump to a section"], ["[", "Fold or unfold the sidebar"], ["?", "This list"], ["Esc", "Close a dialog"]]],
+  ["Anywhere", [["1 – 6", "Jump to a section"], ["?", "This list"], ["Esc", "Close a dialog"]]],
   ["The character grid", [["← → ↑ ↓", "Move across the grid, beside the character open"], ["Enter", "Open its full entry"]]],
   ["The character tree", [["← → ↑ ↓", "Walk the tree: along a branch, back to the root, between siblings"], ["Enter", "Open the entry of the tile picked"], ["Space", "Open or fold its branch"], ["G", "Grow a tree from the tile picked"], ["Backspace", "Back to the root before"], ["+ −", "Zoom in and out"], ["0", "Fit the whole tree"], ["F", "Fill the window with the tree, and back"], ["Esc", "Put the tile down"]]],
-  ["Talking",   [["→", "Deeper — one level down"], ["←", "Lighter — back off a level"], ["Space", "Another question like this one"], ["X", "Skip this one"], ["S", "Save it for later"], ["C", "Copy it — the Chinese, then the English"], ["R", "Reveal the other language"], ["B", "Back to the previous card"]]],
-  ["Grammar",   [["↑ ↓", "The point before and after, beside the list"]]],
   ["Reading",   [["← →", "Previous and next page"], ["F", "Full screen, and back"], ["Esc", "Close the gloss, clear a selected passage, or leave full screen"]]],
 ];
 
@@ -1018,83 +852,7 @@ function showHelp(){
 }
 $("#b-help").onclick = showHelp;
 
-/* The sidebar folds to its icons — a wide table or a page of text gets most
-   of its width back — and stays folded across sessions. The class does all
-   the work in CSS; what has to follow it in script is the lists and the
-   reader, which are measured against a width that just changed. */
-/* Runs fn once the rail has finished moving: on the end of the column
-   transition, or on a timer a little longer than it if that never comes
-   (a hidden tab, reduced motion, a layout with no rail). */
-function afterRailMove(fn){
-  const wrap = document.querySelector(".wrap");
-  let done = false;
-  const fire = () => { if(done) return; done = true; wrap.removeEventListener("transitionend", onEnd); fn(); };
-  const onEnd = e => { if(e.target === wrap && e.propertyName === "grid-template-columns") fire(); };
-  wrap.addEventListener("transitionend", onEnd);
-  setTimeout(fire, 420);
-}
-
-/* The main column changes width the whole time the rail is moving, and the
-   card grids on Home lay themselves out by auto-fill — so mid-move a row can
-   re-count its columns and every card jumps to a new place, which is the one
-   thing in the fold that reads as jitter. Before the move, the layout the
-   rail will land on is measured (applied for an instant with the transition
-   off, then taken back before anything is painted), and each grid is held at
-   that column count for the duration: the cards then only change width,
-   smoothly, and nothing changes rows. Returns the release. */
-function holdGrids(min){
-  if(innerWidth < 900) return () => {};
-  const grids = $$("#main .board, #main .launch, #main .pickup").filter(g => g.offsetParent);
-  if(!grids.length) return () => {};
-  const wrap = $(".wrap"), was = document.body.classList.contains("railmin");
-  wrap.classList.add("railsnap");
-  document.body.classList.toggle("railmin", min);
-  /* The resolved track list; auto-fit's collapsed tracks are listed at 0px
-     and are not columns. */
-  const counts = grids.map(g => getComputedStyle(g).gridTemplateColumns.trim().split(/\s+/)
-    .filter(t => parseFloat(t) > 0).length || 1);
-  document.body.classList.toggle("railmin", was);
-  void wrap.offsetWidth;
-  wrap.classList.remove("railsnap");
-  grids.forEach((g, i) => { g.style.gridTemplateColumns = `repeat(${counts[i]}, minmax(0,1fr))`; });
-  return () => grids.forEach(g => { g.style.gridTemplateColumns = ""; });
-}
-
-function setRail(min){
-  const changed = S.railMin !== !!min;
-  S.railMin = !!min; save();
-  /* An open book is re-cut for the new width, and the cut would show as a
-     jolt mid-slide; so the page dims while the rail moves and comes back,
-     already re-paginated, once it has stopped. */
-  const book = changed && R.book && S.view === "read" && innerWidth >= 900;
-  if(book) $("#rd-body").classList.add("refit");
-  const release = changed ? holdGrids(S.railMin) : () => {};
-  document.body.classList.toggle("railmin", S.railMin);
-  const b = $("#b-rail");
-  b.setAttribute("aria-pressed", String(S.railMin));
-  const narrow = innerWidth < 900;
-  const what = narrow ? (S.railMin ? "Show the header and tab names" : "Fold the menu up")
-                      : (S.railMin ? "Expand the sidebar" : "Collapse the sidebar");
-  b.setAttribute("aria-label", what);
-  b.title = what + " ([)";
-  b.querySelector("span").textContent = S.railMin ? "Expand" : "Collapse";
-  /* Folded, the tabs are glyphs alone, so each carries its name as a tooltip;
-     unfolded the word is right there and a tooltip would only repeat it. */
-  $$("#nav button[data-v]").forEach(t => { if(S.railMin) t.title = t.textContent.trim(); else t.removeAttribute("title"); });
-  const you = $("#rc-who");
-  if(you) you.title = S.railMin ? `${$("#rc-name").textContent} · switch profile` : "Switch profile";
-  afterRailMove(() => {
-    release();
-    sizeLists();
-    if(typeof placeTalkStudy === "function") placeTalkStudy();
-    if(R.book){ sizeReader(); paginate(); }
-    /* A beat, not a frame: frames stop in a hidden tab and the page must
-       still come back. */
-    setTimeout(() => $("#rd-body").classList.remove("refit"), book ? 40 : 0);
-  });
-}
-$("#b-rail").onclick = () => setRail(!S.railMin);
-setRail(S.railMin);
+document.body.classList.remove("railmin");
 
 document.addEventListener("keydown", e => {
   /* A card that is a div with role=button — the word of the day — answers
@@ -1111,34 +869,17 @@ document.addEventListener("keydown", e => {
   if(typing || e.metaKey || e.ctrlKey || e.altKey) return;
 
   if(e.key === "?"){ e.preventDefault(); showHelp(); return; }
-  if(e.key === "[" && !$("#detail").open){ e.preventDefault(); setRail(!S.railMin); return; }
   /* Escape with a word sheet up puts the sheet away and nothing else. Caught
      here, at keydown, as well as on the dialog's cancel event: cancel is at
      the browser's discretion — it can skip it when it judges there was no
      recent activation — and this is not. Prevented so the dialog does not
      also act on the same key. */
-  if(e.key === "Escape" && (R.sheet || TK.sheet)){
-    e.preventDefault(); if(R.sheet) closeGloss(); if(TK.sheet) closeTalkGloss(); return;
+  if(e.key === "Escape" && R.sheet){
+    e.preventDefault(); closeGloss(); return;
   }
   /* And a selected passage the same way: the marks and the card go, nothing else. */
   if(e.key === "Escape" && selectionActive()){ e.preventDefault(); clearSelection(); return; }
-  if($("#detail").open || $("#help").open || $("#writing").open || $("#talk-gate").open) return;
-
-  /* A conversation: the arrows change level, space deals the next card, and
-     one letter each for the things on the card's foot. */
-  if(TK.run && S.view === "talk" && TK.run.cur){
-    const k = e.key.toLowerCase();
-    if(e.key === "ArrowRight"){ e.preventDefault(); talkMove(1); }
-    else if(e.key === "ArrowLeft"){ e.preventDefault(); talkMove(-1); }
-    else if(e.key === " " || e.key === "Enter"){ if(e.target.closest("button")) return; e.preventDefault(); talkNext(0); }
-    else if(k === "x"){ e.preventDefault(); talkNext(3); }
-    else if(k === "s"){ e.preventDefault(); talkToggleSaved(); }
-    else if(k === "c"){ e.preventDefault(); safely("copy the question", talkCopy); }
-    else if(k === "r"){ e.preventDefault(); talkReveal(); }
-    else if(k === "b"){ e.preventDefault(); talkBack(); }
-    else return;
-    return;
-  }
+  if($("#detail").open || $("#help").open || $("#writing").open) return;
 
   if(S.view === "read" && R.book){
     if(e.key === "f" || e.key === "F"){ e.preventDefault(); setReadFocus(!S.readFocus); return; }
@@ -1147,10 +888,6 @@ document.addEventListener("keydown", e => {
     if(e.key === "ArrowRight" || e.key === "PageDown" || e.key === " "){ e.preventDefault(); safely("turn the page", () => turnPage(1)); return; }
   }
 
-  /* The grammar list beside its open point: the arrows step through it. */
-  if(S.view === "grammar" && gWide() && (e.key === "ArrowDown" || e.key === "ArrowUp") && G.all && !$("#detail").open){
-    e.preventDefault(); gStep(e.key === "ArrowDown" ? 1 : -1); return;
-  }
   /* The grid beside its open character: the arrows move across it, Enter
      opens the entry. */
   if(S.view === "chars" && S.charView !== "tree" && cWide() && C.sel && !$("#detail").open){

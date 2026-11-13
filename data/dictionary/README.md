@@ -4,7 +4,7 @@ Three JSON files that hang off the lists in `../hsk3/`: English meanings for
 the words, a reading and meaning for every character, and how each character
 is built. All three are reductions of open sources (CC-CEDICT and the files
 named below), cut down to the HSK headwords so the checkout builds offline.
-Read by `scripts/lib/compile.mjs`; rebuild the app with `npm run data`.
+Read by `tools/lib/compile.mjs`; rebuild the app with `npm run data`.
 
 A fourth, `radicals.json`, is kept by hand: the radicals as they are written,
 for the Characters tab's radical index.
@@ -38,7 +38,7 @@ the first. Meanings that are proper names are sorted after the others.
 
 An object keyed by character, 4,151 entries (the 3,000 HSK characters and
 the components they are built from). Extracted from CC-CEDICT by
-`scripts/build-chardict.mjs`.
+`tools/build-chardict.mjs`.
 
 ```json
 "俊": {
@@ -53,7 +53,7 @@ the components they are built from). Extracted from CC-CEDICT by
 An object keyed by character, 3,000 entries, from
 [hanziDB](https://github.com/ruddfawcett/hanziDB.csv) (frequency, strokes,
 radical) and [Make Me a Hanzi](https://github.com/skishore/makemeahanzi)
-(decomposition, etymology), reduced by `scripts/build-charextra.mjs`.
+(decomposition, etymology), reduced by `tools/build-charextra.mjs`.
 
 ```json
 "爱": {
@@ -72,7 +72,7 @@ reads every one with a fallback.
 
 ## radicals.json — the radicals as they are written
 
-The list behind the radical index (`scripts/build-radicals.mjs` →
+The list behind the radical index (`tools/build-radicals.mjs` →
 `app/data/radicals.js`): every radical as a simplified character writes it —
 氵 as well as 水, 讠 as well as 言 — with its strokes, its Kangxi number (or
 two, for a form that stands for both, as 月 does for moon and flesh) and a

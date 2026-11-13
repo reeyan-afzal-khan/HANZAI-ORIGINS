@@ -9,10 +9,10 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 /* The release this build is. Hard-coded rather than stamped, because app/ has
    to run straight from a folder with no build step — a __VERSION__ placeholder
-   would be visible to anyone opening index.html directly. scripts/build.mjs
+   would be visible to anyone opening index.html directly. tools/build.mjs
    asserts it against package.json instead, so the two cannot drift silently. */
 const APP_VERSION = "1.28.0";
-/* Which build of it: a hash of everything shipped, stamped by scripts/build.mjs
+/* Which build of it: a hash of everything shipped, stamped by tools/build.mjs
    into this, index.html and sw.js alike — the page checks it is running its
    own build's code (index.html, heal). A working copy says __BUILD__. */
 const APP_BUILD = "__BUILD__";
@@ -60,7 +60,7 @@ let S = {
   bgTex:"", bgTexOp:30,
   /* Content text scale, in percent; `text` is the old three-step control and
      is read once to seed it. */
-  text:"m", textScale:100, view:"home",
+  text:"m", textScale:100, view:"chars",
   /* One level for the whole app: the home ladder, the browsers and the rail
      all read and write S.level. (Each browser used to keep its own, and
      picking HSK 5 on the front page left Words on HSK 1.) */
@@ -122,12 +122,19 @@ let S = {
   treeInsp:true,
   /* The tab's radical index (radicals.js): the radical whose characters it
      shows, "" for the radicals; and whether it shows every row or a few. */
-  charRad:"", charIdxTall:false,
+  charRad:"", charIdxTall:false, charIdxCollapsed:true,
 };
 try{
   const raw = localStorage.getItem(LS);
   if(raw) Object.assign(S, JSON.parse(raw));
 }catch(e){}
+/* Move the previous starter tree to ? once; keep other chosen roots. */
+if(!S.yongStarter){
+  if(!S.treeRoot || S.treeRoot === "木") S.treeRoot = "永";
+  S.yongStarter = true;
+}
+/* The floating picker opens on request, never over the initial canvas. */
+S.charIdxCollapsed = true;
 /* 1.26.23 translated through Baidu with an app ID and key of the reader's
    own. That is gone; so is anything typed for it, rather than left in the
    record and in every backup made from it. */
@@ -318,12 +325,11 @@ function loadData(name){
 const getMeta    = ()   => loadData("meta");
 const getVocab   = lv   => loadData(`vocab/${lv}`);
 const getChars   = ()   => loadData("chars");
-const getGrammar = ()   => loadData("grammar");
 /* [id, simplified, pinyin, first gloss, level, frequency] for all 11,092 words. */
 const getSearch  = ()   => loadData("search");
 
 /* Example sentences for a level's words, from the grammar points
-   (scripts/build-examples.mjs): simplified -> [[zh, pinyin, en, source]]. */
+   (tools/build-examples.mjs): simplified -> [[zh, pinyin, en, source]]. */
 const getExamples = lv => loadData(`examples/${lv}`).catch(() => ({}));
 
 async function findWord(id){
@@ -331,7 +337,6 @@ async function findWord(id){
   return (await getVocab(lv)).find(w => w.id === id);
 }
 async function findChar(h){ return (await getChars()).find(c => c.h === h); }
-async function findGrammar(id){ return (await getGrammar()).find(g => g.id === +id); }
 
 /* Words containing a character, nearest level and commonest first.
    Read off the search index rather than the seven vocabulary files: this runs
@@ -613,7 +618,7 @@ function sizeScroller(sel){
      already take most of the screen; boxing the list into what is left would
      leave four rows. There the page scrolls as a page, and the list is left
      unbounded. */
-  if(window.innerWidth < 700){ if(el.style.height) el.style.height = ""; return; }
+
   /* the grammar point, or the character, open beside its list is as tall
      as the list */
   const beside = sel === "#glist" ? $("#gdetail") : sel === "#clist" ? $("#cpanel") : null;
@@ -625,7 +630,7 @@ function sizeScroller(sel){
      of the sidebar's foot by the same few pixels. Offsets ignore transforms. */
   let top = -window.scrollY;
   for(let e = el; e; e = e.offsetParent) top += e.offsetTop;
-  const height = Math.max(240, Math.round(window.innerHeight - top - pad));
+  const height = Math.max(40, Math.round(window.innerHeight - top - pad));
   const want = `${height}px`;
   if(el.style.height !== want) el.style.height = want;
   if(beside && beside.style.height !== want) beside.style.height = want;

@@ -98,7 +98,7 @@ function paintShelf(){
 /* The page's header: what is on the shelf — how many books, how many of
    them under way, and how much reading that is. */
 function paintReadHead(){
-  const books = R.shelf, going = books.filter(b => b.chapter || b.ratio).length;
+  const books = R.shelf, going = books.filter(b => b.chapter || b.ratio || (R.meta && b.id === R.meta.id)).length;
   const chars = books.reduce((n, b) => n + (b.hanzi || 0), 0);
   $("#rstats").innerHTML = `
     <div class="ph-stat"><b>${num(books.length)}</b><span>Book${books.length === 1 ? "" : "s"}</span></div>
@@ -1387,6 +1387,7 @@ function showReader(){
 }
 
 function paintReader(restoreRatio){
+  paintReadHead();
   showReader();
   const ch = R.book.chapters[R.chapter];
   R.blocks = ch.blocks;
@@ -2262,7 +2263,7 @@ function sizeReader(){
   const pad = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 0 : 0;
   const below = gap + (foot ? foot.getBoundingClientRect().height : 0) + pad;
 
-  const height = Math.max(220,
+  const height = Math.max(80,
     Math.round(window.innerHeight - body.getBoundingClientRect().top - below));
   /* Writing the same value back would be one more layout for nothing, and on
      an engine that reports the resulting scrollbar change as a resize it is
@@ -3675,7 +3676,7 @@ async function translateText(text, to, ms = 12000){
  *            and good on ordinary prose. Its files live in data/translation/
  *            (listed in its files.json). The copies that carry it — the app
  *            opened from this folder, the web build — load them from
- *            app/data/mt/ (scripts/build-translation.mjs). The Android app
+ *            app/data/mt/ (tools/build-translation.mjs). The Android app
  *            does not carry its 135 MB: the reader installs it there on
  *            request, into the app's own storage on the device
  *            (OfflineTranslatorPlugin), and it is read back from there.
@@ -4443,14 +4444,6 @@ async function hydrateGloss(body, tok, {grew, still, nav = true} = {}){
   if(!alive()) return;
   if(examples.length){
     const mark = zh => esc(zh).split(esc(tok.w)).join(`<mark>${esc(tok.w)}</mark>`);
-    /* Where each came from, by name: the grammar point's title. A tap opens it. */
-    const grammar = examples.some(e => /^G\d+$/.test(e[3])) ? await getGrammar().catch(() => []) : [];
-    if(!alive()) return;
-    const source = src => {
-      if(!/^G\d+$/.test(src)) return "";
-      const g = grammar.find(x => String(x.id) === src.slice(1));
-      return `<button class="linky" data-open="grammar:${src.slice(1)}" title="Open the grammar point"><i>Grammar · </i><b>${esc(g ? g.title : "point " + src.slice(1))}</b></button>`;
-    };
     host.innerHTML = `
       <div class="gl-sent-h"><span class="lbl">Examples</span></div>
       <ol class="gl-exl">${examples.map(([zh, py, en, src]) => `
@@ -4458,10 +4451,6 @@ async function hydrateGloss(body, tok, {grew, still, nav = true} = {}){
           <div class="gl-exz hz">${mark(zh)}</div>
           ${S.pinyin !== false && py ? `<div class="gl-exp py">${esc(py)}</div>` : ""}
           <div class="gl-exe">${esc(en)}</div>
-          <div class="gl-exs">
-            
-            ${source(src)}
-          </div>
         </li>`).join("")}</ol>`;
   }else{
     /* A character: the words it is part of, nearest level first. */

@@ -142,7 +142,7 @@ function segment(text){
 /* ---------------- a line's reading ---------------- */
 
 /* Chinese punctuation as its Latin counterpart, so a reading reads as a
-   sentence rather than a list of syllables. Mirrors scripts/lib/pinyin.mjs. */
+   sentence rather than a list of syllables. Mirrors tools/lib/pinyin.mjs. */
 const READ_PUNCT = {
   "，": ",", "。": ".", "？": "?", "！": "!", "、": ",", "；": ";", "：": ":",
   "（": " (", "）": ")", "“": ' "', "”": '" ', "‘": " '", "’": "' ", "《": " <", "》": "> ",
@@ -153,7 +153,7 @@ const READ_PUNCT = {
    words apart, syllables within a word together, a capital at the start of
    each sentence. No data file carries pinyin for its sentences — the Talk
    questions and the grammar examples are both read this way, here and at
-   build time (scripts/lib/pinyin.mjs), so they come out in one style. Needs
+   build time (tools/lib/pinyin.mjs), so they come out in one style. Needs
    lexicon() to have been awaited. */
 function readingOf(text){
   const tokens = segment(text);

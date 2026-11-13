@@ -5,7 +5,7 @@
  *
  *   curl -sL https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz \
  *     | gunzip > node_modules/.cache/hskker/cedict.txt
- *   node scripts/build-chardict.mjs
+ *   node tools/build-chardict.mjs
  *
  * The full 4 MB dictionary is not committed; data/dictionary/chardict.json is.
  */

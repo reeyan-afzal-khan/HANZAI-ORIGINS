@@ -3,7 +3,7 @@
 Everything the app is built from, one folder per kind of thing. Each folder
 has a README that says what every file holds, field by field, and what to run
 after changing it. The build scripts reach most of these files through
-`scripts/lib/paths.mjs`, so a path is written in one place.
+`tools/lib/paths.mjs`, so a path is written in one place.
 
 ```
 data/
@@ -48,6 +48,6 @@ Only the syllabus carries pinyin — one reading per word in `hsk3/words.csv`
 and per character in `dictionary/chardict.json`. No sentence anywhere in
 `data/` (a Talk question, a grammar example) stores its own: it is read off
 those readings, word by word, in one style everywhere —
-`scripts/lib/pinyin.mjs` at build time, `readingOf` in `app/js/segment.js` in
+`tools/lib/pinyin.mjs` at build time, `readingOf` in `app/js/segment.js` in
 the app. So a reading is fixed in one place, and the sentence files stay half
 the size.

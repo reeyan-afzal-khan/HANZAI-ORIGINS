@@ -38,7 +38,7 @@ export const DB_PATH = `${DATA}/hskker.db`
  *  listed in data/translation/files.json and kept there exactly as
  *  downloaded; the list as the app reads it (app/data/translation-files.js,
  *  which the Android app installs from); and the files as the copies that
- *  carry them load them, under app/data/mt/ (see scripts/build-translation.mjs). */
+ *  carry them load them, under app/data/mt/ (see tools/build-translation.mjs). */
 export const TRANSLATION = {
   dir: `${DATA}/translation`,
   list: 'app/data/translation-files.js',

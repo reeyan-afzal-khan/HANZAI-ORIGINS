@@ -40,7 +40,7 @@
 /* ---------- the Chinese faces the app carries ---------- */
 /* Kai and FangSong are faces Windows and macOS ship and Android does not, so
    on a phone picking them changed nothing. The app carries both, cut to the
-   characters it can show (scripts/build-fonts.py, app/fonts/LICENSES.txt); a
+   characters it can show (tools/build-fonts.py, app/fonts/LICENSES.txt); a
    file is fetched only when a reader picks the face, and a character the
    subset lacks falls through to the next face in the stack, glyph by glyph.
    The Kai is the app's own file on every device — the same KaiTi everywhere,
@@ -3823,4 +3823,204 @@ button.rx-tab:focus-visible{outline:2px solid var(--acc);outline-offset:-6px;bor
   .csec{position:static;background:none}
   /* the tree wants the height: on a phone its page is the name and the tools */
   #v-chars.treeview .ph-sub,#v-chars.treeview .ph-stats{display:none}
+}
+/* Two learning tabs above the workspace, on every screen size. */
+:root{--rail-w:0px;--rail-gap:0px}
+.wrap{display:flex;flex-direction:column;max-width:none;width:100%;margin:0;padding:20px 24px 28px;gap:18px;--wrap-y:48px}
+.wrap::before{display:none}
+.mast{position:static;grid-area:auto;align-self:stretch;margin:0;padding:0;max-height:none;gap:12px}
+.mast h1{font-size:23px;max-width:none}
+.mast h1 .wm{display:inline;vertical-align:baseline}
+.mast h1 .w1{letter-spacing:.02em;margin:0}
+.mast h1 .hy{display:inline}
+.mast h1 .w2{display:inline;font:inherit;letter-spacing:inherit}
+.mast .mini{width:32px;height:32px;margin-left:auto}
+.rail{position:sticky;top:0;grid-area:auto;align-self:stretch;display:flex;flex-direction:row;align-items:center;gap:16px;margin:0;padding:10px 0;height:auto;max-height:none;z-index:6;background:var(--void);border-bottom:1px solid var(--line)}
+.navrow{display:flex;flex-direction:row;flex:1;gap:6px;overflow:visible;padding:0;border:0;background:none}
+.navrow button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:10px;font-size:14px}
+.navrow button span{display:inline;max-height:none;max-width:none;opacity:1}
+.navrow button svg{width:18px;height:18px}
+.navrow button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
+.navrow button[data-v="settings"]{margin-left:auto}
+.railcard{display:flex;flex:none;margin:0;padding:0;border:0;background:none;box-shadow:none;width:auto}
+.rc-you{padding:4px 8px;gap:8px}
+.rc-id{max-width:160px}
+#main{grid-area:auto;width:100%;min-width:0}
+body.immersive .rail,body.immersive .mast{display:none}
+@media(max-width:600px){
+ .wrap{padding:14px 12px 24px;gap:12px}
+ .mast h1{font-size:20px}
+ .rail{gap:6px}
+ .navrow{gap:3px}
+ .navrow button{padding:10px 9px;font-size:13px;gap:5px}
+ .railcard .rc-id,.railcard .rc-swap{display:none}
+ .rc-you{padding:4px}
+}
+/* Keep the index available without spending canvas space until it is needed. */
+.cidx-keys[hidden],.cidx.collapsed .rx-nav{display:none}
+.cidx.collapsed .cidx-head{border-bottom:0}
+.rx-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:36px;padding:6px 10px;margin-left:auto;border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);font-size:12px;white-space:nowrap}
+.rx-toggle:hover{background:var(--surface-2);color:var(--ink)}
+.rx-toggle svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rx-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.cidx:not(.collapsed) .rx-toggle{margin-left:0}
+@media(max-width:600px){
+ .cidx-head{gap:0 8px}
+ .rx-what{flex:1;min-width:0}
+ .rx-tabs{gap:12px}
+ .rx-tab{font-size:11px}
+ .rx-toggle{padding:6px;gap:3px;font-size:11px}
+ .rx-sel{gap:6px}
+ .rx-sel > span > b{white-space:normal}
+}
+/* Compact workspace heading and a picker that floats over, never resizes, the canvas. */
+#v-chars .phead{align-items:center;gap:8px 20px;padding:0 2px}
+#v-chars .ph-title{font-size:23px;line-height:1.2}
+#v-chars .ph-title .hz{margin-left:8px}
+#v-chars .ph-sub{display:none}
+#v-chars .ph-stats{gap:14px}
+#v-chars .ph-ring{width:30px;height:30px;margin:0}
+#v-chars .ph-stat{flex-direction:row;align-items:baseline;gap:6px;padding:0 0 0 14px}
+#v-chars .ph-stat b{font-family:var(--font-ui);font-size:16px}
+#v-chars .ph-stat span{font-size:11px;font-weight:500;letter-spacing:0;text-transform:none}
+#v-chars{gap:12px}
+.cdeck{position:relative;z-index:7}
+.cdeck > .ptools{padding:7px 10px;border-bottom:0;gap:10px}
+#radical-picker{margin-left:0;min-height:32px}
+#radical-picker[aria-expanded="true"]{color:var(--acc);border-color:var(--acc)}
+.cidx{position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:10;background:var(--surface);border:1px solid var(--line-hot);border-radius:12px;box-shadow:0 14px 40px #0008;max-height:min(420px,65vh);overflow:auto}
+.cidx.collapsed{display:none}
+.cidx .cidx-keys,.cidx.tall .cidx-keys{max-height:min(260px,40vh)}
+.cidx .rx-tall{display:none}
+@media(max-width:700px){
+ #v-chars .phead{gap:8px}
+ #v-chars .ph-title{font-size:21px}
+ #v-chars .ph-stats{width:auto;padding:0;background:none;border:0;border-radius:0;gap:8px}
+ #v-chars .ph-stat{padding-left:8px;gap:4px}
+ #v-chars .ph-stat b{font-size:13px}
+ #v-chars .ph-stat span{font-size:10px}
+ #v-chars .ph-ring{display:none}
+ #v-chars .ptools-end{gap:6px;flex-wrap:wrap}
+ #radical-picker{padding:6px 8px;font-size:12px}
+}
+@media(max-width:600px){
+ #v-chars .ptools-end{justify-content:space-between;gap:4px;flex-wrap:nowrap}
+ #v-chars #creach .segtrack > button{padding:0 7px;font-size:10px}
+ #v-chars .cview > button{padding:0 8px}
+ #radical-picker{font-size:11px;padding:5px 6px;gap:3px}
+}
+/* Comfortable reading rhythm in the character grid. */
+#cgrid .cell{min-height:126px;padding:16px 10px;gap:0;contain-intrinsic-size:auto 126px}
+#cgrid .cell .ch{line-height:1.25}
+#cgrid .cell .cp{margin-top:8px;font-size:12px;line-height:1.5;font-style:normal}
+#cgrid .cell .ce{margin-top:5px;font-size:11px;line-height:1.4}
+/* Give sorting its own breathing room below the level toolbar. */
+#cgridbar{margin-top:0;padding-top:8px;gap:12px 24px;align-items:center}
+#cgridbar #csort{margin:0 0 10px auto;gap:12px}
+#csort .segtrack{padding:4px;gap:4px}
+#csort .segtrack > button{min-height:34px;padding:0 16px}
+/* A restrained progress summary with readable labels and no tiny gauge. */
+#v-chars .ph-stats{gap:0;padding:8px 0;align-items:center}
+#v-chars .ph-ring{display:none}
+#v-chars .ph-stat{flex-direction:column;align-items:flex-start;gap:5px;padding:0 20px;border-left:1px solid var(--line)}
+#v-chars .ph-stat:first-of-type{border-left:0}
+#v-chars .ph-stat b{font-family:var(--font-ui);font-size:19px;font-weight:600;line-height:1.1}
+#v-chars .ph-stat span{font-size:11px;line-height:1.25;color:var(--muted);letter-spacing:.02em}
+#v-chars .ph-stat:last-child{padding-right:2px}
+/* The word list owns its scroll; entry actions remain outside scrolling content. */
+#detail.char .gate-body{display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:hidden;max-height:90dvh;gap:16px}
+#detail.char .char-sheet{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+#detail.char .char-words{max-height:260px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px 6px 2px 2px;flex:none}
+#detail.char .acts{margin:0;padding-top:14px;border-top:1px solid var(--line);background:var(--surface);flex-shrink:0}
+@media(max-width:699px){
+ #cgrid .cell{min-height:118px;padding:14px 8px}
+ #cgridbar #csort{margin:0 0 10px;gap:10px}
+ #csort .segtrack > button{padding:0 12px}
+ #v-chars .ph-stat{padding:0 12px}
+ #v-chars .ph-stat b{font-size:16px}
+ #detail.char .gate-body{padding:14px;gap:10px}
+ #detail.char .acts{gap:6px;padding-top:10px}
+ #detail.char .acts button{padding:10px 7px;font-size:12px}
+ #detail.char .char-words{max-height:230px}
+}
+/* One application frame; only content panes scroll. */
+html,body{height:100%;overflow:hidden}
+.wrap{height:100dvh;min-height:0;padding:14px 24px 16px;gap:12px}
+.mast,.rail{flex:none}
+.rail{position:relative;padding:6px 0 10px}
+#main{flex:1;min-height:0;overflow:hidden}
+#main > section{height:100%;min-height:0}
+#v-chars > :not(.cstage):not(.ct-stage){flex:none}
+#v-chars .ct-stage{min-height:0;flex:1}
+#v-chars .cstage{min-height:0;flex:1;overflow:hidden}
+#clist{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+#v-settings{overflow-y:auto;padding-right:8px}
+.navrow{align-items:center;min-width:0}
+.navrow button[data-v="settings"]{margin-left:0}
+.nav-progress{display:none;align-items:center;margin-left:auto;gap:0}
+body[data-view="chars"] #cstats,body[data-view="read"] #rstats{display:flex}
+.nav-progress .ph-ring{display:none}
+.nav-progress .ph-stat{padding:0 16px;gap:4px;border-left:1px solid var(--line)}
+.nav-progress .ph-stat b{font:600 17px/1.2 var(--font-ui)}
+.nav-progress .ph-stat span{font-size:10px;letter-spacing:.02em;text-transform:none}
+body[data-view="settings"] .navrow button[data-v="settings"]{margin-left:auto}
+#v-read{gap:12px;overflow:hidden}
+#read-library:not(.hidden){height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;gap:16px;padding-right:4px}
+#read-library > .panel{margin:0;flex-shrink:0}
+#read-library > .panel[data-fold="read-shelf"]{padding:18px}
+#read-library > .panel > h3{font-size:16px}
+#read-library #read-now{flex:none}
+#read-book{height:100%;min-height:0;overflow:hidden}
+#read-book .rdbar,#read-book .rd-foot{flex:none}
+#rd-body{min-height:0;flex:1}
+body.reading:not(.immersive) .rail{display:flex}
+body.reading:not(.immersive) .mast{display:flex}
+body.immersive .wrap{height:100dvh;display:flex}
+@media(max-width:900px){
+ .nav-progress .ph-stat{padding:0 8px}
+ .nav-progress .ph-stat span{font-size:9px}
+ .railcard .rc-id,.railcard .rc-swap{display:none}
+}
+@media(max-width:600px){
+ .wrap{padding:10px 12px 12px;gap:10px}
+ .navrow{flex-wrap:wrap}
+ .nav-progress{order:4;flex:1 0 100%;justify-content:flex-start;margin:5px 0 0;padding-top:8px;border-top:1px solid var(--line)}
+ .nav-progress .ph-stat{flex-direction:row;align-items:baseline;gap:5px;padding:0 10px}
+ .nav-progress .ph-stat b{font-size:13px}
+ .nav-progress .ph-stat:first-child,.nav-progress .ph-ring + .ph-stat{padding-left:0;border-left:0}
+ .navrow button[data-v="settings"]{margin-left:auto}
+ .railcard{align-self:flex-start;margin-top:5px}
+ #read-library > .panel[data-fold="read-shelf"]{padding:14px}
+ #read-library .shelf{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:18px 12px}
+}
+@media(max-height:500px){.mast{display:none!important}.wrap{padding-top:6px;gap:6px}.rail{padding-top:0;padding-bottom:6px}}
+/* Settings is a document-style form, not a height-constrained workspace. */
+body[data-view="settings"] #main{overflow-y:auto;overscroll-behavior:contain;padding-bottom:16px}
+#main > #v-settings{display:flex;flex-direction:column;columns:auto;height:auto;min-height:100%;max-width:960px;width:100%;margin:0 auto;padding:4px 8px 20px;gap:18px;overflow:visible}
+#v-settings > .panel{flex:none;width:100%;margin:0;break-inside:auto}
+#v-settings input[type=range]{max-width:520px}
+@media(max-width:600px){#main > #v-settings{padding:0 0 16px;gap:14px}}
+/* Group related settings in independent columns without stretching short panels. */
+#main > #v-settings{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,1fr);align-items:start;max-width:1440px;gap:24px;min-height:0;padding:6px 4px 24px}
+.settings-primary,.settings-secondary{display:flex;flex-direction:column;gap:20px;min-width:0}
+#v-settings .panel{width:100%;margin:0;padding:22px;min-width:0}
+#v-settings .panel.folded{padding-bottom:18px}
+#v-settings .panel > h3{font-size:17px;margin-bottom:16px}
+#v-settings .panel.folded > h3{margin-bottom:0}
+#v-settings .row{gap:20px;align-items:center}
+#v-settings .row > div{min-width:0}
+#v-settings input[type=range]{max-width:none}
+#v-settings .fontpick{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+#v-settings .skins{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+#v-settings .datarow{flex-wrap:wrap;gap:8px}
+@media(max-width:999px){
+ #main > #v-settings{grid-template-columns:minmax(0,1fr);max-width:820px;gap:18px}
+ .settings-primary,.settings-secondary{gap:18px}
+}
+@media(max-width:600px){
+ #main > #v-settings{padding:0 0 16px;gap:14px}
+ .settings-primary,.settings-secondary{gap:14px}
+ #v-settings .panel{padding:16px}
+ #v-settings .row{gap:12px}
+ #v-settings .fontpick{grid-template-columns:repeat(2,minmax(0,1fr))}
 }

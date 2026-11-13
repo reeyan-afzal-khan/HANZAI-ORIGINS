@@ -35,13 +35,7 @@
         if(typeof closeBookGently === "function") closeBookGently(); else closeBook();
         return;
       }
-      /* A conversation: its word card closes first; then the run ends with
-         its recap, and is in the record either way. */
-      if(S.view === "talk" && typeof TK !== "undefined" && TK.run){
-        if(TK.sheet){ closeTalkGloss(); return; }
-        talkFinish(true); return;
-      }
-      if(S.view !== "home"){ show("home"); return; }
+      if(S.view !== "chars"){ show("chars"); return; }
       PL.App.exitApp();
     });
   }

@@ -1,93 +1,72 @@
-# HANZAI-ORIGINS
+﻿# HANZAI-ORIGINS
 
-An offline study app for the **HSK 3.0** Chinese standard: 11,092 words, 3,000 characters with stroke order, and all 573 grammar points. It also has a reader for your own books, and conversation practice.
+An offline app for learning to read and write Chinese characters. Start with **Characters** to explore 3,000 HSK characters, their components and stroke order, and practise writing. Use **Read** to open an EPUB or paste Chinese text, look up words, and practise characters in context.
 
-There is no account and no server. Everything runs on your device, and your progress is stored there too.
+Progress stays on your device. Settings includes profiles, backups, themes and fonts.
 
-**Get it:** use it on the web at <https://reeyan-afzal-khan.github.io/HANZAI-ORIGINS/>, open `app/index.html` in a browser, host `release/web/` anywhere, or install `release/HANZAI-ORIGINS-<version>-release.apk` on Android.
+## Run and build
 
-## Features
+Install Node.js 22 or later (with npm). From the repository root:
 
-- **Home**: a word of the day, the book and the conversation you left off, and every section with what is behind it at your level.
-- **Characters & Grammar**: browse by level, with how far into the level you are at the top of each page. Characters animate their stroke order and can be practised by hand; the grid is headed by letter, frequency band or stroke count, and filters to the characters not started, being learned or mastered. Most grammar points have an explanation and example sentences, with the pattern marked in each, listed under the standard's own sections. On a wide screen the character or point you pick opens beside the list, and the arrow keys move through it.
-  - Any character can be found by its radical, the way a dictionary's radical index (Pleco's, say) finds it: the radicals in one grid in order of their strokes, a numbered key at the head of each count; pick one and its characters follow by the strokes left after it, each marked with its level; pick a character and it opens.
-  - The characters can also be laid out as a tree on an open canvas, like a game's skill tree: a radical, sound family or other part on the left, the characters built on it branching to the right tier by tier (木 → 林 → 森), and what it is made of to its left. The tree grows through every level, with the characters above yours drawn locked, and opens its deepest branches first. A big family is gathered into a card per level, with the levels above yours folded onto one shelf until you open them. Drag to pan, scroll or pinch to zoom, use the map in the corner on a big tree, go full window, and grow a new tree from any tile. Tiles show when they are in your deck or mastered. A panel beside the canvas (a sheet on a phone) tells you about the tile picked: its stroke order, which part gives the meaning and which the sound, what it builds into, and the words it is in.
-- **Read**: open an EPUB or paste text. Every word is coloured by HSK level.
-  - Tap a word for its card.
-  - Hold a word and drag to select a passage, then show it in pinyin, word by word, or translated.
-  - Pages turn like a book, one or two at a time. Full screen with `F`.
-- **Translation**: Google Translate when you are online. Offline, the browser's built-in translator or **Compact** (OPUS-MT, Chinese to English).
-  - Compact comes with the desktop and web versions.
-  - On Android it is an optional install of about 135 MB, made from the reading settings.
-- **Talk**: 4,228 conversation questions in Chinese and English, dealt as decks for chatting with real people. Each question is marked with the level needed to read it and comes with a sample answer.
-- **Profiles & display**: several people per device, optional passcodes, JSON backup, and light and dark themes with a choice of Chinese and English fonts.
-
-Shortcuts: `1`–`6` switch sections, `[` folds the sidebar, and `?` lists the rest.
-
-## Running it
-
-The app needs no build step; just open `app/index.html`. To regenerate its data:
-
-```bash
+```sh
 npm install
-npm run data        # data/ → data/hskker.db → app/data/, the radical index with it
-npm run strokes     # stroke-order files
-npm run talk        # conversation questions (after `data`)
-npm run translation # offline translator: downloads it into data/translation/, packs it into app/data/mt/
-npm run serve       # http://localhost:5178
-npm run build       # release/web/ and release/HANZAI-ORIGINS-web.zip
+npm run serve          # http://localhost:5178
+npm run build          # release/web/ and release/HANZAI-ORIGINS-web.zip
+npm run serve:release  # http://localhost:5179
+npm run build:pages    # release/pages/ for GitHub Pages
 ```
 
-`app/data/` is generated but committed, except the translator in `app/data/mt/`; `data/hskker.db` is not committed. Other scripts (`themes`, `fonts`) are explained in the README of the folder they work on.
-
-### Website
-
-Every push to `main` deploys the site through `.github/workflows/deploy-pages.yml` (Settings → Pages → Source must be **GitHub Actions**). The workflow fetches the offline translator when `data/translation/files.json` is there, runs `node scripts/build.mjs --pages`, and publishes `release/pages/`. To build the same copy locally, run `npm run translation` once, then that command.
-
-The build stamps one hash into the page, its scripts and the service worker, so a browser that already has the site never runs one build's page on another build's code: the worker serves a build whole, and swaps to the next one with a reload once it has it.
-
-### Android
-
-You need JDK 17 and the Android SDK (platform 34, build-tools 34.0.0). Both can live in `tools/`, which is gitignored.
-
-```bash
-npm run build && npx cap sync android
-cd android && ./gradlew assembleRelease
-```
-
-- **Versions:** keep the version the same in `package.json`, `app/js/core.js` and `android/app/build.gradle`; the build checks.
-- **Signing:** the release is signed when `android/keystore.properties` exists. Keep the keystore in `android/keys/` safe: without it, an installed app can't be updated.
+You can also open `app/index.html` directly. Generated app data is committed, so a normal web build does not require downloading or rebuilding the source data.
 
 ## Project layout
 
+- `app/`: web application, bundled fonts, icons, generated data and vendor assets.
+- `tools/`: build, development, data-generation and Android helper scripts; see [tools/README.md](tools/README.md).
+- `tools/lib/`: shared build utilities.
+- `tools/local/`: optional local SDKs and JDKs; ignored by Git.
+- `data/`: source dictionaries, HSK lists and examples. Historical grammar sources remain as inputs for reading examples.
+- `themes/`: editable palettes, textures and logo assets.
+- `android/`: Capacitor Android project and Gradle wrapper.
+- `release/`: generated web builds and archives; ignored by Git.
+- `.github/workflows/`: GitHub Pages deployment.
+
+Package manifests and Capacitor configuration stay at the root, where their tools expect them.
+
+## Android
+
+Install JDK 17 and Android SDK platform 34 with build-tools 34.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or configure the SDK in `android/local.properties`.
+
+```sh
+npm run android:sync
+npm run android:open
+npm run android:apk
 ```
-app/                  the app as it ships: open app/index.html
-├── index.html        the page, with styles.css, manifest.webmanifest and sw.js beside it
-├── js/               the code, one script per section (reader.js, talk.js, tree.js, …)
-├── icons/            the tab and install icons, cut from themes/hanzai-origins-logo.png (npm run icons)
-├── fonts/  vendor/   the Chinese faces it carries, and Hanzi Writer
-├── data/             generated from data/
-└── themes/           generated from themes/
-data/                 what the app is built from, one folder per topic, each with a README
-├── hsk3/             the official HSK 3.0 lists
-├── dictionary/       meanings, readings and how each character is built
-├── grammar/          the grammar points' explanations and example sentences
-├── talk/             the conversation questions and their sample answers
-└── translation/      the offline translator (downloaded by npm run translation)
-themes/               palettes and textures (themes/README.md), and the logo
-scripts/              the build scripts behind the npm commands
-├── build.mjs         app/ → release/web/ (with --pages, release/pages/ for the website)
-└── lib/              what the scripts share: the paths, the database, the compiler, pinyin
-android/              the Android project (Capacitor)
+
+The debug APK is written to `android/app/build/outputs/apk/debug/`. The helper selects the Windows or Unix Gradle wrapper automatically. For a release, run `node tools/android.mjs assembleRelease` after syncing. Signing uses `android/keystore.properties`; keep signing keys private and backed up.
+
+Keep versions aligned in `package.json`, `app/js/core.js`, and `android/app/build.gradle`; the web build checks them.
+
+## Data and assets
+
+```sh
+npm run sources       # download dictionary sources
+npm run data          # regenerate dictionary, characters and reading examples
+npm run strokes       # offline stroke-order data
+npm run themes
+npm run icons
+npm run fonts         # Python, fonttools and brotli required
+npm run translation   # optional offline reader translator
 ```
 
-**Why data files are JavaScript:** a browser can't `fetch` local files from `file://`, but it can load them as scripts. So the same app runs from disk, from a web server, and in the Android WebView.
+The Pages workflow builds and publishes `release/pages/` on pushes to `main`. Each build stamps the page, scripts and service worker together to keep cached versions consistent.
 
-## Data sources
+Keyboard shortcuts: `1` Characters, `2` Read, `3` Settings, `?` help.
 
-- HSK 3.0 lists: [ivankra/hsk30](https://github.com/ivankra/hsk30) (MIT)
-- English glosses: CC-CEDICT, via [complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary) (CC BY-SA 4.0)
-- Stroke order: [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data); character breakdowns: [Make Me A Hanzi](https://github.com/skishore/makemeahanzi) (LGPL / Arphic)
-- Frequency, stroke counts, radicals: [hanziDB](https://github.com/ruddfawcett/hanziDB.csv)
-- Fonts: [Zhuque Fangsong](https://github.com/TrionesType/zhuque) (SIL OFL 1.1), and for Kai either a `KaiTi.ttf` you supply or [LXGW WenKai](https://github.com/lxgw/LxgwWenKai); see `app/fonts/LICENSES.txt`
-- Grammar explanations and their example lines were written for this project.
+## Sources
+
+- HSK lists: [ivankra/hsk30](https://github.com/ivankra/hsk30), MIT.
+- Glosses: CC-CEDICT via [complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary), CC BY-SA 4.0.
+- Stroke order: [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data).
+- Character breakdowns: [Make Me A Hanzi](https://github.com/skishore/makemeahanzi), LGPL / Arphic.
+- Frequency and radicals: [hanziDB](https://github.com/ruddfawcett/hanziDB.csv).
+- Font licensing: `app/fonts/LICENSES.txt`.

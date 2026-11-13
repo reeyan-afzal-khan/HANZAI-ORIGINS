@@ -5,7 +5,7 @@
  * `npx serve`: a dev command that needs the network to start is a dev command
  * that fails on a train.
  *
- *   node scripts/serve.mjs [dir] [port]
+ *   node tools/serve.mjs [dir] [port]
  */
 import { createServer } from "node:http";
 import { createReadStream, statSync } from "node:fs";

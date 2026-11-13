@@ -23,7 +23,7 @@
  * 12.5 MB of stroke data on install would make the first launch unusable.
  */
 const CACHE = "hskker-__BUILD__";
-/* scripts/build.mjs replaces __BUILD__ with a hash of everything it ships.
+/* tools/build.mjs replaces __BUILD__ with a hash of everything it ships.
    Running from app/ directly, that substitution has not happened — so the
    cache name would be the same string for every edit, and the worker would
    serve last week's code forever. Unstamped means "this is the working copy":
@@ -31,8 +31,8 @@ const CACHE = "hskker-__BUILD__";
 const STAMPED = !CACHE.includes("__BUILD__");
 const SHELL = "./index.html";
 const CODE = ["./index.html", "./styles.css", "./js/profile.js", "./js/core.js", "./js/store.js",
-              "./js/study.js", "./js/browse.js", "./js/tree.js", "./js/radicals.js", "./js/home.js", "./js/epub.js",
-              "./js/segment.js", "./js/reader.js", "./js/talk.js", "./js/settings.js",
+              "./js/study.js", "./js/browse.js", "./js/tree.js", "./js/radicals.js", "./js/navigation.js", "./js/epub.js",
+              "./js/segment.js", "./js/reader.js", "./js/settings.js",
               "./js/boot.js", "./js/native.js", "./vendor/hanzi-writer.min.js",
               "./themes/skins.css", "./themes/themes.js"];
 const ASSETS = CODE.concat(["./manifest.webmanifest", "./icons/icon-192.png",

@@ -361,10 +361,8 @@ async function renderCharTree(){
   ctWire();
   ctDock();
   sizeCharTree();
-  /* A first visit starts at 木, the tree, which grows the most legible tree
-     there is: 林 and 森, 本 and 体, 果 and 课. One asked for from an entry
-     (treeGrowFrom) goes on from the tree there was, with the way back. */
-  const want = CT.next || CT.root || S.treeRoot || "木", asked = !!CT.next;
+  /* Start writing practice with ?; explicitly selected roots still resume. */
+  const want = CT.next || CT.root || S.treeRoot || "永", asked = !!CT.next;
   CT.next = "";
   const root = CT.g.by.has(want) || CT.g.kids.has(want) ? want : "口";
   if(root !== CT.root){ ctStart(root, {fresh: !CT.root, trail: asked}); return; }
@@ -431,7 +429,7 @@ function sizeCharTree(){
   const pad = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 0 : 0;
   let top = -window.scrollY;
   for(let e = stage; e; e = e.offsetParent) top += e.offsetTop;
-  const want = max ? "" : `${Math.max(phone ? 440 : 400, Math.round(window.innerHeight - top - pad))}px`;
+  const want = max ? "" : `${Math.max(80, Math.round(window.innerHeight - top - pad))}px`;
   const wide = el.clientWidth;
   if(stage.style.height === want && CT.wide === wide && CT.high === el.clientHeight) return;
   stage.style.height = want;

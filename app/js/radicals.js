@@ -8,7 +8,7 @@
  * without being able to type it — which is exactly the position of somebody
  * looking at one they cannot read.
  *
- * The index is built ahead of time (scripts/build-radicals.mjs, into
+ * The index is built ahead of time (tools/build-radicals.mjs, into
  * app/data/radicals.js): the radical each of the 3,000 characters is filed
  * under, as it is written — 氵, not 水 — and the strokes left after it.
  *
@@ -78,6 +78,8 @@ function paintIndex(){
   const rad = rxOpen();
   if(S.charRad && !rad) S.charRad = "";
   box.classList.toggle("tall", !!S.charIdxTall);
+  box.classList.toggle("collapsed", !!S.charIdxCollapsed);
+  $("#radical-picker").setAttribute("aria-expanded", String(!S.charIdxCollapsed));
   box.dataset.page = rad ? "chars" : RX.page;
   /* Drawn again over the same page — a sort changed under it, a card was
      added — the grid stays where it was scrolled to. */
@@ -121,6 +123,7 @@ function paintIndex(){
     }
   }
   const grid = $("#cidx-keys");
+  grid.hidden = !!S.charIdxCollapsed;
   grid.innerHTML = keys || `<p class="rx-none">Nothing here at this level.</p>`;
   grid.scrollTop = kept;
   grid.setAttribute("aria-label", rad ? `The characters filed under ${rad.f}` : RX.page === "radicals" ? "The radicals" : "The tree's starting points");
@@ -156,9 +159,13 @@ function paintIndex(){
      changed — so a tab's rule and the fold's chevron move rather than blink */
   const top = $("#cidx-head");
   if(!top.querySelector(":scope > .rx-what"))
-    top.innerHTML = `<div class="rx-what"></div><div class="rx-nav"></div>`;
+    top.innerHTML = `<div class="rx-what"></div><div class="rx-nav"></div><button class="rx-toggle" data-rxtoggle aria-controls="cidx-keys"></button>`;
   paintSwitches(top.querySelector(".rx-what"), what);
   paintSwitches(top.querySelector(".rx-nav"), `${jump}${tall}`);
+  const toggle = top.querySelector(".rx-toggle");
+  toggle.setAttribute("aria-expanded", String(!S.charIdxCollapsed));
+  toggle.innerHTML = `<span>${S.charIdxCollapsed ? "Show" : "Hide"} picker</span>${RX_MORE}`;
+  toggle.title = S.charIdxCollapsed ? "Show radicals and character parts" : "Hide the picker to make room for the canvas";
   /* the fold only where there are rows to fold out, or back in */
   top.querySelector(".rx-tall").hidden = !S.charIdxTall && grid.scrollHeight <= grid.clientHeight + 1;
   rxJumpMark();
@@ -271,6 +278,23 @@ function rxTall(){
 function rxWire(){
   if(RX.wired) return;
   RX.wired = true;
+  const trigger = $("#radical-picker");
+  const closePicker = () => {
+    if(S.charIdxCollapsed) return;
+    S.charIdxCollapsed = true; save(); paintIndex();
+  };
+  trigger.onclick = () => {
+    S.charIdxCollapsed = !S.charIdxCollapsed; save(); paintIndex();
+    if(!S.charIdxCollapsed) $("#cidx button")?.focus();
+  };
+  document.addEventListener("pointerdown", e => {
+    if(!e.target.closest("#cidx, #radical-picker")) closePicker();
+  });
+  document.addEventListener("keydown", e => {
+    if(e.key === "Escape" && !S.charIdxCollapsed){
+      e.preventDefault(); e.stopImmediatePropagation(); closePicker(); trigger.focus();
+    }
+  }, true);
   $("#cidx").addEventListener("click", e => {
     const b = e.target.closest("button");
     if(!b) return;
@@ -279,7 +303,8 @@ function rxWire(){
     else if(b.dataset.rxroot) ctStart(b.dataset.rxroot, {trail: false});
     else if(b.hasAttribute("data-rxback")) rxBack();
     else if(b.dataset.rxjump !== undefined) rxJump(b.dataset.rxjump);
-    else if(b.dataset.rxpage){ RX.page = b.dataset.rxpage; S.charRad = ""; save(); paintIndex(); $("#cidx-keys").scrollTop = 0; }
+    else if(b.dataset.rxpage){ RX.page = b.dataset.rxpage; S.charRad = ""; S.charIdxCollapsed = false; save(); paintIndex(); $("#cidx-keys").scrollTop = 0; }
+    else if(b.hasAttribute("data-rxtoggle")){ closePicker(); trigger.focus(); }
     else if(b.hasAttribute("data-rxtall")) rxTall();
   });
   $("#cidx-keys").addEventListener("scroll", rxJumpMark, {passive: true});
