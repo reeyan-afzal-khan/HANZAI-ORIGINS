@@ -62,17 +62,11 @@ The Pages workflow builds and publishes `release/pages/` on pushes to `main`. Ea
 
 Keyboard shortcuts: `1` Characters, `2` Read, `3` Settings, `?` help.
 
-## Recovering an outdated web app
+## Checking the Pages build
 
-After deploying, if the browser still shows the old sidebar or a blank screen,
-open `recover.html` under the site's URL and choose **Refresh app files**.
-This removes this app's service worker and cached assets, then reloads the app.
-It does not clear localStorage or IndexedDB, so profiles, progress and books remain.
-The recovery page must be included in the deployed Pages build first.
-
-`tools/check-pages.cjs` can check HTTP startup, worker-controlled and offline
-reloads, and recovery. With Playwright configured as for `check-ui.cjs`, build
-Pages and run `node tools/check-pages.cjs http://127.0.0.1:5185/pages/ --verify --serve`.
+`tools/check-pages.cjs` checks HTTP startup, worker-controlled reloads and offline
+reloads. With Playwright configured as for `check-ui.cjs`, build Pages and run
+`node tools/check-pages.cjs http://127.0.0.1:5185/pages/ --verify --serve`.
 
 ## Sources
 

@@ -4024,3 +4024,91 @@ body[data-view="settings"] #main{overflow-y:auto;overscroll-behavior:contain;pad
  #v-settings .row{gap:12px}
  #v-settings .fontpick{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Brand and navigation share one compact application header. */
+.app-header{display:flex;align-items:center;gap:28px;flex:none;min-width:0;padding:0 0 10px;border-bottom:1px solid var(--line)}
+.app-header .mast{display:flex!important;flex:none;gap:10px;height:auto;align-self:center}
+.app-header .mast h1{font-size:20px;flex:none}
+.app-header .mark{width:32px;height:32px}
+.app-header .rail{flex:1;min-width:0;padding:0;border:0;gap:14px;background:none;align-items:center}
+.app-header .navrow{gap:6px}
+.app-header .navrow > button{min-height:40px;padding:9px 14px}
+.app-header .railcard{margin:0;align-self:center}
+.app-header #b-help{flex:none;width:32px;height:32px;display:grid;place-items:center}
+body.immersive .app-header,body.ct-max .app-header{display:none}
+@media(max-width:1200px){
+ .app-header{gap:18px}
+ .app-header .mast h1{font-size:17px}
+ .app-header .rc-id,.app-header .rc-swap{display:none}
+ .app-header .nav-progress .ph-stat{padding:0 9px}
+}
+@media(max-width:1000px){
+ .app-header .mast h1{display:none}
+ .app-header{gap:12px}
+ .app-header .rail{gap:8px}
+}
+@media(max-width:600px){
+ .app-header{align-items:flex-start;gap:8px;padding-bottom:8px}
+ .app-header .mast{align-self:flex-start;padding-top:4px}
+ .app-header .rail{align-items:flex-start;gap:4px}
+ .app-header .navrow{gap:3px}
+ .app-header .navrow > button{padding:9px 8px;gap:5px;font-size:12px}
+ .app-header .navrow > button[data-v="settings"]{width:32px;padding:8px}
+ .app-header .navrow > button[data-v="settings"] span{display:none}
+ .app-header .railcard{align-self:flex-start;margin-top:5px}
+ .app-header #b-help{width:26px;margin-top:5px}
+ .app-header .nav-progress{margin-top:3px;padding-top:6px;border-top:0}
+ .app-header .nav-progress .ph-stat{padding:0 6px;gap:4px}
+ .app-header .nav-progress .ph-stat span{font-size:8px}
+ .app-header .nav-progress .ph-stat b{font-size:12px}
+}
+.app-header{width:100%;align-self:stretch}
+/* A shared control geometry keeps the character toolbar on one baseline. */
+#cdeck > .ptools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;padding:10px 12px}
+#cdeck .ptools-end{align-items:center;gap:12px;margin-left:auto}
+#cdeck :is(.lvseg,.pseg){align-items:center;gap:10px;margin:0}
+#cdeck :is(.lvseg,.pseg) > .lbl{line-height:40px;letter-spacing:.1em}
+#cdeck :is(.segtrack,#cview){height:40px;box-sizing:border-box;padding:3px;gap:3px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);box-shadow:none;align-items:stretch}
+#cdeck :is(.segtrack,#cview)::before{display:none}
+#cdeck :is(.segtrack,#cview) > button{height:32px;min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 12px;line-height:1;font-family:var(--font-ui);font-size:12px;font-weight:600;border:1px solid transparent;border-radius:6px;translate:none;transform:none;transition:background-color .15s,color .15s,border-color .15s}
+#cdeck :is(.segtrack,#cview) > button[aria-pressed="true"]{background:var(--surface);border-color:var(--line-hot);box-shadow:none;color:var(--ink)}
+#cdeck #clevels .segtrack > button{min-width:36px;padding:0 7px 3px;font-size:13px}
+#cdeck #clevels .segtrack > button[aria-pressed="true"]{color:var(--acc)}
+#cdeck #clevels .segtrack > button::after{bottom:3px}
+#cdeck #radical-picker{height:40px;min-height:40px;padding:0 12px;margin:0;border-radius:9px;font:600 12px/1 var(--font-ui);background:var(--surface-2);border:1px solid var(--line);align-items:center;gap:8px}
+#cdeck #radical-picker[aria-expanded="true"]{border-color:var(--acc);color:var(--acc)}
+#cdeck #cview{margin:0;flex:none}
+#cdeck #cview svg{width:15px;height:15px;flex:none;vertical-align:middle}
+@media(max-width:699px){
+ #cdeck > .ptools{padding:8px;gap:8px}
+ #cdeck #clevels{flex:1 0 100%;gap:8px}
+ #cdeck #clevels .segtrack{flex:1}
+ #cdeck #clevels .segtrack > button{min-width:0}
+ #cdeck .ptools-end{width:100%;flex:1 0 100%;justify-content:space-between;gap:6px;flex-wrap:nowrap}
+ #cdeck #creach > .lbl{display:none}
+ #cdeck #creach .segtrack > button{padding:0 6px;font-size:10px}
+ #cdeck #cview > button{padding:0 7px}
+ #cdeck #cview > button span{display:none}
+ #cdeck #radical-picker{padding:0 8px;font-size:11px;gap:4px}
+}
+/* A quiet stroke position marker, without the sliding filled thumb. */
+.rx-jump::before{display:none}
+.rx-jump button{position:relative;border-radius:0;background:transparent}
+.rx-jump button.on{background:transparent;color:var(--ink)}
+.rx-jump button.on::after{content:"";position:absolute;bottom:1px;left:8px;right:8px;height:2px;background:var(--acc);border-radius:1px}
+.now-analytics{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+.now-analytics section{min-width:0}
+.now-analytics h4{margin:0 0 8px;font-size:14px}
+.now-levels{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.now-levels th,.now-levels td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line)}
+.now-levels th:first-child{text-align:left}
+.now-levels thead{color:var(--muted);font-size:10px}
+.now-sections{max-height:330px;overflow-y:auto;overscroll-behavior:contain;padding-right:8px}
+.now-section{display:grid;gap:6px;padding:10px;border-bottom:1px solid var(--line)}
+.now-section.current{background:var(--acc-wash);border-radius:8px}
+.now-section span{font-size:13px}
+.now-section small{font-size:11px;color:var(--muted)}
+.now-section progress{width:100%;height:5px;accent-color:var(--acc)}
+#read-now .now-grid{align-items:start}
+#read-now .now-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1100px){.now-analytics{grid-template-columns:1fr}}
+@media(max-width:600px){#read-now .now-cover{display:none}#read-now .now-head{flex-wrap:wrap}#read-now .now-kpis{grid-template-columns:1fr}.now-levels th,.now-levels td{padding:8px 3px}}

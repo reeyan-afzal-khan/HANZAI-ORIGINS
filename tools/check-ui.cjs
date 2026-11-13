@@ -99,6 +99,21 @@ const path = require('node:path');
       if (!stage || stage.y + stage.height > height + 2) throw Error(`Canvas outside viewport at ${width}x${height}`);
       await page.locator('#nav [data-v="read"]').click();
     }
+    await page.locator('#rd-back').click();
+    await page.waitForSelector('.now-levels');
+    const analytics = await page.evaluate(() => {
+      const b = R.shelf[0], st = b.stats;
+      return { total: st.running, sum: Object.values(st.byLevel).reduce((a,b)=>a+b,0),
+        sections: st.sizes.length, expectedSections: b.chapters,
+        cards: document.querySelectorAll('#read-now .kpi').length };
+    });
+    if (!analytics.total || analytics.sum !== analytics.total || analytics.sections !== analytics.expectedSections || analytics.cards !== 3) throw Error('Incomplete or inconsistent book analytics');
+    for (const width of [1440,390]) {
+      await page.setViewportSize({width,height:900});
+      await page.locator('#read-now').scrollIntoViewIfNeeded();
+      if(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth || document.querySelector('#read-library').scrollWidth > document.querySelector('#read-library').clientWidth + 2)) throw Error('Book analytics overflow');
+      await page.screenshot({path:path.resolve(__dirname, `../release/analytics-${width}.png`)});
+    }
     if (errors.length) throw Error(errors.join('\n'));
     console.log('PASS: startup, three tabs, desktop/mobile widths, keyboard shortcuts, no page errors');
   } finally { await browser.close(); }

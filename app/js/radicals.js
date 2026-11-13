@@ -151,23 +151,16 @@ function paintIndex(){
   }else{
     what = `<div class="rx-tabs"><span class="rx-tab on">Radical index<small>${num(RX.list.length)}</small></span></div>`;
   }
-  const jump = counts.length > 1 ? `<span class="lbl" aria-hidden="true">${rad ? "Strokes left" : "Strokes"}</span>
-    <nav class="rx-jump" aria-label="${rad ? "Strokes left" : "Strokes"}">${counts.map(n =>
-      `<button data-rxjump="${n}" title="${rad ? `${n} more stroke${pl(n)}` : `${n} stroke${pl(n)}`}">${n}</button>`).join("")}</nav>` : "";
-  const tall = `<button class="rx-tall" data-rxtall aria-pressed="${!!S.charIdxTall}" aria-label="More rows" title="More rows">${RX_MORE}</button>`;
   /* drawn as two parts, each left standing where only what is pressed has
      changed — so a tab's rule and the fold's chevron move rather than blink */
   const top = $("#cidx-head");
   if(!top.querySelector(":scope > .rx-what"))
-    top.innerHTML = `<div class="rx-what"></div><div class="rx-nav"></div><button class="rx-toggle" data-rxtoggle aria-controls="cidx-keys"></button>`;
+    top.innerHTML = `<div class="rx-what"></div><button class="rx-toggle" data-rxtoggle aria-controls="cidx-keys"></button>`;
   paintSwitches(top.querySelector(".rx-what"), what);
-  paintSwitches(top.querySelector(".rx-nav"), `${jump}${tall}`);
   const toggle = top.querySelector(".rx-toggle");
   toggle.setAttribute("aria-expanded", String(!S.charIdxCollapsed));
   toggle.innerHTML = `<span>${S.charIdxCollapsed ? "Show" : "Hide"} picker</span>${RX_MORE}`;
   toggle.title = S.charIdxCollapsed ? "Show radicals and character parts" : "Hide the picker to make room for the canvas";
-  /* the fold only where there are rows to fold out, or back in */
-  top.querySelector(".rx-tall").hidden = !S.charIdxTall && grid.scrollHeight <= grid.clientHeight + 1;
   rxJumpMark();
   rxSettle();
 }

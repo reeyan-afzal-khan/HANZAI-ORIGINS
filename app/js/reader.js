@@ -60,7 +60,11 @@ function paintShelf(){
     return;
   }
 
-  paintNow().catch(() => {});
+  paintNow().catch(() => {
+    paintNow.busy = null;
+    const body = $("#read-now-body");
+    body.insertAdjacentHTML("beforeend", '<p class="pmeta" role="status">Book analytics could not be loaded. Reopen Read to try again.</p>');
+  });
   const shown = R.shelf;
   /* The shelf is a shelf: each book by its cover, its title and author under
      it and how far through it you are, and at the end of the row a place for
@@ -1094,6 +1098,7 @@ function nowHTML(b, data, pct){
     st.sizes.forEach((n, i) => { if(i < b.chapter) read += n; else if(i === b.chapter) read += Math.round(n * (b.ratio || 0)); });
   }
   const left = Math.max(0, b.hanzi - read);
+  if(st && b.hanzi) pct = clamp(read / b.hanzi, 0, 1);
   const mins = left / READ_PACE;
 
   /* The mix, and the share of it at or below the level being worked at. */
@@ -1115,6 +1120,8 @@ function nowHTML(b, data, pct){
       <p class="pmeta now-note">${Math.round(mine * 100)}% of the running words are HSK ${levelLabel(S.level)} or below —
         your level — and ${Math.round(inHSK * 100)}% are in the standard at all;
         ${num(st.types)} distinct words in ${num(st.running)}.</p>`;
+  }else if(st){
+    mix = `<p class="pmeta now-note">No Chinese word tokens were found in this book.</p>`;
   }else{
     mix = `<p class="pmeta now-note now-wait">Reading through the book for its level mix…</p>`;
   }
@@ -1154,6 +1161,19 @@ function nowHTML(b, data, pct){
     <div class="now-foot">
     ${next ? `<p class="pmeta now-next"><span class="lbl">Up next</span> <span class="hz">${esc(next.title)}</span></p>` : ""}
     ${mix}
+    ${st && st.running ? `<div class="now-analytics">
+      <section><h4>Vocabulary by level</h4>
+        <p class="pmeta">Occurrences include repeated words; distinct counts each word once. HSK coverage describes the text, not your mastery.</p>
+        <table class="now-levels"><thead><tr><th>Level</th><th>Occurrences</th><th>Share</th><th>Distinct</th></tr></thead>
+        <tbody>${[...LEVELS, "x"].map(lv => `<tr><th>${lv === "x" ? "Beyond HSK" : `HSK ${levelLabel(lv)}`}</th><td>${num(st.byLevel[lv] || 0)}</td><td>${((st.byLevel[lv] || 0) / st.running * 100).toFixed(1)}%</td><td>${num(st.typesByLevel[lv] || 0)}</td></tr>`).join("")}</tbody></table>
+      </section>
+      <section><h4>Section progress</h4><p class="pmeta">Based on your saved reading position. Earlier sections are shown as passed.</p>
+        <div class="now-sections" tabindex="0" role="region" aria-label="Reading progress by section">${(chapters || []).map((ch, i) => {
+          const done = i < b.chapter ? 100 : i === b.chapter ? Math.round((b.ratio || 0) * 100) : 0;
+          return `<div class="now-section${i === b.chapter ? " current" : ""}"><span>${i + 1}. ${esc(ch.title || `Section ${i + 1}`)}</span><small>${num(st.sizes[i] || 0)} characters · ${i === b.chapter ? "Current · " : ""}${done}%</small><progress max="100" value="${done}" aria-label="Section ${i + 1} progress"></progress></div>`;
+        }).join("")}</div>
+      </section>
+    </div>` : ""}
     </div>
     </div>
   </div>`;

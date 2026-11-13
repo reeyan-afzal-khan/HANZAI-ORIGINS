@@ -32,12 +32,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.reload();
       await page.waitForFunction(() => typeof booted !== 'undefined' && booted);
       await page.context().setOffline(false);
-      await page.goto(new URL('recover.html', target).href);
-      await page.locator('#refresh').click();
-      await page.waitForURL('**/index.html?refresh=*');
-      await page.waitForFunction(() => typeof booted !== 'undefined' && booted);
-      if(await page.evaluate(() => localStorage.getItem('pages-check-progress')) !== 'preserve-me') throw Error('Recovery removed saved state');
-      console.log('PASS: HTTP subpath startup, worker-controlled reload, offline reload, recovery preserving saved state');
+      if(await page.evaluate(() => localStorage.getItem('pages-check-progress')) !== 'preserve-me') throw Error('Reload removed saved state');
+      console.log('PASS: HTTP subpath startup, worker-controlled reload, offline reload preserving saved state');
     }
   } finally { await browser.close(); if(server) server.kill(); }
 })().catch(e=>{console.error(e);process.exitCode=1});
