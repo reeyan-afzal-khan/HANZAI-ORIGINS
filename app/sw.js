@@ -129,6 +129,21 @@ self.addEventListener("fetch", e => {
      IndexedDB — except Google Fonts, which are kept below. */
   if(url.origin !== self.location.origin && !url.hostname.startsWith("fonts.g")) return;
 
+  // A recovery page must always bypass the cached app, including offline
+  // fallbacks. It only clears app files, never profiles or IndexedDB books.
+  if(url.origin === self.location.origin && url.pathname === new URL('./recover.html', self.location.href).pathname){
+    e.respondWith(fetch(req, {cache: 'no-store'}));
+    return;
+  }
+
+  // During an update an older worker can still control a newly loaded page.
+  // Never substitute its cached code/data for an explicitly different build.
+  const requestedBuild = url.searchParams.get('v');
+  if((isCode(url) || isData(url)) && requestedBuild && requestedBuild !== CACHE.slice('hskker-'.length)){
+    e.respondWith(fetch(req, FRESH));
+    return;
+  }
+
   /* The page: this build's. The network only when the cache has lost it, and
      then not kept: a page from the server may be a later build than the
      scripts in here. Anything else opened in a tab — an icon, a data file —

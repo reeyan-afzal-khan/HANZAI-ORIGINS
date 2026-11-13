@@ -102,6 +102,16 @@ window.boom = function(what, detail){
    build's code, which stopped at the first thing it looked for that the page
    no longer had. */
 var PAGE_BUILD = "__BUILD__";
+/* Updates must not depend on boot.js reaching its final line. A broken old
+   app still needs to install the worker that repairs it. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", function(){
+    if(window.Capacitor) return;
+    navigator.serviceWorker.register("./sw.js", {updateViaCache: "none"})
+      .then(function(registration){ return registration.update(); })
+      .catch(function(){}); // Offline launches keep their installed copy.
+  });
+}
 function staleCode(){
   /* Before core.js is even on the page, a fault is a fault, not old code. */
   if(!document.querySelector('script[src*="js/core.js"]')) return false;
