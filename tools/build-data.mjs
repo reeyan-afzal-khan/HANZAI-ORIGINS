@@ -1,13 +1,13 @@
 /**
- * Exports data/hskker.db into the files the app loads at runtime.
+ * Exports src/data/hskker.db into the files the app loads at runtime.
  *
  *   npm run data      builds the database first, then exports it
  *   npm run db        just the database
  *
- * Output goes to app/data/ as one file per level plus a global search index.
+ * Output goes to release/web/data/ as one file per level plus a global search index.
  *
  * Each file is JavaScript that registers itself, not JSON: `fetch` is blocked
- * on file:// by every browser's CORS policy, and app/ has to run when somebody
+ * on file:// by every browser's CORS policy, and release/web/ has to run when somebody
  * double-clicks index.html. A <script> tag has no such restriction, so one
  * format serves file://, http and the Android WebView alike.
  *
@@ -20,7 +20,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { openDb, rows } from './lib/db.mjs'
 
-const OUT = 'app/data'
+const OUT = 'release/web/data'
 const db = openDb()
 
 /** Writes a payload as a script that hands itself to the app's registry. */
@@ -30,7 +30,7 @@ function emit(name, payload) {
 }
 
 const levels = rows(db, 'SELECT * FROM levels ORDER BY ord')
-if (!levels.length) throw new Error('data/hskker.db has no levels — run `npm run db`')
+if (!levels.length) throw new Error('src/data/hskker.db has no levels — run `npm run db`')
 
 // ---------------------------------------------------------------- vocabulary
 /* Key order is load-bearing only in that it keeps the generated files stable
@@ -69,7 +69,7 @@ const meta = Object.fromEntries(
 )
 emit('meta', meta)
 
-console.log(`${OUT}/  exported from data/hskker.db`)
+console.log(`${OUT}/  exported from src/data/hskker.db`)
 console.log(`  words   ${db.prepare('SELECT COUNT(*) n FROM words').get().n}`)
 console.log(`  chars   ${db.prepare('SELECT COUNT(*) n FROM chars').get().n}`)
 console.log(`  grammar ${db.prepare('SELECT COUNT(*) n FROM grammar').get().n}`)

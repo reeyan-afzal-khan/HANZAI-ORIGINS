@@ -7,7 +7,7 @@
  *     | gunzip > node_modules/.cache/hskker/cedict.txt
  *   node tools/build-chardict.mjs
  *
- * The full 4 MB dictionary is not committed; data/dictionary/chardict.json is.
+ * The full 4 MB dictionary is not committed; src/data/dictionary/chardict.json is.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { parseCsv } from './lib/csv.mjs'

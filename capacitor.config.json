@@ -3,6 +3,7 @@
   "appName": "HANZAI-ORIGINS",
   "webDir": "release/web",
   "android": {
+    "path": "release/android",
     "allowMixedContent": false,
     "backgroundColor": "#1D2021"
   },

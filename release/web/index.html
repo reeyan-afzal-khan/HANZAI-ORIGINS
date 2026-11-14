@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1D2021">
+<meta name="description" content="Learn to read and write Chinese characters with stroke-order practice and your own books. Offline, on your device.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.webmanifest">
+<!-- The tab icon is the logo (tools/make-icons.mjs cuts every size from
+     themes/hanzai-origins-logo.png): the browser takes the size that suits
+     the screen. ?v= is bumped when the logo changes, since browsers hold on
+     to a tab icon long after the page itself has changed. -->
+<link rel="icon" href="./icons/favicon.ico?v=logo1" sizes="16x16 32x32 48x48">
+<link rel="icon" href="./icons/favicon-32.png?v=logo1" type="image/png" sizes="32x32">
+<link rel="icon" href="./icons/favicon-16.png?v=logo1" type="image/png" sizes="16x16">
+<link rel="icon" href="./icons/icon-192.png?v=logo1" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=logo1" sizes="180x180">
+<title>HANZAI-ORIGINS</title>
+<link rel="stylesheet" href="./styles.css?v=e90550a12277">
+<!-- The web faces are wanted, not needed: every stack falls through to a
+     face the device has. So the request must never hold the page — on a
+     phone with a slow or absent connection a blocking stylesheet from
+     another origin is seconds of blank screen before a page that is entirely
+     local. Fetched as print, which does not block rendering, and switched to
+     all once it has arrived; offline it simply never arrives. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..600&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+SC:wght@400;500;600&display=swap">
+<!-- The palettes and the background textures, compiled from themes/ by
+     `npm run themes`. Loaded before the stamp below so it can tell a theme
+     that still exists from one that has been retired. -->
+<link rel="stylesheet" href="./themes/skins.css?v=e90550a12277">
+<script src="./themes/themes.js?v=e90550a12277"></script>
+
+<script>
+/* Stamp the saved theme and texture before first paint, so a light palette
+   does not flash the default dark one while the deck data parses. */
+try{ var _p = localStorage.getItem("hskker.profile") || "1";
+     var _lsk = _p === "1" ? "hskker.v1" : "hskker.v1." + _p;
+     var _j = JSON.parse(localStorage.getItem(_lsk) || "{}");
+     var _T = window.HSKKER_THEMES || {skins: [], backgrounds: []};
+     var _k = _j.skin;
+     /* With "follow the system" on, the device gets the final say before the
+        stored skin does — otherwise a phone that flipped to dark overnight
+        opens on yesterday's light palette and then swaps under the reader. */
+     if(_j.autoTheme && window.matchMedia)
+       _k = matchMedia("(prefers-color-scheme: dark)").matches ? _j.skinDark : _j.skinLight;
+     /* A theme that no longer exists leaves the default ground; core.js
+        settles on a replacement once it loads. */
+     if(_k && _T.skins.some(function(s){ return s.id === _k; })) document.documentElement.dataset.skin = _k;
+     var _b = null;
+     _T.backgrounds.some(function(b){ if(b.id === _j.bgTex){ _b = b; return true; } });
+     if(_b){
+       var _r = document.documentElement, _d = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+       var _sk = null; _T.skins.some(function(s){ if(s.id === _k){ _sk = s; return true; } });
+       /* No theme stamped means the default, which is dark. */
+       var _dark = _sk ? !!_sk.dark : true;
+       if(_dark && _b.fileLight) _b = Object.assign({}, _b, {file: _b.fileLight});
+       _r.dataset.tex = _b.id;
+       _r.style.setProperty("--tex", "url(" + _b.file + ")");
+       _r.style.setProperty("--tex-w", (_b.w / _d).toFixed(1) + "px");
+       _r.style.setProperty("--tex-h", (_b.h / _d).toFixed(1) + "px");
+       _r.style.setProperty("--tex-op", String(Math.min(80, Math.max(5, +_j.bgTexOp || 30)) / 100));
+       /* The sheet itself is the first thing in <body>; dressed there. */
+       window.__tex = _b;
+     }
+     if(_j.text && _j.text!=="m") document.documentElement.dataset.text = _j.text; }catch(e){}
+
+/* Visible failure reporting. Installed first so it survives a parse error in
+   the scripts below, which would otherwise leave a blank page. */
+window.boom = function(what, detail){
+  var host = document.body || document.documentElement;
+  if(!host) return;
+  var el = document.getElementById("boom");
+  if(!el){ el = document.createElement("pre"); el.id = "boom"; host.appendChild(el); }
+  var txt = ["⚠ " + what, "", (detail || ""), "",
+             "url: " + location.href,
+             "ua: " + navigator.userAgent,
+             "viewport: " + innerWidth + "x" + innerHeight + " dpr" + (window.devicePixelRatio || 1)].join("\n");
+  el.textContent = txt;
+  var btn = document.createElement("button");
+  btn.textContent = "Copy this report";
+  btn.onclick = function(){
+    try{ navigator.clipboard.writeText(txt); btn.textContent = "Copied"; }
+    catch(e){ btn.textContent = "Select the text above and copy it"; }
+  };
+  el.appendChild(btn);
+  var dismiss = document.createElement("button");
+  dismiss.textContent = "Dismiss";
+  dismiss.style.marginLeft = "8px";
+  dismiss.onclick = function(){ el.remove(); };
+  el.appendChild(dismiss);
+};
+
+/* Which build this page is. tools/build.mjs stamps the same hash here, in
+   core.js (APP_BUILD) and in sw.js, so a page can tell whether the scripts it
+   was handed are its own. They were not, after a deploy, wherever the
+   previous service worker was still installed: it fetched the page from the
+   server and the scripts from its cache, and the new page ran on the old
+   build's code, which stopped at the first thing it looked for that the page
+   no longer had. */
+var PAGE_BUILD = "e90550a12277";
+/* Updates must not depend on boot.js reaching its final line. A broken old
+   app still needs to install the worker that repairs it. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", function(){
+    if(window.Capacitor) return;
+    navigator.serviceWorker.register("./sw.js", {updateViaCache: "none"})
+      .then(function(registration){ return registration.update(); })
+      .catch(function(){}); // Offline launches keep their installed copy.
+  });
+}
+function staleCode(){
+  /* Before core.js is even on the page, a fault is a fault, not old code. */
+  if(!document.querySelector('script[src*="js/core.js"]')) return false;
+  try{ return typeof APP_BUILD === "undefined" || APP_BUILD !== PAGE_BUILD; }catch(_){ return false; }
+}
+/* Start over on this build: drop the worker and every build's cache but this
+   one, then load again — from the server, all of it the same build. Once a
+   minute at most, so a fault that survives the reload is reported (boom)
+   rather than reloaded forever. The worker comes back as this build's when
+   boot.js registers it. */
+function heal(){
+  if(heal.started) return true;
+  var last = 0;
+  try{ last = +sessionStorage.getItem("hskker.heal") || 0; }catch(_){}
+  if(Date.now() - last < 60000) return false;
+  heal.started = true;
+  try{ sessionStorage.setItem("hskker.heal", String(Date.now())); }catch(_){}
+  var cover = document.createElement("div");
+  cover.id = "healing";
+  cover.textContent = "Updating to the latest version…";
+  cover.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;"
+    + "background:var(--void,#1d2021);color:var(--ink,#ebdbb2);font:500 15px/1.4 system-ui,sans-serif";
+  (document.body || document.documentElement).appendChild(cover);
+  var jobs = [];
+  try{
+    if(navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+      return Promise.all(rs.map(function(r){ return r.unregister(); })); }));
+    if(window.caches) jobs.push(caches.keys().then(function(ks){
+      return Promise.all(ks.filter(function(k){ return k.indexOf("hskker-") === 0 && k !== "hskker-" + PAGE_BUILD; })
+                           .map(function(k){ return caches.delete(k); })); }));
+  }catch(_){}
+  Promise.all(jobs).catch(function(){}).then(function(){ location.reload(); });
+  return true;
+}
+
+addEventListener("error", function(e){
+  /* A data file that arrives garbled — cut off, or a portal's page served in
+     its place — fails to parse here; loadData (core.js) asks for it again,
+     and says so in the view if it never comes. */
+  try{ if(e.filename && e.filename.indexOf(new URL("data/", location.href).href) === 0) return; }catch(_){}
+  if(staleCode() && heal()) return;
+  var where = e.filename ? ("\n" + e.filename + ":" + e.lineno) : "";
+  window.boom("Something failed to run.", (e.message || e.type) + where);
+});
+addEventListener("unhandledrejection", function(e){
+  if(staleCode() && heal()) return;
+  window.boom("A background task failed.", String(e.reason));
+});
+</script>
+</head>
+<body>
+<!-- The background texture: one fixed sheet over the whole window, dressed
+     before anything else paints so it never pops in. See applyTexture(). -->
+<div id="tex" aria-hidden="true"></div>
+<script>
+try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.documentElement.style;
+     _t.style.backgroundImage = "url(" + window.__tex.file + ")";
+     _t.style.backgroundSize = _s.getPropertyValue("--tex-w") + " " + _s.getPropertyValue("--tex-h"); } }catch(e){}
+</script>
+<script src="./js/web-engine.js?v=e90550a12277"></script>
+<script>
+const webText = new TextDecoder();
+function engineText(ptr, length){
+  return webText.decode(new Uint8Array(webEngine.memory.buffer, ptr, length));
+}
+document.currentScript.insertAdjacentHTML("beforebegin", engineText(webEngine.shell_html(), webEngine.shell_len()));
+</script>
+<script src="./vendor/hanzi-writer.min.js?v=e90550a12277"></script>
+<script src="./js/profile.js?v=e90550a12277"></script>
+<script src="./js/core.js?v=e90550a12277"></script>
+<script src="./js/store.js?v=e90550a12277"></script>
+<script src="./js/study.js?v=e90550a12277"></script>
+<script src="./js/browse.js?v=e90550a12277"></script>
+<script src="./js/tree.js?v=e90550a12277"></script>
+<script src="./js/learning.js?v=e90550a12277"></script>
+<script src="./js/quests.js?v=e90550a12277"></script>
+<script src="./js/radicals.js?v=e90550a12277"></script>
+<script src="./js/navigation.js?v=e90550a12277"></script>
+<script src="./js/epub.js?v=e90550a12277"></script>
+<script src="./js/segment.js?v=e90550a12277"></script>
+<script src="./js/reader.js?v=e90550a12277"></script>
+<script src="./js/settings.js?v=e90550a12277"></script>
+<script src="./js/boot.js?v=e90550a12277"></script>
+<script src="./js/native.js?v=e90550a12277"></script>
+<script>
+/* Everything above has run. Scripts from another build that happened not to
+   throw are still the wrong scripts for this page (see heal, in <head>). */
+if(staleCode() && !heal())
+  boom("This page and its scripts are from different versions.",
+       "page " + PAGE_BUILD + ", scripts " + (typeof APP_BUILD === "undefined" ? "older" : APP_BUILD)
+       + "\nReload the page; if this stays, clear the site's data in the browser's settings.");
+</script>
+</body>
+</html>

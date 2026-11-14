@@ -24,31 +24,35 @@ Install Node.js 22 or later (with npm). From the repository root:
 
 ```sh
 npm install
-npm run serve          # http://localhost:5178
-npm run build          # release/web/ and release/HANZAI-ORIGINS-web.zip
+npm run serve          # development preview with offline caching disabled
+npm run build          # release/web/
 npm run serve:release  # http://localhost:5179
-npm run build:pages    # release/pages/ for GitHub Pages
+npm run build:pages    # release/web/ for GitHub Pages
 ```
 
-You can also open `app/index.html` directly. Generated app data is committed, so a normal web build does not require downloading or rebuilding the source data.
+Edit the site in `release/web/` or open `release/web/index.html` directly. Run `npm run build` before publishing to refresh the offline cache and asset URLs in place. Generated app data is committed, so a normal web build does not require downloading or rebuilding the source data.
+
+The web app ships a Rust WebAssembly engine for the reader, character tree and parts of the interface. After editing files in `src/engine/`, run `rustup target add wasm32-unknown-unknown` and `npm run build:rust`. The generated engine is bundled as a local script so it also loads offline. Run `node tools/check-rust.mjs` in a full Git checkout to compare its output and book-analysis time with the pre-migration version.
 
 ## Project layout
 
-- `app/`: web application, bundled fonts, icons, generated data and vendor assets.
-- `tools/`: build, development, data-generation and Android helper scripts; see [tools/README.md](tools/README.md).
-- `tools/lib/`: shared build utilities.
-- `tools/local/`: optional local SDKs and JDKs; ignored by Git.
-- `data/`: source dictionaries, HSK lists and examples. Historical grammar sources remain as inputs for reading examples.
-- `themes/`: editable palettes, textures and logo assets.
-- `android/`: Capacitor Android project and Gradle wrapper.
-- `release/`: generated web builds and archives; ignored by Git.
-- `.github/workflows/`: GitHub Pages deployment.
+```text
+release/
+  web/          Editable web app used by the browser, GitHub Pages and Capacitor
+  android/      Android project and Gradle wrapper
+src/
+  engine/       Rust WebAssembly engine and interface templates
+  data/         Source dictionaries, HSK lists and example sentences
+  themes/       Source palettes, textures and logo
+tools/          Build scripts, development server and verification tools
+.github/        GitHub Pages workflow
+```
 
-Package manifests and Capacitor configuration stay at the root, where their tools expect them.
+Edit browser code in `release/web/`. Change dictionaries and artwork under `src/` and use the corresponding npm commands to regenerate the bundled assets. The root contains the npm manifest and lockfile, Capacitor configuration, Git ignore rules and this guide.
 
 ## Android
 
-Install JDK 17 and Android SDK platform 34 with build-tools 34.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or configure the SDK in `android/local.properties`.
+Install JDK 17 and Android SDK platform 34 with build-tools 34.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or configure the SDK in `release/android/local.properties`.
 
 ```sh
 npm run android:sync
@@ -56,9 +60,9 @@ npm run android:open
 npm run android:apk
 ```
 
-The debug APK is written to `android/app/build/outputs/apk/debug/`. The helper selects the Windows or Unix Gradle wrapper automatically. For a release, run `node tools/android.mjs assembleRelease` after syncing. Signing uses `android/keystore.properties`; keep signing keys private and backed up.
+The debug APK is written to `release/android/app/build/outputs/apk/debug/`. The helper selects the Windows or Unix Gradle wrapper automatically. For a release, run `node tools/android.mjs assembleRelease` after syncing. Signing uses `release/android/keystore.properties`; keep signing keys private and backed up.
 
-Keep versions aligned in `package.json`, `app/js/core.js`, and `android/app/build.gradle`; the web build checks them.
+Keep versions aligned in `package.json`, `release/web/js/core.js`, and `release/android/app/build.gradle`; the web build checks them.
 
 ## Data and assets
 
@@ -72,7 +76,7 @@ npm run fonts         # Python, fonttools and brotli required
 npm run translation   # optional offline reader translator
 ```
 
-The Pages workflow builds and publishes `release/pages/` on pushes to `main`. Each build stamps the page, scripts and service worker together to keep cached versions consistent.
+The Pages workflow builds and publishes `release/web/` on pushes to `main`. Each build stamps the page, scripts and service worker together to keep cached versions consistent.
 
 Keyboard shortcuts: `1` Characters, `2` Read, `3` Settings, `?` help.
 
@@ -80,7 +84,7 @@ Keyboard shortcuts: `1` Characters, `2` Read, `3` Settings, `?` help.
 
 `tools/check-pages.cjs` checks HTTP startup, worker-controlled reloads and offline
 reloads. With Playwright configured as for `check-ui.cjs`, build Pages and run
-`node tools/check-pages.cjs http://127.0.0.1:5185/pages/ --verify --serve`.
+`node tools/check-pages.cjs http://127.0.0.1:5185/web/ --verify --serve`.
 
 ## Sources
 
@@ -89,4 +93,4 @@ reloads. With Playwright configured as for `check-ui.cjs`, build Pages and run
 - Stroke order: [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data).
 - Character breakdowns: [Make Me A Hanzi](https://github.com/skishore/makemeahanzi), LGPL / Arphic.
 - Frequency and radicals: [hanziDB](https://github.com/ruddfawcett/hanziDB.csv).
-- Font licensing: `app/fonts/LICENSES.txt`.
+- Font licensing: `release/web/fonts/LICENSES.txt`.

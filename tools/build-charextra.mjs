@@ -6,7 +6,7 @@
  *   <cache>/dictionary.txt  Make Me A Hanzi — decomposition and etymology
  *   (the cache is node_modules/.cache/hskker, where fetch-sources.mjs puts them)
  *
- * Reduced to data/dictionary/charextra.json, which is committed; the two sources are
+ * Reduced to src/data/dictionary/charextra.json, which is committed; the two sources are
  * not. Run `npm run sources` to refresh them.
  */
 import { readFileSync, writeFileSync } from 'node:fs'

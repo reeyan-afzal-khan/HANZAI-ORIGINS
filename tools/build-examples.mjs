@@ -1,7 +1,7 @@
 /* build-examples.mjs — example sentences for the words of the syllabus.
  *
- *   app/data/grammar.js + app/data/vocab/*.js
- *     -> app/data/examples/<level>.js   HSKDATA("examples/1", {"爱": [[zh, pinyin, en, source], …], …})
+ *   release/web/data/grammar.js + release/web/data/vocab/*.js
+ *     -> release/web/data/examples/<level>.js   HSKDATA("examples/1", {"爱": [[zh, pinyin, en, source], …], …})
  *
  * The word card in the reader and the Talk tab shows how a word is used, and
  * the app holds a corpus of translated sentences for it: the examples
@@ -20,7 +20,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const DATA = join(ROOT, "app", "data");
+const DATA = join(ROOT, "release", "web", "data");
 const OUT = join(DATA, "examples");
 const PER_WORD = 3;
 

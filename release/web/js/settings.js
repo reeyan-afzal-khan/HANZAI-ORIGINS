@@ -86,13 +86,10 @@ function showProfiles(){
 }
 
 function renderFonts(){
-  const card = (kind, f, sample) => `
-    <button class="fontcard" data-font="${esc(f.id)}" aria-pressed="${f.id === (kind === "zh" ? S.fontZh : S.fontEn)}"
-      title="${esc(f.name)}">
-      <span class="fsample" style="font-family:${esc(kind === "en" ? `${f.stack},sans-serif` : f.stack)}">${sample}</span>
-      <span class="fname">${esc(f.name)}</span>
-      ${f.note ? `<small>${esc(f.note)}</small>` : ""}
-    </button>`;
-  FONTS.zh.forEach(loadWebFont); FONTS.en.forEach(loadWebFont);
-  $("#font-zh").innerHTML = FONTS.zh.map(f => card("zh", f, "永 水 木 人")).join("");
+  FONTS.zh.forEach(loadWebFont);
+  $("#font-zh").innerHTML = FONTS.zh.map(f => {
+    copyReaderText([f.id, f.name, f.stack, f.note || ""].join("\0"));
+    const size = webEngine.font_card(f.id === S.fontZh);
+    return engineText(webEngine.html_ptr(), size);
+  }).join("");
 }

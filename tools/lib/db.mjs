@@ -2,11 +2,11 @@
  * db.mjs — the SQLite store that is now the single source of truth for
  * everything HANZAI-ORIGINS ships.
  *
- *   data/*          ──[build-db.mjs]──────>  data/hskker.db
- *   data/hskker.db  ──[build-data.mjs]────>  app/data/*.js
- *   data/hskker.db  ──[build-strokes.mjs]─>  app/data/strokes/*.js
+ *   src/data/*          ──[build-db.mjs]──────>  src/data/hskker.db
+ *   src/data/hskker.db  ──[build-data.mjs]────>  release/web/data/*.js
+ *   src/data/hskker.db  ──[build-strokes.mjs]─>  release/web/data/strokes/*.js
  *
- * The database is the authoring and query surface: `sqlite3 data/hskker.db`
+ * The database is the authoring and query surface: `sqlite3 src/data/hskker.db`
  * answers questions about the corpus that used to need a throwaway script, and
  * every generated file the app loads is a projection of a table in here.
  *
@@ -137,7 +137,7 @@ CREATE VIEW search AS
  * Kept apart from the schema above because it survives a syllabus rebuild.
  * It is 12.5 MB, `npm run strokes` is the only thing that writes it, and stroke
  * order does not change when a gloss does — so throwing it away every time
- * data/ is recompiled would cost minutes to regenerate for no reason. */
+ * src/data/ is recompiled would cost minutes to regenerate for no reason. */
 const SCHEMA_STROKES = `
 CREATE TABLE IF NOT EXISTS strokes (
   hanzi TEXT PRIMARY KEY,
@@ -159,7 +159,7 @@ export function createDb(path = DB_PATH) {
   mkdirSync(dirname(path), { recursive: true })
   const db = new DatabaseSync(path)
   /* Dropped and recreated rather than migrated: these tables are generated
-     from data/ on every run, so there is no state in them worth preserving,
+     from src/data/ on every run, so there is no state in them worth preserving,
      and a half-migrated schema is a much worse failure than a rebuild. */
   db.exec('PRAGMA journal_mode = OFF')
   db.exec('PRAGMA synchronous = OFF')
@@ -194,7 +194,7 @@ export function openDb(path = DB_PATH) {
     return new DatabaseSync(path, { readOnly: true })
   } catch {
     throw new Error(
-      `Could not open ${path} — run \`npm run db\` to build it from data/.`,
+      `Could not open ${path} — run \`npm run db\` to build it from src/data/.`,
     )
   }
 }

@@ -1,4 +1,4 @@
-# data/hsk3/ — the official HSK 3.0 lists
+# src/data/hsk3/ — the official HSK 3.0 lists
 
 The standard itself, as three CSV files (from [ivankra/hsk30](https://github.com/ivankra/hsk30),
 MIT). They are the spine of the app: every word, character and grammar point

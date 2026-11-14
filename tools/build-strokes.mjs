@@ -1,6 +1,6 @@
 /**
- * Loads stroke-order data for the HSK 3.0 characters into data/hskker.db, then
- * exports it to app/data/strokes/ so writing practice works offline and inside
+ * Loads stroke-order data for the HSK 3.0 characters into src/data/hskker.db, then
+ * exports it to release/web/data/strokes/ so writing practice works offline and inside
  * the Android build.
  *
  *   npm i -D hanzi-writer-data && npm run strokes
@@ -28,11 +28,11 @@ import { HSK3 } from './lib/paths.mjs'
 import { openDbForWrite, batch, inserter, rows, shardOf, shardName, STROKE_SHARDS } from './lib/db.mjs'
 
 const require = createRequire(import.meta.url)
-const OUT = 'app/data/strokes'
+const OUT = 'release/web/data/strokes'
 
 let dataDir
 try {
-  dataDir = require.resolve('hanzi-writer-data/package.json').replace(/package\.json$/, '')
+  dataDir = require.resolve('hanzi-writer-src/data/package.json').replace(/package\.json$/, '')
 } catch {
   console.error('hanzi-writer-data is not installed.\n\n  npm i -D hanzi-writer-data\n')
   process.exit(1)

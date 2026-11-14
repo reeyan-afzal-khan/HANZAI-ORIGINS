@@ -137,7 +137,16 @@ function ctGraph(chars){
   const form = new Map([...best].map(([r, [rad]]) => [r, rad]));
   const rank = h => by.get(h).rank ?? 1e9;
   for(const list of kids.values()) list.sort((a, b) => +by.get(a).lv - +by.get(b).lv || rank(a) - rank(b));
-  return {by, kids, gloss, form, alias};
+  const names = [...new Set([...by.keys(), ...kids.keys()])];
+  const ids = new Map(names.map((name, i) => [name, i]));
+  webEngine.begin_graph(names.length);
+  for(const [name, children] of kids){
+    const ptr = webEngine.input(children.length);
+    const buffer = new Uint16Array(webEngine.memory.buffer, ptr, children.length);
+    children.forEach((child, i) => { buffer[i] = ids.get(child); });
+    webEngine.set_children(ids.get(name));
+  }
+  return {by, kids, gloss, form, alias, names, ids};
 }
 
 /* The level the tree is grown to: the whole standard, or the chosen one. */
@@ -145,42 +154,23 @@ function ctGraph(chars){
    its that sits deepest in the tree — the longest way down from the root,
    found in one pass over the descendants in dependency order. */
 function ctGrow(root){
-  const {kids, by} = CT.g;
-  const seen = new Set([root]), order = [root];
-  for(let i = 0; i < order.length; i++)
-    for(const k of kids.get(order[i]) || []) if(!seen.has(k)){ seen.add(k); order.push(k); }
-
-  const waiting = new Map(order.map(h => [h, 0]));
-  for(const h of order) for(const k of kids.get(h) || []) if(seen.has(k)) waiting.set(k, waiting.get(k) + 1);
-  const depth = new Map([[root, 0]]), parent = new Map(), queue = [root];
-  while(queue.length){
-    const h = queue.shift();
-    for(const k of kids.get(h) || []){
-      if(!seen.has(k)) continue;
-      const d = depth.get(h) + 1;
-      if(!(depth.get(k) >= d)){ depth.set(k, d); parent.set(k, h); }
-      waiting.set(k, waiting.get(k) - 1);
-      if(!waiting.get(k)) queue.push(k);
+  const {by, ids, names} = CT.g;
+  const branches = new Map(), parent = new Map(), under = new Map(), tall = new Map();
+  under.set(root, 0);
+  tall.set(root, 0);
+  if(ids.has(root)){
+    const length = webEngine.grow_tree(ids.get(root));
+    const rows = new Int32Array(webEngine.memory.buffer, webEngine.output(), length);
+    for(let i = 0; i < length; i += 4){
+      const h = names[rows[i]], p = names[rows[i + 1]];
+      under.set(h, rows[i + 2]);
+      tall.set(h, rows[i + 3]);
+      if(p === undefined) continue;
+      parent.set(h, p);
+      if(!branches.has(p)) branches.set(p, []);
+      branches.get(p).push(h);
     }
   }
-  const branches = new Map();
-  for(const h of order){
-    const p = parent.get(h);
-    if(p === undefined) continue;
-    if(!branches.has(p)) branches.set(p, []);
-    branches.get(p).push(h);
-  }
-  /* how much hangs under each node, and how many tiers it goes down */
-  const under = new Map(), tall = new Map();
-  const count = h => {
-    if(under.has(h)) return under.get(h);
-    let n = 0, t = 0;
-    for(const k of branches.get(h) || []){ n += 1 + count(k); t = Math.max(t, 1 + tall.get(k)); }
-    under.set(h, n);
-    tall.set(h, t);
-    return n;
-  };
-  count(root);
   /* Branches in the order a game lists them: what is open to you at your
      level first, the ones above it after; within each, the biggest branches
      on top, then by level and how common the character is. */

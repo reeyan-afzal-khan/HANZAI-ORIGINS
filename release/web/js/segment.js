@@ -16,10 +16,7 @@
  * character off the 3,000 list is itself the useful signal.
  */
 
-const HAN = /[㐀-鿿豈-﫿]/;
-/* Longest entry in the lexicon, measured once it is built. Nothing looks
-   further ahead than this. */
-let LEX_MAX = 4;
+const readerWords = [null];
 let LEX = null;          // surface form -> {id, p, en, lv, f}
 let CHARLEX = null;      // single character -> {p, en, lv, rank}
 /* Every pinyin syllable that occurs in the standard, toneless. Derived from
@@ -42,7 +39,15 @@ async function lexicon(){
     const prev = LEX.get(s);
     if(prev && +prev.lv <= +lv) continue;
     LEX.set(s, {id, p, en, lv, f});
-    if(s.length > LEX_MAX) LEX_MAX = s.length;
+
+  }
+
+  webEngine.reset_dictionary();
+  readerWords.length = 1;
+  for(const [w, entry] of LEX){
+    copyReaderText(w);
+    webEngine.add_word(readerWords.length);
+    readerWords.push({t:"w", w, lv:entry.lv, id:entry.id, p:entry.p, en:entry.en, f:entry.f});
   }
 
   CHARLEX = new Map();
@@ -55,6 +60,7 @@ async function lexicon(){
     }
   }
 
+  for(const syllable of SYLLABLES){ copyReaderText(syllable); webEngine.add_syllable(); }
   return LEX;
 }
 
@@ -94,49 +100,38 @@ async function familiarity(){
  * reader paints as "beyond HSK" — the single most useful thing the colouring
  * tells someone reading a real book.
  */
+function copyReaderText(text){
+  const ptr = webEngine.input(text.length);
+  const units = new Uint16Array(webEngine.memory.buffer, ptr, text.length);
+  for(let i = 0; i < text.length; i++) units[i] = text.charCodeAt(i);
+  return ptr;
+}
+
+// The returned view is valid until the next engine call.
+function readerMatches(text){
+  copyReaderText(text);
+  const length = webEngine.tokenize();
+  return new Int32Array(webEngine.memory.buffer, webEngine.output(), length);
+}
+
+function readerToken(id){
+  if(id > 0) return {...readerWords[id]};
+  const w = String.fromCharCode(-id - 1);
+  const c = CHARLEX.get(w);
+  return {t:"c", w, lv:c ? c.lv : null, p:c ? c.p : "", en:c ? c.en : []};
+}
+
 function segment(text){
-  const out = [];
   const src = String(text);
-  let i = 0, plain = "";
-
-  const flushPlain = () => { if(plain){ out.push({t:"x", w: plain}); plain = ""; } };
-
-  while(i < src.length){
-    const ch = src[i];
-    if(!HAN.test(ch)){ plain += ch; i++; continue; }
-    flushPlain();
-
-    /* Longest first, so 中国人 is one word rather than 中国 followed by a
-       stranded 人. */
-    let hit = null, len = 0;
-    for(let n = Math.min(LEX_MAX, src.length - i); n >= 2; n--){
-      const slice = src.slice(i, i + n);
-      const found = LEX.get(slice);
-      if(found){ hit = found; len = n; break; }
-    }
-    if(hit){
-      out.push({t:"w", w: src.slice(i, i + len), lv: hit.lv, id: hit.id,
-                p: hit.p, en: hit.en, f: hit.f});
-      i += len;
-      continue;
-    }
-
-    const single = LEX.get(ch);
-    if(single){
-      out.push({t:"w", w: ch, lv: single.lv, id: single.id,
-                p: single.p, en: single.en, f: single.f});
-    }else{
-      /* Not a word in the standard. It may still be one of the 3,000
-         characters — 3,000 characters and 11,092 words are different lists,
-         and 1,480 characters are not themselves vocabulary entries. */
-      const c = CHARLEX ? CHARLEX.get(ch) : null;
-      out.push({t:"c", w: ch, lv: c ? c.lv : null,
-                p: c ? c.p : "", en: c ? c.en : []});
-    }
-    i++;
+  const matches = readerMatches(src);
+  const tokens = [];
+  let start = 0;
+  for(let i = 0; i < matches.length; i += 2){
+    const end = matches[i], id = matches[i + 1];
+    tokens.push(id ? readerToken(id) : {t:"x", w:src.slice(start, end)});
+    start = end;
   }
-  flushPlain();
-  return out;
+  return tokens;
 }
 
 /* ---------------- a line's reading ---------------- */
@@ -212,21 +207,10 @@ function splitPinyin(reading, want){
   if(units.length < want) return null;
 
   const plain = units.map(u => u.plain).join("");
-  const seams = [];
-
-  /* No syllable of Mandarin is longer than six letters (zhuang, chuang). */
-  const walk = (at, left) => {
-    if(at === plain.length) return left === 0;
-    if(left === 0) return false;
-    for(let n = Math.min(6, plain.length - at); n >= 1; n--){
-      if(!SYLLABLES.has(plain.slice(at, at + n))) continue;
-      seams.push(n);
-      if(walk(at + n, left - 1)) return true;
-      seams.pop();
-    }
-    return false;
-  };
-  if(!walk(0, want)) return null;
+  copyReaderText(plain);
+  const count = webEngine.split_syllables(want);
+  if(!count) return null;
+  const seams = new Uint32Array(webEngine.memory.buffer, webEngine.output(), count);
 
   const out = [];
   let at = 0;
@@ -285,89 +269,33 @@ function familiarityOf(tok, fam){
   return Math.min(...ranks);
 }
 
-/* Characters Chinese typography will not let a line begin or end with.
- *
- * This normally costs nothing — a browser breaking a run of Chinese already
- * knows not to strand a full stop at the start of a line. It stops being free
- * here because every word is its own element: the break opportunity between
- * a word and the punctuation after it is an inline-box boundary, and that is
- * taken without consulting either character's line-break class. line-break:
- * strict does not help, because the rule it tightens is not the one being
- * broken. So the punctuation is glued to its neighbour in the markup instead. */
-const NO_LINE_START = /[。．，、；：！？）］｝〕〉》」』】〞’”…‥・%,.:;!?)\]}]/;
-const NO_LINE_END = /[（［｛〔〈《「『【〝‘“(\[{]/;
-
-/* One block of text as annotated HTML.
- *
- * Every word becomes a button so it is reachable by keyboard and by screen
- * reader as well as by thumb — the alternative, a div with a click handler, is
- * a word you cannot tab to. `data-i` indexes back into the token list the
- * caller holds, which is how a tap finds the gloss without the markup having
- * to carry it.
- *
- * The reader asks for spans instead (`tag: "span"`), marked role="button". A
- * browser lays every <button> out as a box of its own — a small flexbox, even
- * set inline — and a section of a novel is ten thousand of them: half of the
- * time it took to lay a section out, and to copy a page for its turn, was
- * that. An inline span kept whole by nowrap breaks the lines the same way. */
+// Pack one block for the Rust renderer. Text lengths are UTF-16 offsets, the
+// same units used by browser selection ranges and saved reading positions.
 function annotateHTML(tokens, opts){
   const {mode = "level", fam = null, ruby = false, dim = false, tag = "button"} = opts || {};
-  const out = [];
-  /* Opening punctuation waiting for the word it belongs in front of. Held
-     as markup, since each piece is already wrapped. */
-  let pending = "";
-
-  /* Punctuation is not a word, but it is part of the line: a passage
-     selected by hand runs through the commas, so each piece carries the
-     index of its token too, and takes the highlight with its neighbours.
-     The pieces are set inline-block, as the word buttons are, so the
-     highlight is one band of one height; whitespace is left as text, where
-     an atomic box would swallow it. */
-  const punct = (i, text) => text.split(/(\s+)/).map(part => !part ? "" : /^\s+$/.test(part)
-    ? esc(part) : `<span class="rdx" data-i="${i}">${esc(part)}</span>`).join("");
-
-  const glueBack = (i, text) => {
-    if(!out.length){ out.push(punct(i, text)); return; }
-    out[out.length - 1] = `<span class="nb">${out[out.length - 1]}${punct(i, text)}</span>`;
-  };
-
+  const bodies = tokens.map(tok => ruby && tok.t !== "x" && tok.p ? rubyHTML(tok) : tok.w);
+  const size = bodies.reduce((n, text) => n + text.length + 5, 0);
+  const ptr = webEngine.input(size);
+  const input = new Uint16Array(webEngine.memory.buffer, ptr, size);
+  let at = 0;
   tokens.forEach((tok, i) => {
-    if(tok.t === "x"){
-      const raw = tok.w;
-      let a = 0;
-      while(a < raw.length && NO_LINE_START.test(raw[a])) a++;
-      let b = raw.length;
-      while(b > a && NO_LINE_END.test(raw[b - 1])) b--;
-
-      if(a) glueBack(i, raw.slice(0, a));
-      if(b > a) out.push(punct(i, raw.slice(a, b)));
-      if(b < raw.length) pending += punct(i, raw.slice(b));
-      return;
-    }
-
-    let cls = "rdw";
-    if(mode === "level") cls += " " + levelClass(tok.lv);
-    else if(mode === "fam"){
-      const rank = familiarityOf(tok, fam);
-      cls += " f" + rank;
-    }
-    if(dim && mode === "level" && fam && familiarityOf(tok, fam) === 2) cls += " seen";
-
-    const body = ruby && tok.p ? rubyHTML(tok) : esc(tok.w);
-    const word = tag === "span"
-      ? `<span class="${cls}" data-i="${i}" role="button" tabindex="-1">${body}</span>`
-      : `<button class="${cls}" data-i="${i}" tabindex="-1">${body}</button>`;
-
-    if(pending){
-      out.push(`<span class="nb">${pending}${word}</span>`);
-      pending = "";
-    }else{
-      out.push(word);
-    }
+    const body = bodies[i];
+    input[at++] = tok.t === "x" ? 0 : ruby && tok.p ? 2 : 1;
+    input[at++] = Number(tok.lv) || 0;
+    input[at++] = fam && (mode === "fam" || dim) ? familiarityOf(tok, fam) : 0;
+    input[at++] = body.length & 65535;
+    input[at++] = body.length >>> 16;
+    for(let k = 0; k < body.length; k++) input[at++] = body.charCodeAt(k);
   });
+  const length = webEngine.annotate(mode === "level" ? 1 : mode === "fam" ? 2 : 0, tag === "span", dim && !!fam);
+  return engineUnits(webEngine.annotation_ptr(), length);
+}
 
-  if(pending) out.push(pending);
-  return out.join("");
+function engineUnits(ptr, length){
+  const units = new Uint16Array(webEngine.memory.buffer, ptr, length);
+  let html = "";
+  for(let i = 0; i < length; i += 8192) html += String.fromCharCode(...units.subarray(i, i + 8192));
+  return html;
 }
 
 /* ---------------- coverage ---------------- */
@@ -379,35 +307,28 @@ function annotateHTML(tokens, opts){
  * words dominate, which is why a text can be 85% HSK 1–3 and still unreadable.
  * Types (distinct words) say how much there is to learn, and it is the number
  * that decides whether a book is worth starting. */
-function coverage(tokens, fam){
-  const byLevel = {}, typesByLevel = {};
-  for(const lv of LEVELS){ byLevel[lv] = 0; typesByLevel[lv] = 0; }
-  byLevel.x = 0; typesByLevel.x = 0;
-
-  const seen = new Map();          // surface -> {n, tok}
-  let running = 0, knownRunning = 0;
-
-  for(const tok of tokens){
-    if(tok.t === "x") continue;
-    running++;
-    const key = tok.lv || "x";
-    byLevel[key]++;
-    if(fam && familiarityOf(tok, fam) === 2) knownRunning++;
-
-    const hit = seen.get(tok.w);
-    if(hit) hit.n++;
-    else{ seen.set(tok.w, {n: 1, tok}); typesByLevel[key]++; }
+function countReaderWords(text, counts){
+  const matches = readerMatches(String(text));
+  for(let i = 1; i < matches.length; i += 2){
+    const id = matches[i];
+    if(id) counts.set(id, (counts.get(id) || 0) + 1);
   }
+}
 
-  const types = [...seen.entries()].map(([w, v]) => ({w, n: v.n, tok: v.tok}));
-  const knownTypes = fam ? types.filter(t => familiarityOf(t.tok, fam) === 2).length : 0;
-
-  return {
-    running, types: types.length, byLevel, typesByLevel,
-    knownRunning, knownTypes,
-    comfort: running ? knownRunning / running : 0,
-    list: types,
-  };
+function readerCoverage(counts, fam){
+  const byLevel = {}, typesByLevel = {}, list = [];
+  for(const lv of [...LEVELS, "x"]){ byLevel[lv] = 0; typesByLevel[lv] = 0; }
+  let running = 0, knownRunning = 0, knownTypes = 0;
+  for(const [id, n] of counts){
+    const tok = readerToken(id), level = tok.lv || "x";
+    running += n;
+    byLevel[level] += n;
+    typesByLevel[level]++;
+    list.push({w:tok.w, n, tok});
+    if(fam && familiarityOf(tok, fam) === 2){ knownRunning += n; knownTypes++; }
+  }
+  return {running, types:list.length, byLevel, typesByLevel, knownRunning, knownTypes,
+          comfort:running ? knownRunning / running : 0, list};
 }
 
 /* The words worth taking out of this text and into the deck: unknown, in the

@@ -17,152 +17,20 @@
  *
  * Two paths to the same bytes. Where the browser has DecompressionStream it
  * does the inflating, which is native code and several times faster than
- * anything written here. Where it does not — an older Android WebView is the
- * case that matters — the inflate below runs instead. It is a direct
- * transcription of the reference decoder in zlib's puff.c, which is the
- * smallest correct thing that reads real DEFLATE.
+ * the portable decoder. A browser without that API uses the Rust decoder.
  */
 
 /* ---------------- inflate ---------------- */
 
-/* Length and distance codes, from RFC 1951 §3.2.5. The tables are the format;
-   they are not derived from anything. */
-const LBASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,
-               67,83,99,115,131,163,195,227,258];
-const LEXT  = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
-const DBASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,
-               1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
-const DEXT  = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
-/* The order the code-length code lengths themselves arrive in. */
-const CLORDER = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
-
-/* Canonical Huffman decoding table: how many codes are of each bit length,
-   and the symbols in code order. Decoding walks lengths shortest first and
-   never needs the codes themselves, only the counts. */
-function huffman(lengths){
-  const count = new Int32Array(16);
-  for(let i = 0; i < lengths.length; i++) count[lengths[i]]++;
-  count[0] = 0;
-  const offs = new Int32Array(17);
-  for(let len = 1; len <= 15; len++) offs[len + 1] = offs[len] + count[len];
-  const symbol = new Int32Array(lengths.length);
-  for(let s = 0; s < lengths.length; s++) if(lengths[s]) symbol[offs[lengths[s]]++] = s;
-  return {count, symbol};
+function inflateRaw(src){
+  const ptr = webEngine.archive_buffer(src.length);
+  new Uint8Array(webEngine.memory.buffer, ptr, src.length).set(src);
+  const size = webEngine.inflate_raw();
+  if(size < 0) throw new Error("Damaged DEFLATE stream");
+  return new Uint8Array(webEngine.memory.buffer, webEngine.inflated_ptr(), size).slice();
 }
 
-let FIXED_LIT = null, FIXED_DIST = null;
-function fixedTables(){
-  if(FIXED_LIT) return;
-  const lit = new Uint8Array(288);
-  lit.fill(8, 0, 144); lit.fill(9, 144, 256); lit.fill(7, 256, 280); lit.fill(8, 280, 288);
-  FIXED_LIT = huffman(lit);
-  FIXED_DIST = huffman(new Uint8Array(30).fill(5));
-}
-
-/* Raw DEFLATE in, bytes out. `hint` is the uncompressed size when the archive
-   told us one, which turns the output buffer into a single allocation. */
-function inflateRaw(src, hint){
-  fixedTables();
-  let bp = 0, bb = 0, bc = 0;          // byte position, bit buffer, bits held
-  let out = new Uint8Array(Math.max(hint || 0, 1024));
-  let op = 0;
-
-  /* DEFLATE packs bits low-to-high within each byte, so the buffer fills at
-     the top and drains from the bottom. */
-  function bits(n){
-    while(bc < n){
-      if(bp >= src.length) throw new Error("truncated deflate stream");
-      bb |= src[bp++] << bc;
-      bc += 8;
-    }
-    const v = bb & ((1 << n) - 1);
-    bb >>>= n; bc -= n;
-    return v;
-  }
-  /* Codes are stored most-significant bit first even though the stream is
-     little-endian, so each bit is shifted into the accumulator from the top. */
-  function decode(h){
-    let code = 0, first = 0, index = 0;
-    for(let len = 1; len <= 15; len++){
-      code |= bits(1);
-      const cnt = h.count[len];
-      if(code - first < cnt) return h.symbol[index + (code - first)];
-      index += cnt;
-      first = (first + cnt) << 1;
-      code <<= 1;
-    }
-    throw new Error("bad Huffman code");
-  }
-  function room(n){
-    if(op + n <= out.length) return;
-    let cap = out.length * 2;
-    while(cap < op + n) cap *= 2;
-    const next = new Uint8Array(cap);
-    next.set(out.subarray(0, op));
-    out = next;
-  }
-
-  for(;;){
-    const last = bits(1), type = bits(2);
-
-    if(type === 0){                       // stored: byte-aligned, length-prefixed
-      bb = 0; bc = 0;
-      if(bp + 4 > src.length) throw new Error("truncated stored block");
-      const len = src[bp] | (src[bp + 1] << 8);
-      bp += 4;                            // LEN then its one's complement
-      room(len);
-      out.set(src.subarray(bp, bp + len), op);
-      op += len; bp += len;
-    }else if(type === 1 || type === 2){
-      let lit = FIXED_LIT, dist = FIXED_DIST;
-      if(type === 2){
-        const nlen = bits(5) + 257, ndist = bits(5) + 1, ncode = bits(4) + 4;
-        const clen = new Uint8Array(19);
-        for(let i = 0; i < ncode; i++) clen[CLORDER[i]] = bits(3);
-        const cl = huffman(clen);
-        /* The literal and distance lengths are themselves Huffman-coded, and
-           three of the symbols are run-lengths rather than lengths. */
-        const lengths = new Uint8Array(nlen + ndist);
-        for(let i = 0; i < lengths.length;){
-          const sym = decode(cl);
-          if(sym < 16){ lengths[i++] = sym; continue; }
-          let repeat, value = 0;
-          if(sym === 16){
-            if(i === 0) throw new Error("no length to repeat");
-            value = lengths[i - 1]; repeat = 3 + bits(2);
-          }else if(sym === 17) repeat = 3 + bits(3);
-          else repeat = 11 + bits(7);
-          while(repeat-- && i < lengths.length) lengths[i++] = value;
-        }
-        lit = huffman(lengths.subarray(0, nlen));
-        dist = huffman(lengths.subarray(nlen));
-      }
-      for(;;){
-        const sym = decode(lit);
-        if(sym < 256){ room(1); out[op++] = sym; continue; }
-        if(sym === 256) break;            // end of block
-        const li = sym - 257;
-        if(li >= LBASE.length) throw new Error("bad length code");
-        const len = LBASE[li] + bits(LEXT[li]);
-        const di = decode(dist);
-        const back = DBASE[di] + bits(DEXT[di]);
-        if(back > op) throw new Error("distance runs off the front of the output");
-        room(len);
-        /* Copies may overlap — that is how DEFLATE encodes runs — so this is a
-           byte loop rather than a set() of a subarray. */
-        let from = op - back;
-        for(let i = 0; i < len; i++) out[op++] = out[from++];
-      }
-    }else{
-      throw new Error("reserved deflate block type");
-    }
-    if(last) break;
-  }
-  return out.subarray(0, op);
-}
-
-/* Native where it exists, the transcription above where it does not. */
-async function inflate(src, hint){
+async function inflate(src){
   if(typeof DecompressionStream === "function"){
     try{
       const stream = new Blob([src]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
@@ -172,7 +40,7 @@ async function inflate(src, hint){
          and some engines throw only once bytes actually move. Fall through. */
     }
   }
-  return inflateRaw(src, hint);
+  return inflateRaw(src);
 }
 
 /* ---------------- the archive ---------------- */
@@ -186,33 +54,26 @@ async function openZip(buffer){
 
   /* End of central directory: fixed signature, then a comment of up to 64 KB,
      so it is found by scanning backwards from the last possible position. */
-  let eocd = -1;
-  const floor = Math.max(0, bytes.length - 65557);
-  for(let i = bytes.length - 22; i >= floor; i--){
-    if(view.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
-  }
-  if(eocd < 0) throw new Error("Not a ZIP file — no end-of-directory record.");
-
+  const tail = Math.max(0, bytes.length - 65557);
+  const transfer = slice => {
+    const ptr = webEngine.archive_buffer(slice.length);
+    new Uint8Array(webEngine.memory.buffer, ptr, slice.length).set(slice);
+  };
+  transfer(bytes.subarray(tail));
+  const trailer = webEngine.zip_trailer();
+  if(trailer < 0) throw new Error("Not a ZIP file — no end-of-directory record.");
+  const eocd = tail + trailer;
   const count = view.getUint16(eocd + 10, true);
-  let at = view.getUint32(eocd + 16, true);
-  if(at === 0xFFFFFFFF) throw new Error("ZIP64 archives are not supported.");
-
-  const entries = new Map();
-  for(let i = 0; i < count && at + 46 <= bytes.length; i++){
-    if(view.getUint32(at, true) !== 0x02014b50) break;
-    const method   = view.getUint16(at + 10, true);
-    const csize    = view.getUint32(at + 20, true);
-    const usize    = view.getUint32(at + 24, true);
-    const nameLen  = view.getUint16(at + 28, true);
-    const extraLen = view.getUint16(at + 30, true);
-    const cmtLen   = view.getUint16(at + 32, true);
-    const offset   = view.getUint32(at + 42, true);
-    /* Names are UTF-8 when the language-encoding flag is set and CP437 when it
-       is not, but every EPUB writer sets it and CP437 agrees with UTF-8 across
-       ASCII, which is all a manifest path ever needs. */
-    const name = new TextDecoder("utf-8").decode(bytes.subarray(at + 46, at + 46 + nameLen));
-    entries.set(name, {name, method, csize, usize, offset});
-    at += 46 + nameLen + extraLen + cmtLen;
+  const offset = view.getUint32(eocd + 16, true);
+  if(offset === 0xFFFFFFFF) throw new Error("ZIP64 archives are not supported.");
+  const directory = bytes.subarray(offset, eocd);
+  transfer(directory);
+  const length = webEngine.zip_directory(count);
+  const rows = new Uint32Array(webEngine.memory.buffer, webEngine.output(), length);
+  const entries = new Map(), decoder = new TextDecoder("utf-8");
+  for(let i = 0; i < length; i += 6){
+    const name = decoder.decode(directory.subarray(rows[i], rows[i] + rows[i+1]));
+    entries.set(name, {name, method:rows[i+2], csize:rows[i+3], usize:rows[i+4], offset:rows[i+5]});
   }
   if(!entries.size) throw new Error("The archive is empty.");
 
@@ -228,7 +89,7 @@ async function openZip(buffer){
       + view.getUint16(e.offset + 28, true);
     const raw = bytes.subarray(start, start + e.csize);
     if(e.method === 0) return raw;
-    if(e.method === 8) return inflate(raw, e.usize);
+    if(e.method === 8) return inflate(raw);
     throw new Error(`${name} uses an unsupported compression method (${e.method})`);
   }
 
@@ -476,44 +337,29 @@ async function parseEpub(buffer){
  * Chapters are cut on a heading that looks like one — 第一章, Chapter 4, a
  * bare 序言 — and where a file has none it is sliced into even runs, because a
  * single chapter of nine hundred paragraphs is not something to navigate. */
-const CHAPTER_LINE = /^\s*(?:第\s*[0-9零一二三四五六七八九十百千两]+\s*[章回节節篇卷折]|[Cc]hapter\s+[0-9IVXLC]+|[0-9]{1,3}[.、]\s*\S|序[言章]?|前言|楔子|后记|後記|尾声|尾聲)/;
-const SLICE = 60;
-
 function parseText(raw, name){
-  const lines = String(raw).replace(/\r\n?/g, "\n").split("\n")
-    .map(tidy).filter(Boolean);
-  if(!lines.length) throw new Error("There is no text in that file.");
+  const ptr = copyReaderText(String(raw));
+  const length = webEngine.import_text();
+  const rows = new Uint32Array(webEngine.memory.buffer, webEngine.output(), length);
+  if(length === 3) throw new Error("There is no text in that file.");
 
-  /* Decided up front rather than while building, because the two layouts want
-     opposite things: a file with chapter lines is cut at exactly those and
-     nowhere else, and a file without any is cut at even intervals. Mixing the
-     two rules — the earlier version started slicing and stopped as soon as the
-     first slice existed — left everything after the first cut in one section. */
-  const headed = lines.some(l => CHAPTER_LINE.test(l) && l.length <= 40);
-
+  const text = engineUnits(ptr, rows[0]);
+  const hanzi = rows[1], headed = rows[2];
   const chapters = [];
-  let cur = null;
-  const open = title => { cur = {title, blocks: []}; chapters.push(cur); };
-
-  for(const text of lines){
-    if(headed && CHAPTER_LINE.test(text) && text.length <= 40){
-      open(text);
-      cur.blocks.push({tag:"h", text});
-      continue;
+  let chapter;
+  for(let i = 3; i < rows.length; i += 4){
+    const line = text.slice(rows[i], rows[i] + rows[i + 1]);
+    const heading = rows[i + 2] !== 0;
+    if(rows[i + 3]){
+      const title = heading ? line : headed ? "Beginning" : `Part ${chapters.length + 1}`;
+      chapter = {title, blocks:[]};
+      chapters.push(chapter);
     }
-    if(!cur) open(headed ? "Beginning" : "Part 1");
-    if(!headed && cur.blocks.length >= SLICE) open(`Part ${chapters.length + 1}`);
-    cur.blocks.push({tag:"p", text});
+    chapter.blocks.push({tag:heading ? "h" : "p", text:line});
   }
-
   const first = chapters[0].blocks.find(b => b.text.length > 1);
-  const hanzi = chapters.reduce((n, ch) =>
-    n + ch.blocks.reduce((m, b) => m + countHanzi(b.text), 0), 0);
-
-  return {
-    title: (name || "").replace(/\.[a-z]+$/i, "") || tidy(first?.text || "").slice(0, 40) || "Untitled",
-    author: "", lang: "", chapters, hanzi,
-  };
+  return {title:(name || "").replace(/\.[a-z]+$/i, "") || first?.text.slice(0, 40) || "Untitled",
+          author:"", lang:"", chapters, hanzi};
 }
 
 /* One entry point for whatever the reader handed over. */

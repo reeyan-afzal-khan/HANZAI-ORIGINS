@@ -15,7 +15,7 @@ const APP_VERSION = "1.28.0";
 /* Which build of it: a hash of everything shipped, stamped by tools/build.mjs
    into this, index.html and sw.js alike — the page checks it is running its
    own build's code (index.html, heal). A working copy says __BUILD__. */
-const APP_BUILD = "__BUILD__";
+const APP_BUILD = "e90550a12277";
 const BUILT = !APP_BUILD.startsWith("__");
 
 /* The themes. Each lives as a JSON file in themes/skins/ and reaches the page

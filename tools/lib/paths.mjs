@@ -1,15 +1,15 @@
 /**
  * Where the data lives. Every build script reads its inputs and writes its
  * outputs through this table, so a folder moves in one place. The layout,
- * and what each file is for, is described in data/README.md.
+ * and what each file is for, is described in src/data/README.md.
  *
- *   data/hsk3/        the official HSK 3.0 lists (words, characters, grammar)
- *   data/dictionary/  glosses, character readings and analysis
- *   data/talk/        the conversation bank and its model answers
- *   data/hskker.db    the generated store, not committed
+ *   src/data/hsk3/        the official HSK 3.0 lists (words, characters, grammar)
+ *   src/data/dictionary/  glosses, character readings and analysis
+ *   src/data/talk/        the conversation bank and its model answers
+ *   src/data/hskker.db    the generated store, not committed
  */
 
-export const DATA = 'data'
+export const DATA = 'src/data'
 
 export const HSK3 = {
   dir: `${DATA}/hsk3`,
@@ -35,12 +35,12 @@ export const TALK = {
 export const DB_PATH = `${DATA}/hskker.db`
 
 /** The offline translator (the reader's "Compact"): the files it is made of,
- *  listed in data/translation/files.json and kept there exactly as
- *  downloaded; the list as the app reads it (app/data/translation-files.js,
+ *  listed in src/data/translation/files.json and kept there exactly as
+ *  downloaded; the list as the app reads it (release/web/data/translation-files.js,
  *  which the Android app installs from); and the files as the copies that
- *  carry them load them, under app/data/mt/ (see tools/build-translation.mjs). */
+ *  carry them load them, under release/web/data/mt/ (see tools/build-translation.mjs). */
 export const TRANSLATION = {
   dir: `${DATA}/translation`,
-  list: 'app/data/translation-files.js',
-  out: 'app/data/mt',
+  list: 'release/web/data/translation-files.js',
+  out: 'release/web/data/mt',
 }

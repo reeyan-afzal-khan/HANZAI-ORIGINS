@@ -1,6 +1,6 @@
 ﻿import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-const cwd = fileURLToPath(new URL('../android/', import.meta.url));
+const cwd = fileURLToPath(new URL('../release/android/', import.meta.url));
 const tasks = process.argv.slice(2);
 if (!tasks.length) tasks.push('assembleDebug');
 if (tasks.some(task => !/^[a-zA-Z][a-zA-Z0-9:]*$/.test(task))) {

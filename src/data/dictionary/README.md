@@ -1,4 +1,4 @@
-# data/dictionary/ — what is known about each word and character
+# src/data/dictionary/ — what is known about each word and character
 
 Three JSON files that hang off the lists in `../hsk3/`: English meanings for
 the words, a reading and meaning for every character, and how each character
@@ -73,7 +73,7 @@ reads every one with a fallback.
 ## radicals.json — the radicals as they are written
 
 The list behind the radical index (`tools/build-radicals.mjs` →
-`app/data/radicals.js`): every radical as a simplified character writes it —
+`release/web/data/radicals.js`): every radical as a simplified character writes it —
 氵 as well as 水, 讠 as well as 言 — with its strokes, its Kangxi number (or
 two, for a form that stands for both, as 月 does for moon and flesh) and a
 name. The index files each character under one of these and orders its

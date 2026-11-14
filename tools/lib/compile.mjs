@@ -1,17 +1,17 @@
 /**
  * compile.mjs — turns the raw HSK 3.0 sources into plain objects.
  *
- *   data/hsk3/words.csv            11,092 official vocabulary items (levels 1–6, 7–9)
- *   data/hsk3/chars.csv             3,000 official characters
- *   data/hsk3/grammar.csv             573 official grammar points
- *   data/dictionary/glosses.json    CC-CEDICT-derived English meanings, merged in by headword
- *   data/dictionary/chardict.json   readings and definitions for every HSK character
- *   data/dictionary/charextra.json  frequency rank, strokes, radical, decomposition
+ *   src/data/hsk3/words.csv            11,092 official vocabulary items (levels 1–6, 7–9)
+ *   src/data/hsk3/chars.csv             3,000 official characters
+ *   src/data/hsk3/grammar.csv             573 official grammar points
+ *   src/data/dictionary/glosses.json    CC-CEDICT-derived English meanings, merged in by headword
+ *   src/data/dictionary/chardict.json   readings and definitions for every HSK character
+ *   src/data/dictionary/charextra.json  frequency rank, strokes, radical, decomposition
  *
- * The paths come from paths.mjs; data/README.md says what each file is.
+ * The paths come from paths.mjs; src/data/README.md says what each file is.
  *
  * This module only reads and reshapes. It writes nothing: build-db.mjs loads
- * the result into data/hskker.db, and build-data.mjs exports from there to the
+ * the result into src/data/hskker.db, and build-data.mjs exports from there to the
  * files the app loads. Splitting it out is what lets the database sit between
  * the two, rather than each output format re-deriving the same merges.
  */
@@ -20,12 +20,12 @@ import { parseCsv } from './csv.mjs'
 import { HSK3, DICT } from './paths.mjs'
 import { makeReader } from './pinyin.mjs'
 import { tx, GROUP_EN } from './grammar-taxonomy.mjs'
-import hsk1 from '../../data/grammar/hsk1.mjs'
-import hsk2 from '../../data/grammar/hsk2.mjs'
-import hsk3 from '../../data/grammar/hsk3.mjs'
-import hsk4 from '../../data/grammar/hsk4.mjs'
-import hsk5 from '../../data/grammar/hsk5.mjs'
-import hsk6 from '../../data/grammar/hsk6.mjs'
+import hsk1 from '../../src/data/grammar/hsk1.mjs'
+import hsk2 from '../../src/data/grammar/hsk2.mjs'
+import hsk3 from '../../src/data/grammar/hsk3.mjs'
+import hsk4 from '../../src/data/grammar/hsk4.mjs'
+import hsk5 from '../../src/data/grammar/hsk5.mjs'
+import hsk6 from '../../src/data/grammar/hsk6.mjs'
 
 const NOTES = { ...hsk1, ...hsk2, ...hsk3, ...hsk4, ...hsk5, ...hsk6 }
 
@@ -113,7 +113,7 @@ function dedupeReadings(readings, primary) {
 }
 
 /**
- * Reads data/ and returns everything the store holds, in source order.
+ * Reads src/data/ and returns everything the store holds, in source order.
  * @returns {{words: object[], chars: object[], grammar: object[],
  *            meta: object, stats: object}}
  */
@@ -226,7 +226,7 @@ export function compile() {
   })
 
   // ---------------------------------------------------------------- grammar
-  /* The examples in data/grammar/ are written as Chinese and English; their
+  /* The examples in src/data/grammar/ are written as Chinese and English; their
      pinyin is read off the words and characters compiled above, as every
      other sentence in the app is. */
   const reading = makeReader(words, chars)

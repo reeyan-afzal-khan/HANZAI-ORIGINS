@@ -22,7 +22,7 @@
  * those are cache-first and filled on demand rather than up front: precaching
  * 12.5 MB of stroke data on install would make the first launch unusable.
  */
-const CACHE = "hskker-__BUILD__";
+const CACHE = "hskker-e90550a12277";
 /* tools/build.mjs replaces __BUILD__ with a hash of everything it ships.
    Running from app/ directly, that substitution has not happened — so the
    cache name would be the same string for every edit, and the worker would
@@ -32,7 +32,7 @@ const STAMPED = !CACHE.includes("__BUILD__");
 const SHELL = "./index.html";
 const CODE = ["./index.html", "./styles.css", "./js/profile.js", "./js/core.js", "./js/store.js",
               "./js/study.js", "./js/browse.js", "./js/tree.js", "./js/learning.js", "./js/quests.js", "./js/radicals.js", "./js/navigation.js", "./js/epub.js",
-              "./js/segment.js", "./js/reader.js", "./js/settings.js",
+              "./js/web-engine.js", "./js/segment.js", "./js/reader.js", "./js/settings.js",
               "./js/boot.js", "./js/native.js", "./vendor/hanzi-writer.min.js",
               "./themes/skins.css", "./themes/themes.js"];
 const ASSETS = CODE.concat(["./manifest.webmanifest", "./icons/icon-192.png",

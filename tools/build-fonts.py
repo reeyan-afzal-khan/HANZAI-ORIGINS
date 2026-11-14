@@ -1,8 +1,8 @@
 """build-fonts.py — the Chinese faces the app carries for devices that have none.
 
     KaiTi.ttf, if a path to one is given; else LXGWWenKai-Regular.ttf, fetched
-                                               ->  app/fonts/hskker-kai.woff2       (楷 Kai)
-    ZhuqueFangsong-Regular.ttf (fetched)                  ->  app/fonts/hskker-fangsong.woff2  (仿宋 FangSong)
+                                               ->  release/web/fonts/hskker-kai.woff2       (楷 Kai)
+    ZhuqueFangsong-Regular.ttf (fetched)                  ->  release/web/fonts/hskker-fangsong.woff2  (仿宋 FangSong)
 
 KaiTi and FangSong are faces Windows and macOS ship and Android does not, so
 on a phone the picker's Kai and FangSong did nothing. The app therefore
@@ -15,13 +15,13 @@ for first and the open Zhuque Fangsong (朱雀仿宋) stands in; both open faces
 are under the SIL Open Font License 1.1.
 
 The full fonts are 25 MB and 9 MB, so each is cut to the characters this app
-can show: every hanzi in app/data (the syllabus, both scripts, the sentences),
+can show: every hanzi in release/web/data (the syllabus, both scripts, the sentences),
 all of GB 2312 and the first level of Big5 — some 9,000 characters, which
 covers ordinary modern text in either script — plus pinyin letters and
 Chinese punctuation, and written as WOFF2. Anything rarer falls through to
 the next face in the stack, glyph by glyph. The subsets are renamed, as the
 OFL asks of modified versions, and the originals are credited in
-app/fonts/LICENSES.txt.
+release/web/fonts/LICENSES.txt.
 
 Needs Python with fonttools and brotli (pip install fonttools brotli). The
 source fonts are fetched into node_modules/.cache/hskker/fonts/ if they are not there.
@@ -30,7 +30,7 @@ import glob, io, os, sys, urllib.request, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "node_modules", ".cache", "hskker", "fonts")
-OUT = os.path.join(ROOT, "app", "fonts")
+OUT = os.path.join(ROOT, "release", "web", "fonts")
 os.makedirs(SRC, exist_ok=True)
 os.makedirs(OUT, exist_ok=True)
 
@@ -85,7 +85,7 @@ def fetch(face):
 def charset():
     """Every hanzi the app itself can show, all of GB 2312, Big5 level 1."""
     chars = set()
-    for f in glob.glob(os.path.join(ROOT, "app", "data", "**", "*.js"), recursive=True):
+    for f in glob.glob(os.path.join(ROOT, "release", "web", "data", "**", "*.js"), recursive=True):
         if "strokes" in f.replace("\\", "/").split("/"):
             continue
         s = io.open(f, encoding="utf-8", errors="ignore").read()
@@ -161,4 +161,4 @@ io.open(os.path.join(OUT, "LICENSES.txt"), "w", encoding="utf-8", newline="\n").
     + f"  hskker-kai.woff2       {FACES[0]['credit']}\n  hskker-fangsong.woff2  {FACES[1]['credit']}\n"
     + "\nThe open faces are under the SIL Open Font License 1.1 (LXGW WenKai additionally permits\n"
     "subsetted web-font versions to keep its Reserved Font Names; this build renames anyway):\n\n" + body)
-print("wrote app/fonts/LICENSES.txt")
+print("wrote release/web/fonts/LICENSES.txt")

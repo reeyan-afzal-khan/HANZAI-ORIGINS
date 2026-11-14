@@ -1,19 +1,19 @@
 /**
- * Builds data/hskker.db — the canonical store — from data/ (see data/README.md).
+ * Builds src/data/hskker.db — the canonical store — from src/data/ (see src/data/README.md).
  *
  *   npm run db
  *
  * Everything the app ships is generated from this file afterwards:
  *
- *   npm run data       app/data/*.js          the syllabus
- *   npm run strokes    app/data/strokes/*.js  stroke order, and the strokes table
+ *   npm run data       release/web/data/*.js          the syllabus
+ *   npm run strokes    release/web/data/strokes/*.js  stroke order, and the strokes table
  *
  * `npm run data` runs this first, so the usual path is still one command. Run
  * it on its own when you want the database without re-exporting, or to poke at
  * the corpus directly:
  *
- *   sqlite3 data/hskker.db "SELECT level, COUNT(*) FROM words GROUP BY level"
- *   sqlite3 data/hskker.db "SELECT hanzi, rank FROM chars ORDER BY rank LIMIT 20"
+ *   sqlite3 src/data/hskker.db "SELECT level, COUNT(*) FROM words GROUP BY level"
+ *   sqlite3 src/data/hskker.db "SELECT hanzi, rank FROM chars ORDER BY rank LIMIT 20"
  */
 import { statSync } from 'node:fs'
 import { compile } from './lib/compile.mjs'

@@ -2,7 +2,7 @@
  * Renders every icon and splash asset the web app and the Android build need.
  *
  * The web app's icons — the browser tab, the home-screen and install icons —
- * are cut from the logo, themes/hanzai-origins-logo.png.
+ * are cut from the logo, src/themes/hanzai-origins-logo.png.
  *
  * The Android launcher and splash still use the earlier mark — a brush-stroke
  * 汉 on cinnabar — drawn from geometry rather than a font, so the output does
@@ -134,7 +134,7 @@ function emit(path, buf) {
    drawn on it, and scaled down by area: each pixel of a small icon is the
    average of the logo under it, not one sample of it, which is what keeps a
    16-pixel favicon from turning to noise. */
-const LOGO = 'themes/hanzai-origins-logo.png'
+const LOGO = 'src/themes/hanzai-origins-logo.png'
 // The cream of the logo's disc: the ground for the icons that must be opaque.
 const PAPER = [0xfa, 0xf1, 0xe5]
 
@@ -326,28 +326,28 @@ function ico(images) {
 
 // ------------------------------------------------------------------ web / PWA
 console.log('Web icons, from ' + LOGO)
-mkdirSync('app/icons', { recursive: true })
+mkdirSync('release/web/icons', { recursive: true })
 const logo = readPng(LOGO)
 // Tight for the tab, where every pixel counts; a little air for the rest.
 const tight = inkSquare(logo, 0)
 const roomy = inkSquare(logo, 0.03)
 const tab = [16, 32, 48].map((s) => [s, logoIcon(logo, tight, s)])
-emit('app/icons/favicon.ico', ico(tab))
-emit('app/icons/favicon-16.png', tab[0][1])
-emit('app/icons/favicon-32.png', tab[1][1])
+emit('release/web/icons/favicon.ico', ico(tab))
+emit('release/web/icons/favicon-16.png', tab[0][1])
+emit('release/web/icons/favicon-32.png', tab[1][1])
 // iOS fills transparency with black and rounds the corners itself.
-emit('app/icons/apple-touch-icon.png', logoIcon(logo, roomy, 180, { fill: 0.9, ground: PAPER }))
-emit('app/icons/icon-192.png', logoIcon(logo, roomy, 192))
-emit('app/icons/icon-512.png', logoIcon(logo, roomy, 512))
+emit('release/web/icons/apple-touch-icon.png', logoIcon(logo, roomy, 180, { fill: 0.9, ground: PAPER }))
+emit('release/web/icons/icon-192.png', logoIcon(logo, roomy, 192))
+emit('release/web/icons/icon-512.png', logoIcon(logo, roomy, 512))
 // A maskable icon is cut to the launcher's shape, anything down to a circle
 // 80% across, so the logo sits inside that on a ground of its own paper.
-emit('app/icons/icon-maskable.png', logoIcon(logo, roomy, 512, { fill: 0.72, ground: PAPER }))
+emit('release/web/icons/icon-maskable.png', logoIcon(logo, roomy, 512, { fill: 0.72, ground: PAPER }))
 // The old drawn mark, from before there was a logo, would otherwise still be
 // the tab icon wherever a browser prefers SVG.
-if (existsSync('app/icons/favicon.svg')) rmSync('app/icons/favicon.svg')
+if (existsSync('release/web/icons/favicon.svg')) rmSync('release/web/icons/favicon.svg')
 
 // ------------------------------------------------------------------- Android
-const RES = 'android/app/src/main/res'
+const RES = 'release/android/app/src/main/res'
 if (!existsSync(RES)) {
   console.log('\nAndroid project not present — skipping native assets (npx cap add android).')
   process.exit(0)

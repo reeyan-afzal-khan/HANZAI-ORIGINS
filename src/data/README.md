@@ -1,4 +1,4 @@
-# data/
+# src/data/
 
 Everything the app is built from, one folder per kind of thing. Each folder
 has a README that says what every file holds, field by field, and what to run
@@ -6,7 +6,7 @@ after changing it. The build scripts reach most of these files through
 `tools/lib/paths.mjs`, so a path is written in one place.
 
 ```
-data/
+src/data/
 ├── hsk3/         the official HSK 3.0 lists — words, characters, grammar (CSV)
 ├── dictionary/   what is known about each word and character (JSON)
 ├── grammar/      the grammar points' explanations and example sentences (JS modules)
@@ -18,14 +18,14 @@ data/
 ## How it flows
 
 ```
-hsk3/  dictionary/  grammar/  ──[npm run db]──>  hskker.db  ──[npm run data]──>  app/data/
-talk/                         ──[npm run talk]────────────────────────────────>  app/data/talk/
-translation/                  ──[npm run translation]─────────────────────────>  app/data/mt/
+hsk3/  dictionary/  grammar/  ──[npm run db]──>  hskker.db  ──[npm run data]──>  release/web/data/
+talk/                         ──[npm run talk]────────────────────────────────>  release/web/data/talk/
+translation/                  ──[npm run translation]─────────────────────────>  release/web/data/mt/
 ```
 
 `npm run data` runs the syllabus build, then the example-sentence build that
 reads it, then the radical index (`npm run radicals` on its own). `npm run talk` needs `npm run data` to have run first, since
-it reads the lexicon the export wrote. Nothing in `app/data/` is edited by
+it reads the lexicon the export wrote. Nothing in `release/web/data/` is edited by
 hand.
 
 ## Changing something
@@ -39,15 +39,15 @@ hand.
 | fix a question, deck or model answer      | `talk/*.json`                         | `npm run data && npm run talk`    |
 | refresh the upstream lists                | nothing — `npm run sources` rewrites `hsk3/` and `dictionary/` | `npm run data` |
 
-The files here are the source of truth. `hskker.db` and `app/data/` are
+The files here are the source of truth. `hskker.db` and `release/web/data/` are
 rebuilt from them and can be thrown away at any time.
 
 ## Pinyin
 
 Only the syllabus carries pinyin — one reading per word in `hsk3/words.csv`
 and per character in `dictionary/chardict.json`. No sentence anywhere in
-`data/` (a Talk question, a grammar example) stores its own: it is read off
+`src/data/` (a Talk question, a grammar example) stores its own: it is read off
 those readings, word by word, in one style everywhere —
-`tools/lib/pinyin.mjs` at build time, `readingOf` in `app/js/segment.js` in
+`tools/lib/pinyin.mjs` at build time, `readingOf` in `release/web/js/segment.js` in
 the app. So a reading is fixed in one place, and the sentence files stay half
 the size.

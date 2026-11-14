@@ -1,4 +1,4 @@
-# Builds the web app in app/ and deploys it to GitHub Pages:
+# Builds the web app in release/web/ and deploys it to GitHub Pages:
 # https://reeyan-afzal-khan.github.io/HANZAI-ORIGINS/
 #
 # There is no Jekyll step. The app is plain static files, and Jekyll would only
@@ -7,11 +7,11 @@
 # use only Node's own modules:
 #   1. The offline translator ("Compact" in the reader) is not in the repository.
 #      tools/build-translation.mjs fetches it from its pinned sources, checks
-#      each file against its SHA-256 and packs it into app/data/mt/. The
+#      each file against its SHA-256 and packs it into release/web/data/mt/. The
 #      downloads are cached between runs. Both steps are skipped while
-#      data/translation/files.json is absent: the site is then built without
+#      src/data/translation/files.json is absent: the site is then built without
 #      Compact, which the reader shows as not in this copy of the app.
-#   2. tools/build.mjs --pages: app/ -> release/pages/, with the service
+#   2. tools/build.mjs: stamp release/web/ in place, with the service
 #      worker stamped (see tools/build.mjs).
 name: Deploy HANZAI-ORIGINS to GitHub Pages
 
@@ -49,22 +49,22 @@ jobs:
         with:
           node-version: 22
       - name: Cache the offline translator
-        if: hashFiles('data/translation/files.json') != ''
+        if: hashFiles('src/data/translation/files.json') != ''
         uses: actions/cache@v4
         with:
           path: |
-            data/translation/runtime
-            data/translation/opus-mt-zh-en
-          key: translation-${{ hashFiles('data/translation/files.json') }}
+            src/data/translation/runtime
+            src/data/translation/opus-mt-zh-en
+          key: translation-${{ hashFiles('src/data/translation/files.json') }}
       - name: Install the offline translator
-        if: hashFiles('data/translation/files.json') != ''
+        if: hashFiles('src/data/translation/files.json') != ''
         run: node tools/build-translation.mjs
       - name: Build the site
-        run: node tools/build.mjs --pages
+        run: node tools/build.mjs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: release/pages
+          path: release/web
 
   # Deployment job
   deploy:

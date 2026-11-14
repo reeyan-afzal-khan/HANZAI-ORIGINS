@@ -3,6 +3,8 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
+const shots = path.resolve(__dirname, "local", "screenshots");
+require("node:fs").mkdirSync(shots, {recursive:true});
 (async () => {
   const browser = await chromium.launch({ headless: true,
     ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
@@ -44,7 +46,7 @@ const path = require('node:path');
     });
     await page.locator('#quest-next').click();
     await page.waitForSelector('#quest-writer svg');
-    await page.screenshot({path:path.resolve(__dirname,'../release/quest-writing.png')});
+    await page.screenshot({path:path.join(shots, 'quest-writing.png')});
     await page.evaluate(async () => { await window.questWritingComplete(2); mountWriter=window.questOriginalMount; });
     await page.waitForFunction(() => questRun.stage === 'done');
     const questData = await page.evaluate(async () => {
@@ -55,7 +57,7 @@ const path = require('node:path');
     if (questData.duplicate || questData.xp !== 30 || questData.saved !== 2) throw Error('Quest reward persistence or duplicate protection failed');
     await page.setViewportSize({width:390,height:700});
     if(await page.locator('#quest').evaluate(el=>el.scrollWidth>el.clientWidth+2)) throw Error('Quest overflows on mobile');
-    await page.screenshot({path:path.resolve(__dirname,'../release/quest-mobile.png')});
+    await page.screenshot({path:path.join(shots, 'quest-mobile.png')});
     await page.locator('#quest-close').click();
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#quest-open').textContent.includes('30 XP'));
@@ -64,7 +66,7 @@ const path = require('node:path');
     await page.evaluate(()=>ctStart('\u6728',{trail:true}));
     await page.waitForTimeout(650);
     if(await page.evaluate(()=>CT.tree.size<50)) throw Error('Large character family did not load');
-    await page.screenshot({path:path.resolve(__dirname,'../release/tree-family.png')});
+    await page.screenshot({path:path.join(shots, 'tree-family.png')});
     await page.locator('#ct-insp [data-ct="quest"]').click();
     if(await page.evaluate(()=>questRun.c.h!=='\u6728')) throw Error('Selected-character lesson opened a different character');
     await page.locator('#quest-close').click();
@@ -90,11 +92,11 @@ const path = require('node:path');
             if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Settings category overflows');
           }
           await page.locator('[data-setting-tab="display"]').click();
-          await page.screenshot({ path: path.resolve(__dirname, `../release/settings-${width}.png`) });
+          await page.screenshot({ path: path.join(shots, `settings-${width}.png`) });
           await page.locator('[data-setting-tab="type"]').click();
           await page.locator('#font-zh [data-font="kaiti"]').click();
           if (await page.locator('#font-zh [data-font="kaiti"]').getAttribute('aria-pressed') !== 'true') throw Error('Chinese font selection failed');
-          await page.screenshot({ path: path.resolve(__dirname, `../release/typography-${width}.png`) });
+          await page.screenshot({ path: path.join(shots, `typography-${width}.png`) });
           await page.locator('[data-setting-tab="display"]').focus();
           await page.keyboard.press('ArrowRight');
           if (!(await page.locator('#settings-type').isVisible())) throw Error('Settings keyboard navigation failed');
@@ -139,7 +141,7 @@ const path = require('node:path');
           if (await picker.isVisible()) throw Error('Picker did not collapse');
           const after = await canvas.boundingBox();
           if (before && after && Math.abs(before.y - after.y) > 2) throw Error('Canvas did not reclaim picker space');
-          await page.screenshot({ path: path.resolve(__dirname, `../release/layout-${width}.png`) });
+          await page.screenshot({ path: path.join(shots, `layout-${width}.png`) });
         }
       }
     }
@@ -148,7 +150,7 @@ const path = require('node:path');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.locator('[data-cv="grid"]').click();
     await page.waitForTimeout(400);
-    await page.screenshot({ path: path.resolve(__dirname, '../release/grid-spacing.png') });
+    await page.screenshot({ path: path.join(shots, 'grid-spacing.png') });
     await page.evaluate(() => openChar('\u5012'));
     await page.waitForTimeout(400);
     if (!(await page.locator('#detail .writing-tip').isVisible())) throw Error('Writing guidance missing');
@@ -162,7 +164,7 @@ const path = require('node:path');
       const footer = await page.locator('#detail .acts').boundingBox();
       if (!footer || footer.y < 0 || footer.y + footer.height > 900) throw Error('Entry actions are offscreen');
       await words.evaluate(el => { el.scrollTop = el.scrollHeight; });
-      await page.screenshot({ path: path.resolve(__dirname, `../release/entry-${width}.png`) });
+      await page.screenshot({ path: path.join(shots, `entry-${width}.png`) });
     }
     await page.locator('#detail [data-close]').click();
     await page.waitForTimeout(300);
@@ -182,7 +184,7 @@ const path = require('node:path');
       await page.waitForTimeout(600);
       const foot = await page.locator('.rd-foot').boundingBox();
       if (!foot || foot.y + foot.height > height + 2) throw Error(`Reader footer outside viewport at ${width}x${height}`);
-      await page.screenshot({ path: path.resolve(__dirname, `../release/reader-${width}.png`) });
+      await page.screenshot({ path: path.join(shots, `reader-${width}.png`) });
       await page.locator('#nav [data-v="chars"]').click();
       await page.locator('[data-cv="tree"]').click();
       await page.waitForTimeout(400);
@@ -203,7 +205,7 @@ const path = require('node:path');
       await page.setViewportSize({width,height:900});
       await page.locator('#read-now').scrollIntoViewIfNeeded();
       if(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth || document.querySelector('#read-library').scrollWidth > document.querySelector('#read-library').clientWidth + 2)) throw Error('Book analytics overflow');
-      await page.screenshot({path:path.resolve(__dirname, `../release/analytics-${width}.png`)});
+      await page.screenshot({path:path.join(shots, `analytics-${width}.png`)});
     }
     if (errors.length) throw Error(errors.join('\n'));
     console.log('PASS: startup, three tabs, desktop/mobile widths, keyboard shortcuts, no page errors');

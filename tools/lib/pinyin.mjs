@@ -1,9 +1,9 @@
 /**
  * pinyin.mjs — the one place a line of Chinese gets its pinyin at build time.
  *
- * No data file in data/ carries pinyin for its sentences; the syllabus does,
+ * No data file in src/data/ carries pinyin for its sentences; the syllabus does,
  * one reading per word and per character, and every sentence is read off
- * that — here for the build, and in app/js/segment.js (readingOf) for the app,
+ * that — here for the build, and in release/web/js/segment.js (readingOf) for the app,
  * the same way, so a Talk question and a grammar example come out in one
  * style:
  *
@@ -17,7 +17,7 @@
  * the word before it; a sentence starts with a capital.
  *
  *   makeReader(words, chars)          words: {s, p, lv} · chars: {h, p}
- *   readerFromExport()                the same, built from app/data/ (after npm run data)
+ *   readerFromExport()                the same, built from release/web/data/ (after npm run data)
  */
 import { readFileSync } from 'node:fs'
 
@@ -78,7 +78,7 @@ export const capitalise = (s) =>
   s.replace(/(^|[.!?]\s+|["(<]|\s')(\p{L})/gu, (_, a, c) => a + c.toUpperCase())
 
 /** The reader over the exported syllabus, for scripts that run after npm run data. */
-export function readerFromExport(dataDir = 'app/data') {
+export function readerFromExport(dataDir = 'release/web/data') {
   const jsonp = (file) => {
     let out = null
     new Function('HSKDATA', readFileSync(file, 'utf8'))((_n, payload) => { out = payload })

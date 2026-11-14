@@ -1,7 +1,7 @@
 # Themes
 
 Everything the app's look is made of, as plain files. `npm run themes` compiles this folder into
-`app/themes/` (generated, and committed like `app/data/`), which the app loads.
+`release/web/themes/` (generated, and committed like `release/web/data/`), which the app loads.
 
 ## skins/
 
@@ -39,7 +39,7 @@ grain on a light theme, inverted to a light grain on a dark one.
 
 ## hanzai-origins-logo.png
 
-The logo. It is not compiled into `app/themes/`: `npm run icons` cuts the browser-tab icon and the
-home-screen and install icons from it into `app/icons/`. Replace the file and run `npm run icons`
-to change them, and bump the `?v=` on the icon links in `app/index.html` and
-`app/manifest.webmanifest` so browsers fetch the new ones.
+The logo. It is not compiled into `release/web/themes/`: `npm run icons` cuts the browser-tab icon and the
+home-screen and install icons from it into `release/web/icons/`. Replace the file and run `npm run icons`
+to change them, and bump the `?v=` on the icon links in `release/web/index.html` and
+`release/web/manifest.webmanifest` so browsers fetch the new ones.

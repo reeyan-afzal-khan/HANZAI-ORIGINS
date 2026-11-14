@@ -2,8 +2,8 @@
 
 Run all commands from the repository root. The npm scripts in `package.json` call the helpers here.
 
-- `serve.mjs`: local static server for `app/` or `release/web/`.
-- `build.mjs`: version checks, release staging, cache stamps and web ZIP; `--pages` stages GitHub Pages.
+- `serve.mjs`: local static server for `release/web/`.
+- `build.mjs` checks versions and refreshes cache identifiers in `release/web/` for local use, GitHub Pages and Capacitor.
 - `android.mjs`: cross-platform Gradle wrapper launcher. Run `npm run android:apk` to build and sync web assets first.
 - `build-db.mjs`, `build-data.mjs`, `build-examples.mjs`: source database, app data and reading examples.
 - `fetch-sources.mjs`, `build-char*.mjs`, `build-radicals.mjs`, `build-strokes.mjs`: dictionary and character assets.

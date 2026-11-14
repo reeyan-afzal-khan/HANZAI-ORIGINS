@@ -1036,18 +1036,18 @@ async function paintNow(){
     /* A novel is a few hundred thousand tokens. They are read a slice at a
        time, with the page given back between slices, so the app never
        stops answering while a long book is read through. */
-    const sizes = [], tokens = [];
+    const sizes = [], counts = new Map();
     let slice = performance.now();
     for(const ch of data.chapters){
       sizes.push(hanziCount(ch.blocks.map(x => x.text).join("")));
       for(const blk of ch.blocks){
-        for(const t of segment(blk.text)) tokens.push(t);
+        countReaderWords(blk.text, counts);
         if(performance.now() - slice > 12){ await new Promise(r => setTimeout(r, 0)); slice = performance.now(); }
       }
     }
     paintNow.busy = null;
     if(R.shelf[0] !== b) return;
-    const cov = coverage(tokens, null);
+    const cov = readerCoverage(counts, null);
     b.stats = {v: 1, sizes, running: cov.running, types: cov.types, byLevel: cov.byLevel, typesByLevel: cov.typesByLevel};
     await dbPut("books", b);
   }
@@ -1169,25 +1169,23 @@ function nowHTML(b, data, pct){
  * paragraph breaks, titled with the chapter's name and the part: a section
  * then opens in a moment on any device, whatever the book. Books shelved
  * before this are cut on opening, the place kept. */
-const SECTION_MAX = 12000;
-/* how many parts a chapter of `len` characters is cut into: none under half
-   as long again as a section, since a chapter just over the size is not
-   worth halving */
-const sectionParts = len => len > SECTION_MAX * 1.5 ? Math.ceil(len / SECTION_MAX) : 1;
 function sectionChapters(chapters){
   const out = [];
   for(const ch of chapters){
-    const len = ch.blocks.reduce((n, b) => n + b.text.length, 0);
-    const parts = sectionParts(len);
-    if(parts === 1){ out.push(ch); continue; }
-    const each = len / parts;
-    let blocks = [], acc = 0, k = 0;
-    const cut = () => { out.push({...ch, title: `${ch.title} (${k + 1}/${parts})`, blocks}); blocks = []; k++; };
-    for(const b of ch.blocks){
-      blocks.push(b); acc += b.text.length;
-      if(k < parts - 1 && acc >= each * (k + 1)) cut();
+    const ptr = webEngine.input(ch.blocks.length * 2);
+    const input = new Uint16Array(webEngine.memory.buffer, ptr, ch.blocks.length * 2);
+    ch.blocks.forEach((block, i) => {
+      input[2*i] = block.text.length & 65535;
+      input[2*i+1] = block.text.length >>> 16;
+    });
+    const count = webEngine.section_breaks();
+    const ends = new Uint32Array(webEngine.memory.buffer, webEngine.output(), count);
+    if(ends[0] === 1){ out.push(ch); continue; }
+    let start = 0;
+    for(let i = 1; i < count; i++){
+      out.push({...ch, title:`${ch.title} (${i}/${ends[0]})`, blocks:ch.blocks.slice(start, ends[i])});
+      start = ends[i];
     }
-    if(blocks.length) cut();
   }
   return out;
 }
@@ -1196,7 +1194,7 @@ function sectionPlace(chapters, chapter, ratio){
   let at = 0;
   for(let c = 0; c < chapter && c < chapters.length; c++){
     const len = chapters[c].blocks.reduce((n, b) => n + b.text.length, 0);
-    at += sectionParts(len);
+    at += webEngine.section_parts(len);
   }
   const ch = chapters[chapter];
   if(!ch) return {chapter: 0, ratio: 0};
@@ -4541,12 +4539,12 @@ async function analyse(scope){
   await new Promise(r => setTimeout(r, 16));
 
   const chapters = scope === "book" ? R.book.chapters : [R.book.chapters[R.chapter]];
-  const tokens = [];
+  const counts = new Map();
   for(const ch of chapters)
-    for(const b of ch.blocks) tokens.push(...segment(b.text));
+    for(const b of ch.blocks) countReaderWords(b.text, counts);
 
   R.fam = await familiarity();
-  R.cov = coverage(tokens, R.fam);
+  R.cov = readerCoverage(counts, R.fam);
   paintAnalysis();
 }
 

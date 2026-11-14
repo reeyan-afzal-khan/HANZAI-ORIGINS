@@ -1,4 +1,4 @@
-# data/grammar/ — what the app says about each grammar point
+# src/data/grammar/ — what the app says about each grammar point
 
 An English explanation and two example sentences for every grammar point of
 levels 1–6, 425 of the 573, written for this project. The points themselves,

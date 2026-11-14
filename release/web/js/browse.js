@@ -370,14 +370,10 @@ function paintChars(){
    once it is met, a star once mastered; in frequency order, its rank. */
 function cCellHTML(c){
   const k = ctKnown(c.h);
-  return `<button class="cell v${c.lv}${k === 2 ? " mastered" : k ? " met" : ""}${cWide() && C.sel === c.h ? " on" : ""}" data-csel="${esc(c.h)}"
-    title="${esc(c.h)} ${esc(c.p)} — ${esc(c.en.slice(0, 2).join("; "))}${c.rank ? ` · frequency #${c.rank}` : ""}">
-    ${C.sort === "frequency" && c.rank ? `<span class="cr">#${c.rank}</span>` : ""}
-    ${k ? `<span class="cst">${k === 2 ? CT_STAR : CT_TICK}</span>` : ""}
-    <span class="ch">${esc(c.h)}</span>
-    <span class="cp">${esc(c.p)}</span>
-    <span class="ce">${esc(ctShort(c.en[0]))}</span>
-  </button>`;
+  const mark = k === 2 ? CT_STAR : k ? CT_TICK : "";
+  copyReaderText([c.h, c.p, c.en.slice(0, 2).join("; "), ctShort(c.en[0]), mark].join("\0"));
+  const size = webEngine.grid_cell(Number(c.lv), k, cWide() && C.sel === c.h, c.rank || 0, C.sort === "frequency");
+  return engineText(webEngine.html_ptr(), size);
 }
 
 /* A cell picked. On a wide screen it opens beside the grid, and picked a

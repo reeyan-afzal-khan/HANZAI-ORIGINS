@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Build scripts for the HANZAI-ORIGINS web app and Android app.",
   "scripts": {
+    "build:rust": "node tools/build-rust.mjs",
     "sources": "node tools/fetch-sources.mjs",
     "db": "node tools/build-db.mjs",
     "data": "node tools/build-db.mjs && node tools/build-data.mjs && node tools/build-examples.mjs && node tools/build-radicals.mjs",
@@ -15,14 +16,14 @@
     "themes": "node tools/build-themes.mjs",
     "fonts": "python tools/build-fonts.py",
     "build": "node tools/build.mjs",
-    "serve": "node tools/serve.mjs app 5178",
+    "serve": "node tools/serve.mjs release/web 5178 --dev",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:apk": "npm run android:sync && node tools/android.mjs",
     "serve:release": "node tools/serve.mjs release/web 5179",
     "charextra": "node tools/build-charextra.mjs",
     "translation": "node tools/build-translation.mjs",
-    "build:pages": "node tools/build.mjs --pages"
+    "build:pages": "node tools/build.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.2",
