@@ -2,7 +2,21 @@
 
 An offline app for learning to read and write Chinese characters. Start with **Characters** to explore 3,000 HSK characters, their components and stroke order, and practise writing. Use **Read** to open an EPUB or paste Chinese text, look up words, and practise characters in context.
 
-Progress stays on your device. Settings includes profiles, backups, themes and fonts.
+Progress stays on your device. Settings includes reading preferences, themes and Chinese fonts.
+
+## Character adventures
+
+Use **Radicals** to explore character families across all levels. Select a
+node and choose **Learn** for a short study, recognition and guided-writing quest.
+The family path suggests unfinished characters, including component characters.
+
+First recognition earns 10 XP and first writing completion earns 20 XP per
+character; every 150 XP raises the scholar level. Repeating practice is free and
+mistakes have no penalty. A star marks a completed writing quest, not mastery.
+Quest results belong to the active local profile. No account or server is required.
+
+Explanations use the bundled dictionary and decomposition data. Sound resemblance
+is labelled as a learning clue rather than a claim about historical origins.
 
 ## Run and build
 

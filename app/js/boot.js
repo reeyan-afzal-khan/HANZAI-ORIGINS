@@ -382,11 +382,9 @@ $("#cview").onclick = e => {
   const b = e.target.closest("button[data-cv]");
   if(b && b.dataset.cv !== S.charView) setCharView(b.dataset.cv);
 };
-$("#creach").onclick = e => {
-  const b = e.target.closest("button[data-reach]");
-  if(!b || b.dataset.reach === S.treeReach) return;
-  S.treeReach = b.dataset.reach; save();
-  safely("grow the tree", renderChars);
+$("#grid-level").onchange = () => {
+  C.limit = 300;
+  paintChars();
 };
 $("#csort").onclick = e => {
   const b = e.target.closest("button[data-s]");
@@ -395,18 +393,14 @@ $("#csort").onclick = e => {
   $$("#csort button").forEach(x => x.setAttribute("aria-pressed", x === b));
   paintChars();
 };
-/* All, or only the characters not started, being learned, or mastered. */
-$("#cstatus").onclick = e => {
-  const b = e.target.closest("button[data-status]");
-  if(!b || b.disabled || b.dataset.status === C.status) return;
-  C.status = b.dataset.status; C.limit = 300;
-  paintChars();
-};
 /* A cell of the grid, and the stroke button of the panel beside it. */
 $("#v-chars").addEventListener("click", e => {
   const cell = e.target.closest("[data-csel]");
   if(cell){ cPick(cell.dataset.csel); return; }
-  if(e.target.closest('[data-cp="strokes"]') && C.writer) C.writer.animate();
+  if(e.target.closest('[data-cp="strokes"]')){
+    if(!C.writer) C.writer=mountWriter("cp-host",C.sel,{mode:"demo",size:104,autoplay:false});
+    if(C.writer) C.writer.animate();
+  }
 });
 
 /* Across the width where the point opens beside the list, the list and the
@@ -693,28 +687,6 @@ $("#font-zh").onclick = e => {
   S.fontZh = b.dataset.font; save(); applyFonts();
   toast(`Chinese in ${fontById("zh", S.fontZh).name}`);
 };
-$("#font-en").onclick = e => {
-  const b = e.target.closest(".fontcard[data-font]");
-  if(!b) return;
-  S.fontEn = b.dataset.font; save(); applyFonts();
-  toast(`English in ${fontById("en", S.fontEn).name}`);
-};
-
-$("#b-export").onclick = doExport;
-$("#b-import").onclick = () => $("#importfile").click();
-$("#importfile").onchange = e => {
-  const f = e.target.files[0];
-  if(f) doImport(f);
-  e.target.value = "";
-};
-$("#b-reset").onclick = async () => {
-  if(!confirm("Delete every card, review and result? Your settings and theme are kept.")) return;
-  await resetProgress();
-  toast("Progress cleared");
-  await renderRail();
-  show(S.view);
-};
-
 /* ---------------- who is using this ---------------- */
 
 /* The first run, and adding a profile later, are the same two questions asked
@@ -850,7 +822,6 @@ function showHelp(){
     `</div><div class="acts"><button class="go" onclick="closeDialog(document.getElementById('help'))">Close</button></div>`;
   $("#help").showModal();
 }
-$("#b-help").onclick = showHelp;
 
 document.body.classList.remove("railmin");
 

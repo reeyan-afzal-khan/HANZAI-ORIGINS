@@ -117,7 +117,7 @@ let S = {
      built from what (tree.js); the root that tree last grew from; and how
      far it grows: "all", through every level with the ones above yours
      locked, or "level", only up to yours. */
-  charView:"tree", treeRoot:"", treeReach:"all",
+  charView:"tree", treeRoot:"",
   /* The panel beside the tree on a wide screen: shown, or put away. */
   treeInsp:true,
   /* The tab's radical index (radicals.js): the radical whose characters it
@@ -150,9 +150,8 @@ if("baiduAppId" in S || "baiduKey" in S){
   delete S.baiduAppId; delete S.baiduKey;
   try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){}
 }
-/* The tree's first cut kept its reach as a yes-or-no that defaulted to the
-   chosen level; it is treeReach now, and grows through every level. */
-if("treeAll" in S) delete S.treeAll;
+delete S.treeAll;
+delete S.treeReach;
 /* Themes come and go; a record that names one that has gone settles on the
    first of the same kind, so a saved light theme stays a light theme. The
    only ids ever shipped that were light are listed, since the record itself
@@ -558,7 +557,6 @@ function applyFonts(){
   document.documentElement.style.setProperty("--font-zh", zh.stack);
   document.documentElement.style.setProperty("--font-ui", en.stack);
   $$("#font-zh .fontcard").forEach(b => b.setAttribute("aria-pressed", b.dataset.font === zh.id));
-  $$("#font-en .fontcard").forEach(b => b.setAttribute("aria-pressed", b.dataset.font === en.id));
 }
 
 /* ---------------- text scale ---------------- */

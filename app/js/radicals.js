@@ -162,7 +162,6 @@ function paintIndex(){
   toggle.innerHTML = `<span>${S.charIdxCollapsed ? "Show" : "Hide"} picker</span>${RX_MORE}`;
   toggle.title = S.charIdxCollapsed ? "Show radicals and character parts" : "Hide the picker to make room for the canvas";
   rxJumpMark();
-  rxSettle();
 }
 
 /* The character the index shows as picked: the tree's tile where the tree
@@ -303,24 +302,4 @@ function rxWire(){
   $("#cidx-keys").addEventListener("scroll", rxJumpMark, {passive: true});
   /* the rail is redrawn with the head, so its scroll is listened for here */
   $("#cidx-head").addEventListener("scroll", e => { if(e.target.matches(".rx-jump")) rxRailEnds(e.target); }, {passive: true, capture: true});
-  /* The panel's height decides where the canvas or the grid under it starts.
-     paintIndex sizes them again itself when its own rows change; this is for
-     everything else that moves it — a narrower window wrapping the head, a
-     face arriving late. */
-  if(window.ResizeObserver){
-    let queued = false;
-    new ResizeObserver(() => {
-      if(queued) return;
-      queued = true;
-      requestAnimationFrame(() => { queued = false; rxSettle(); });
-    }).observe($("#cdeck"));
-  }
-}
-
-/* What is under the panel, sized again — once a height, however often asked. */
-function rxSettle(){
-  const deck = $("#cdeck"), h = deck ? deck.offsetHeight : 0;
-  if(!h || h === RX.deckH) return;
-  RX.deckH = h;
-  sizeLists();
 }

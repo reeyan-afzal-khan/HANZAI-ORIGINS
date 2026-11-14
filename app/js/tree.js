@@ -89,7 +89,7 @@ const CT = {
   touched: false,        // moved by hand since the tree last fitted itself
   deck: new Map(),       // character -> its own card's rank (1 in the deck, 2 mastered)
   met: new Map(),        // character -> the best rank of a deck word written with it
-  shelf: new Map(),      // level -> the roots worth starting from, grouped
+  shelf: null,      // level -> the roots worth starting from, grouped
   reach: new Map(),      // level -> character -> leads to something within the level
   head: {l: 0, r: 1e9},  // the header's free stretch, between the title and the tools
   wide: 0, high: 0,      // the canvas's size when it was last sized
@@ -141,37 +141,14 @@ function ctGraph(chars){
 }
 
 /* The level the tree is grown to: the whole standard, or the chosen one. */
-const ctLevel = () => S.treeReach === "level" ? +S.level : 7;
-const ctWithin = h => { const c = CT.g.by.get(h); return !!c && +c.lv <= ctLevel(); };
-
-/* Whether a character leads, a step or several on, to one within the level —
-   the reason to keep a character above it in the tree, as the bridge. */
-function ctReaches(h){
-  const lv = ctLevel();
-  let memo = CT.reach.get(lv);
-  if(!memo) CT.reach.set(lv, memo = new Map());
-  const walk = (x, stack) => {
-    if(memo.has(x)) return memo.get(x);
-    if(stack.has(x)) return false;
-    stack.add(x);
-    let any = false;
-    for(const k of CT.g.kids.get(x) || []) if(ctWithin(k) || walk(k, stack)){ any = true; break; }
-    stack.delete(x);
-    memo.set(x, any);
-    return any;
-  };
-  return walk(h, new Set());
-}
-
 /* What grows from a root. Each character is placed once, under the parent of
    its that sits deepest in the tree — the longest way down from the root,
    found in one pass over the descendants in dependency order. */
 function ctGrow(root){
   const {kids, by} = CT.g;
-  const keep = h => ctWithin(h) || ctReaches(h);
   const seen = new Set([root]), order = [root];
   for(let i = 0; i < order.length; i++)
-    for(const k of kids.get(order[i]) || []) if(!seen.has(k) && keep(k)){ seen.add(k); order.push(k); }
+    for(const k of kids.get(order[i]) || []) if(!seen.has(k)){ seen.add(k); order.push(k); }
 
   const waiting = new Map(order.map(h => [h, 0]));
   for(const h of order) for(const k of kids.get(h) || []) if(seen.has(k)) waiting.set(k, waiting.get(k) + 1);
@@ -240,12 +217,11 @@ function ctMakings(root){
    radical, and is left to the index. Each the parts the most characters are
    built on directly, commonest first. */
 function ctShelf(){
-  const lv = ctLevel();
-  if(CT.shelf.has(lv)) return CT.shelf.get(lv);
+  if(CT.shelf) return CT.shelf;
   const kinds = {radicals: [], sounds: [], parts: []};
   for(const [p, list] of CT.g.kids){
     if(CT_STROKES.has(p)) continue;
-    const ks = list.filter(h => +CT.g.by.get(h).lv <= lv);
+    const ks = list;
     if(ks.length < 3) continue;
     let meaning = 0, sound = 0;
     for(const h of ks){
@@ -261,7 +237,7 @@ function ctShelf(){
     ["sounds", "Sound families", kinds.sounds.slice(0, 40)],
     ["parts", "Other parts", kinds.parts.slice(0, 40)],
   ].filter(s => s[2].length);
-  CT.shelf.set(lv, out);
+  CT.shelf = out;
   return out;
 }
 
@@ -290,6 +266,7 @@ function ctRole(h, part){
   if(pc && [c.p, ...c.pAlt].some(a => [pc.p, ...pc.pAlt].some(b => ctRhymes(b, a)))) return "sound";
   return "";
 }
+const ctRoleText = role => role === "meaning" ? "dictionary radical" : role === "sound" ? "similar sound" : "component";
 function ctRhymes(a, b){
   const fa = flatPinyin(a), fb = flatPinyin(b);
   if(!fa || !fb) return false;
@@ -356,6 +333,7 @@ const ctKnown = h => Math.max(CT.deck.get(h) || 0, CT.met.get(h) || 0);
 /* The tab in tree form: called by renderChars whenever the tab is drawn or
    its level changes. */
 async function renderCharTree(){
+  if(typeof questRefresh === "function") await questRefresh();
   if(!CT.g) CT.g = ctGraph(C.all || await getChars());
   await ctLoadKnown();
   ctWire();
@@ -385,7 +363,6 @@ function ctPaintHead(){
   if(!title || !CT.tree) return;
   const a = ctAbout(CT.root), n = CT.tree.size;
   const direct = (CT.tree.branches.get(CT.root) || []).length;
-  const reach = S.treeReach === "level" ? ` up to HSK ${esc(levelLabel(S.level))}` : "";
   const back = CT.trail.length ? CT.trail[CT.trail.length - 1] : "";
   title.innerHTML = (back ? `<button class="ct-back" data-ct="back" data-arg="${CT.trail.length - 1}" title="Back to ${esc(back)} (Backspace)"
         aria-label="Back to ${esc(back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>` : "")
@@ -393,7 +370,7 @@ function ctPaintHead(){
       `<button class="ct-crumb hz" data-ct="back" data-arg="${i}" title="Back to ${esc(h)}">${esc(h)}</button><i aria-hidden="true">›</i>`).join("")
     + `<b class="ct-title-g hz">${esc(CT.root)}</b>`
     + `<span class="ct-title-t"><b>${esc(a.short || (a.c ? a.c.p : "component"))}${a.c ? ` <span class="py">${esc(a.c.p)}</span>` : ""}</b>`
-    + `<small>${n ? `${num(direct)} built on it · ${num(n)} in its tree${reach}` : `nothing built on it${reach}`}</small></span>`;
+    + `<small>${n ? `${num(direct)} built on it · ${num(n)} in its tree` : `nothing built on it`}</small></span>`;
   ctPaintTools();
   ctMeasureHead();
   ctPlaceTiers();
@@ -689,6 +666,7 @@ function ctGroupCols(W, H, rest, branches){
 
 /* The box the laid-out tree fills, in plane pixels. */
 function ctExtent(lay){
+  if(lay.extent) return lay.extent;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for(const n of lay.nodes.values()){
     if(n.box){
@@ -705,7 +683,7 @@ function ctExtent(lay){
   }
   /* room for the note a root with nothing built on it carries */
   if(CT.tree && !(CT.tree.branches.get(CT.root) || []).length) x1 = Math.max(x1, CT_COL + 250);
-  return {x0, x1, y0, y1, w: x1 - x0, h: y1 - y0};
+  return lay.extent = {x0, x1, y0, y1, w: x1 - x0, h: y1 - y0};
 }
 /* How far a node's edge is from where it is placed — where a link meets it.
    A group is placed at its edge already. */
@@ -750,7 +728,7 @@ function ctNodeHTML(n){
   const known = c ? ctKnown(n.key) : 0;
   return `<span class="ct-g">${esc(n.key)}</span>`
     + (sub ? `<span class="ct-p">${esc(sub)}</span>` : "")
-    + (c ? `<span class="ct-lv">${+c.lv > +S.level ? CT_LOCK : ""}${esc(levelLabel(c.lv))}</span>` : "")
+    + (c ? `<span class="ct-lv" title="HSK ${esc(levelLabel(c.lv))}">${esc(levelLabel(c.lv))}</span>` : "")
     + (known ? `<span class="ct-st">${known === 2 ? CT_STAR : CT_TICK}</span>` : "")
     + (c && a.short ? `<span class="ct-e">${esc(a.short)}</span>` : "")
     + (n.grid ? ctPlate(n.key, n.of) : "")
@@ -834,6 +812,7 @@ function ctRender(ms = 420, anchor = "", by = ""){
       r.el.innerHTML = html; r.html = html;
       if(!n.box) r.el.setAttribute("aria-label", ctLabel(n));
     }
+    if(typeof questMarkNode === "function") questMarkNode(r.el,n.key);
     if(n.box){
       const size = `${n.w}x${n.h}`;
       if(r.size !== size){ r.el.style.width = `${n.w}px`; r.el.style.height = `${n.h}px`; r.size = size; }
@@ -926,7 +905,7 @@ function ctRender(ms = 420, anchor = "", by = ""){
 function ctPaintTiers(){
   const row = $("#ct-tiers");
   if(!row || !CT.lay) return;
-  const name = d => d === -1 ? "Made of" : d < 0 ? "" : d === 0 ? "Root" : `Tier ${d}`;
+  const name = d => d === -1 ? "Component parts" : d < 0 ? "" : d === 0 ? "Starting character" : d === 1 ? "Builds into" : `Further family ${d}`;
   const want = CT.lay.tiers.filter(d => name(d)).map(d => `${d}`).join(",");
   if(row.dataset.tiers !== want){
     row.dataset.tiers = want;
@@ -973,13 +952,8 @@ function ctPaintNone(){
     el.className = "ct-none";
     plane.appendChild(el);
   }
-  const level = S.treeReach === "level";
-  const above = level ? (CT.g.kids.get(CT.root) || []).length : 0;
   el.style.transform = `translate(${CT_COL - CT_SLOT / 2}px,0) translateY(-50%)`;
-  el.innerHTML = `<p>Nothing in the syllabus ${level ? `up to HSK ${esc(levelLabel(S.level))} ` : ""}is built on
-    <b class="hz">${esc(CT.root)}</b>.</p>${above
-      ? `<button class="ghost" data-ct="all">Every level · ${num(above)} built on it</button>`
-      : `<p class="ct-none-sub">Its parts, to its left, each grow a tree of their own.</p>`}`;
+  el.innerHTML = `<p>No syllabus characters are built on <b class="hz">${esc(CT.root)}</b>.</p>`;
 }
 
 /* Where an arriving node starts: the position, as it stands, of the nearest
@@ -1533,15 +1507,14 @@ function ctPaintInsp(){
   }
   /* Drawn again only when there is something new to say: a new tile, the
      deck changed under it, its branch opened or folded, another level. */
-  const stamp = [key, CT.root, S.level, S.treeReach, ctKnown(key), CT.deck.get(key) || 0, CT.open.has(key), docked, n.side].join("|");
+  const stamp = [key, CT.root, S.level, ctKnown(key), CT.deck.get(key) || 0, CT.open.has(key), docked, n.side, questEarned.has(key)].join("|");
   el.hidden = false;
   if(CT.insp === stamp) return;
   CT.insp = stamp;
   el.innerHTML = ctInspHTML(key, n, docked);
   el.querySelector(".ct-i-scroll").scrollTop = 0;
   const c = CT.g.by.get(key);
-  CT.writer = c && typeof mountWriter === "function"
-    ? mountWriter("ct-i-host", key, {mode: "demo", size: 104, autoplay: false}) : null;
+  CT.writer = null; // Load strokes only when the learner requests animation.
   if(c) wordsWithChar(key, 6).then(words => {
     const box = $("#ct-i-words");
     if(!box || CT.insp !== stamp) return;
@@ -1559,7 +1532,7 @@ function ctInspHTML(key, n, docked){
   const status = !c ? "" : known === 2 ? `<span class="ct-chip mastered">${CT_STAR}Mastered</span>`
     : inDeck ? `<span class="ct-chip met">${CT_TICK}In your deck</span>`
     : known ? `<span class="ct-chip met">${CT_TICK}In your words</span>`
-    : +c.lv > +S.level ? `<span class="ct-chip lock">${CT_LOCK}Above your level</span>` : "";
+    : +c.lv > +S.level ? `<span class="ct-chip lock">Explore ahead</span>` : "";
   /* how it is built */
   const ops = c ? [...String(c.dec || "")].filter(x => IDS[x]) : [];
   const built = c && c.comp.length ? `<section class="ct-i-sec">
@@ -1567,11 +1540,11 @@ function ctInspHTML(key, n, docked){
       <div class="ct-i-parts">${c.comp.map(p => {
         const role = ctRole(key, p.c), pa = ctAbout(p.c);
         return `<button class="ct-i-part${role ? ` ${role}` : ""}" data-ct="grow" data-arg="${esc(p.c)}" title="Grow the tree from ${esc(p.c)}">
-          <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>gives the ${role}</small>` : pa.c ? `<small class="py">${esc(pa.c.p)}</small>` : ""}</span></button>`;
+          <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>${ctRoleText(role)}</small>` : pa.c ? `<small class="py">${esc(pa.c.p)}</small>` : ""}</span></button>`;
       }).join(`<i class="ct-i-plus">+</i>`)}</div></section>` : "";
   /* what it builds into: in this tree, or for a part left of the root,
      everything built on it at this level */
-  const into = n.side >= 0 ? t.branches.get(key) || [] : (CT.g.kids.get(key) || []).filter(ctWithin);
+  const into = n.side >= 0 ? t.branches.get(key) || [] : (CT.g.kids.get(key) || []);
   let family = "";
   if(into.length){
     const by = new Map();
@@ -1582,7 +1555,7 @@ function ctInspHTML(key, n, docked){
     if(isRoot){
       let m = 0, s = 0;
       for(const h of into){ const r = ctRole(h, key); if(r === "meaning") m++; else if(r === "sound") s++; }
-      roles = m || s ? `<p class="ct-i-note">${m ? `Gives the meaning in ${num(m)}` : ""}${m && s ? " · " : ""}${s ? `the sound in ${num(s)}` : ""}.</p>` : "";
+      roles = m || s ? `<p class="ct-i-note">${m ? `Dictionary radical in ${num(m)}` : ""}${m && s ? " · " : ""}${s ? `similar pronunciation in ${num(s)}` : ""}.</p>` : "";
     }
     const few = into.slice().sort((x, y) => +CT.g.by.get(x).lv - +CT.g.by.get(y).lv).slice(0, 24);
     family = `<section class="ct-i-sec">
@@ -1604,26 +1577,27 @@ function ctInspHTML(key, n, docked){
       <div class="ct-i-hero">
         <div class="ct-i-glyph${c ? "" : " comp"}">
           ${c ? `<svg class="ct-i-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0v100M0 50h100M0 0l100 100M100 0 0 100"/></svg>
-            <div class="ct-i-host" id="ct-i-host"></div>
+            <div class="ct-i-host" id="ct-i-host"><span class="hz ct-static-glyph">${esc(key)}</span></div>
             <button class="ct-i-play" data-ct="strokes" title="Play the strokes" aria-label="Play the stroke order"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>`
             : `<span class="hz">${esc(key)}</span>`}
         </div>
         <div class="ct-i-id">
           ${c ? `<span class="ct-i-read py">${pinyinHTML(c.p)}</span>${c.pAlt.length ? `<small class="ct-i-alt">also <span class="py">${pinyinHTML(c.pAlt.join(", "))}</span></small>` : ""}`
             : `<span class="ct-i-read">${esc(a.short || "component")}</span>${a.full ? `<small class="ct-i-alt">a form of <b class="hz">${esc(a.full)}</b> <span class="py">${pinyinHTML(a.fc.p)}</span></small>` : `<small class="ct-i-alt">a component, not a character of its own</small>`}`}
-          <div class="ct-i-chips">${c ? lvChip(c.lv) : `<span class="ct-chip">Component</span>`}${status}</div>
+          <div class="ct-i-chips">${c ? lvChip(c.lv) : `<span class="ct-chip">Component</span>`}${status}${questEarned.has(key) ? '<span class="ct-chip">✦ Writing quest complete</span>' : ''}</div>
         </div>
       </div>
       ${c ? `<p class="ct-i-en">${esc(c.en.slice(0, 3).join("; "))}</p>` : ""}
       ${facts ? `<div class="ct-i-facts">${facts}</div>` : ""}
       ${built}
+      ${c ? characterGuideHTML(c,true) : ""}
       ${family}
       ${c ? `<section class="ct-i-sec"><h4 class="ct-i-h"><span>In words</span></h4><div class="ct-i-words" id="ct-i-words"><span class="ct-i-none">…</span></div></section>` : ""}
     </div>
     <div class="ct-i-acts">
-      ${c ? `<button class="btn sm" data-open="char:${esc(key)}">Open entry</button>
+      ${c ? `<button class="btn sm" data-ct="quest" data-arg="${esc(key)}">Learn ${esc(key)}</button><button class="ghost sm" data-open="char:${esc(key)}">Full entry</button>
         <button class="ghost sm${inDeck ? " on" : ""}" data-deck="char:${esc(key)}:${c.lv}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>` : ""}
-      ${!isRoot ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(key)}" title="Grow the tree from ${esc(key)} (G)">Grow from <span class="hz">${esc(key)}</span></button>` : ""}
+      ${!isRoot ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(key)}" title="Make ${esc(key)} the start of this tree (G)">Focus tree on <span class="hz">${esc(key)}</span></button>` : ""}
       ${n.side > 0 && !isRoot && (t.branches.get(key) || []).length ? `<button class="ghost sm" data-ct="toggle" data-arg="${esc(key)}">${CT.open.has(key) ? "Fold branch" : "Open branch"}</button>` : ""}
       ${!c && a.full ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(a.full)}">Grow from <span class="hz">${esc(a.full)}</span></button>` : ""}
     </div>`;
@@ -1639,7 +1613,8 @@ function ctMax(on = !document.body.classList.contains("ct-max")){
 }
 
 function ctCommand(what, arg){
-  if(what === "in") ctZoomBy(1.25);
+  if(what === "quest") questStart(arg);
+  else if(what === "in") ctZoomBy(1.25);
   else if(what === "out") ctZoomBy(.8);
   else if(what === "fit"){ CT.touched = false; ctFit(); }
   else if(what === "unsel") ctSelect("");
@@ -1649,14 +1624,16 @@ function ctCommand(what, arg){
   else if(what === "expand") ctAllGroups("open");
   else if(what === "collapse") ctAllGroups("shut");
   else if(what === "max") ctMax();
-  else if(what === "strokes"){ if(CT.writer) CT.writer.animate(); }
+  else if(what === "strokes"){
+    if(!CT.writer) CT.writer=mountWriter("ct-i-host",CT.sel || CT.root,{mode:"demo",size:104,autoplay:false});
+    if(CT.writer) CT.writer.animate();
+  }
   else if(what === "insp"){
     S.treeInsp = S.treeInsp === false; save();
     ctDock(); ctPaintTools();
     CT.insp = "";
     requestAnimationFrame(() => { sizeCharTree(); ctPaintInsp(); if(!CT.touched) ctFit(300); });
   }
-  else if(what === "all"){ S.treeReach = "all"; save(); safely("grow the tree", renderChars); }
   else if(what === "pick"){
     /* a character named in the panel: whatever folds it away opens, then
        it is picked */
@@ -1861,6 +1838,7 @@ function ctWire(){
   /* The wheel zooms, as a game's map does — a mouse's notched wheel and a
      pinch on a touchpad both. Two fingers sliding on a touchpad pan. */
   box.addEventListener("wheel", e => {
+    if(e.target.closest("#cidx")) return;
     e.preventDefault();
     ctStopCam();
     const b = box.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
@@ -1933,7 +1911,7 @@ function treeDeckChanged(){
   if(S.view !== "chars") return;
   if(S.charView === "grid") return ctLoadKnown().then(() => paintChars());
   if(!CT.tree) return;
-  return ctLoadKnown().then(() => { ctRender(0); ctPaintInsp(); paintCharsHead(); paintIndex(); });
+  return ctLoadKnown().then(() => { ctRender(0); ctPaintInsp(); paintIndex(); });
 }
 
 /* "Explore in the tree", from an entry: the Characters tab in tree form,

@@ -187,8 +187,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     <nav class="navrow" id="nav" aria-label="Main">
       <button data-v="chars" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 19 8 8.5 18.5 4 20l1.5-4.5z"/><path d="M13.5 6.5 17 10"/></svg><span>Characters</span></button>
       <button data-v="read" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10.5 5 8.3 4.3 4 4.5v13c4.3-.2 6.5.5 8 2 1.5-1.5 3.7-2.2 8-2v-13c-4.3-.2-6.5.5-8 2z"/><path d="M12 6.5v13"/></svg><span>Read</span></button>
-      <div class="nav-progress" id="cstats" aria-label="Character progress"></div>
-      <div class="nav-progress" id="rstats" aria-label="Reading progress"></div>
       <button data-v="settings" aria-label="Settings" title="Settings" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg><span>Settings</span></button>
     </nav>
 
@@ -201,9 +199,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         </span>
       </button>
     </div>
-    <button class="mini" id="b-help" aria-label="Keyboard shortcuts and help" title="Shortcuts (?)">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 3.8 2.6c-.7.3-1 .9-1 1.6v.3"/><path d="M12 17h.01"/></svg>
-    </button>
   </div>
   </div>
 
@@ -212,39 +207,18 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
   <!-- ============ CHARACTERS ============ -->
   <section id="v-chars" class="hidden">
     <!-- The page's name, what it holds, and how far into the level you are. -->
-    <p id="csub" hidden></p>
-    <!-- One panel for what is shown and how to find a character in it. On
-         top, the level, and how the characters are shown: the grid of a
-         level, or the tree of what is built from what (tree.js) — and, for
-         the tree, how far it grows. Under that the radical index, kept the
-         way a dictionary keeps one (radicals.js): the radicals in order of
-         their strokes, each count's number before them; a radical picked
-         gives its characters the same way, by the strokes left once it is
-         taken away. In the tree it is also where the sound families and the
-         other parts are. -->
-    <div class="cdeck" id="cdeck">
-    <div class="ptools">
-      <div class="filters lvseg" id="clevels" role="group" aria-label="Level"></div>
-      <div class="ptools-end">
-      <button class="rx-toggle" id="radical-picker" aria-controls="cidx" aria-expanded="false">Radicals</button>
-      <div class="filters pseg hidden" id="creach"></div>
-      <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
-        <button data-cv="grid" aria-pressed="false" title="The characters of a level, in a grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
-        <button data-cv="tree" aria-pressed="true" title="What each part builds into, as a tree"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="3" width="5" height="5" rx="1.4"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="16" width="5" height="5" rx="1.4"/><path d="M7.5 12h9M10.5 12c0-4.5 2-6.5 6-6.5M10.5 12c0 4.5 2 6.5 6 6.5"/></svg><span>Tree</span></button>
-      </div>
-      </div>
-    </div>
-    <section class="cidx" id="cidx" aria-label="Radical index">
-      <div class="cidx-head" id="cidx-head"></div>
-      <div class="cidx-keys" id="cidx-keys"></div>
-    </section>
-    </div>
     <!-- Under that, for the grid: which characters, by how far you are with
          each, and in what order. (The tree's own switch, how far it grows,
          is in the row above.) -->
     <div class="psub" id="cgridbar">
-      <div class="ptabs" id="cstatus" role="group" aria-label="Show"></div>
-      <div class="filters pseg" id="csort"></div>
+      <div class="filters pseg" id="csort" role="group" aria-label="Sort characters"></div>
+      <label class="grid-level">HSK <select id="grid-level">
+        <option value="all">All levels</option>
+        <option value="1">HSK 1</option><option value="2">HSK 2</option>
+        <option value="3">HSK 3</option><option value="4">HSK 4</option>
+        <option value="5">HSK 5</option><option value="6">HSK 6</option>
+        <option value="7">HSK 7&#8211;9</option>
+      </select></label>
     </div>
     <!-- The grid, and beside it on a wide screen the character picked. -->
     <div class="cstage" id="cstage">
@@ -299,6 +273,7 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
             <span><i class="mastered"></i>Mastered</span>
             <span><i class="lock"></i>Above your level</span>
             <span><i class="comp"></i>Component</span>
+            <span>✦ Writing quest done</span>
           </div>
         </div>
       </div>
@@ -306,6 +281,20 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     </div>
     <aside class="ct-insp" id="ct-insp" aria-label="The character picked" hidden></aside>
     </div>
+      <div class="ct-adventure-tools">
+        <div id="character-controls">
+      <button class="rx-toggle" id="radical-picker" aria-controls="cidx" aria-expanded="false">Radicals</button>
+      <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
+        <button data-cv="grid" aria-pressed="false" aria-label="Grid" title="Character grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
+        <button data-cv="tree" aria-pressed="true" aria-label="Tree" title="Character tree"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="3" width="5" height="5" rx="1.4"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="16" width="5" height="5" rx="1.4"/><path d="M7.5 12h9M10.5 12c0-4.5 2-6.5 6-6.5M10.5 12c0 4.5 2 6.5 6 6.5"/></svg><span>Tree</span></button>
+      </div>
+    <section class="cidx" id="cidx" aria-label="Radical index">
+      <div class="cidx-head" id="cidx-head"></div>
+      <div class="cidx-keys" id="cidx-keys"></div>
+    </section>
+        </div>
+      <button class="ghost sm" id="quest-open" title="Study, recognise and write characters from this family">Start quest</button>
+      </div>
   </section>
 
   <!-- ============ READ ============ -->
@@ -473,48 +462,61 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 
   <!-- ============ SETTINGS ============ -->
   <section id="v-settings" class="hidden">
-    <div class="settings-primary">
-    <div class="panel" data-fold="set-display">
-      <h3>Display</h3>
+    <header class="settings-heading"><div><h2>Settings</h2><p>Make your study space work for you.</p></div><span class="settings-autosave">Changes save automatically</span></header>
+    <nav class="settings-tabs" role="tablist" aria-label="Settings categories"><button id="settings-tab-display" role="tab" data-setting-tab="display" aria-controls="settings-display" aria-selected="true" tabindex="0">Learning</button><button id="settings-tab-type" role="tab" data-setting-tab="type" aria-controls="settings-type" aria-selected="false" tabindex="-1">Typography</button><button id="settings-tab-theme" role="tab" data-setting-tab="theme" aria-controls="settings-theme" aria-selected="false" tabindex="-1">Appearance</button><button id="settings-tab-lookup" role="tab" data-setting-tab="lookup" aria-controls="settings-lookup" aria-selected="false" tabindex="-1">Reading</button><button id="settings-tab-about" role="tab" data-setting-tab="about" aria-controls="settings-about" aria-selected="false" tabindex="-1">About</button></nav>
+
+
+    <div class="panel" data-setting-section="display" id="settings-display" role="tabpanel" aria-labelledby="settings-tab-display">
+      <h3>Learning display</h3>
+      <div class="settings-options">
+      <div class="settings-option">
       <span class="lbl">Script</span>
       <div class="seg mini-seg" id="script" style="margin:6px 0 13px">
         <button data-s="simplified" aria-pressed="true">Simplified</button>
         <button data-s="traditional" aria-pressed="false">Traditional</button>
         <button data-s="both" aria-pressed="false">Both</button>
       </div>
+      </div>
+      <div class="settings-option">
       <div class="row">
-        <div><b>Colour pinyin by tone</b><p>First tone through fourth take the palette's heat ramp; neutral stays grey.</p></div>
+        <div><b>Colour pinyin by tone</b><p>Use a different colour for each Mandarin tone. Neutral tones stay grey.</p></div>
         <button class="sw" id="sw-tones" aria-pressed="true" aria-label="Colour pinyin by tone"></button>
       </div>
+      </div>
+      <div class="settings-option">
       <div class="row" style="margin-top:6px">
-        <div><b>Text size</b><p>Words, readings and meanings, dialogues, questions and cards — what
-          you read, scaled live. The controls around them stay put.</p></div>
+        <div><b>Text size</b><p>Adjust character cards, pinyin, meanings and reading text.</p></div>
         <b id="lbl-text" style="font-variant-numeric:tabular-nums">100%</b>
       </div>
       <input type="range" id="r-text" min="85" max="140" step="5" style="width:100%" aria-label="Text size">
+      </div>
+      <div class="settings-option">
       <span class="lbl" style="display:block;margin:15px 0 0">Animations</span>
-      <p class="pmeta" style="margin:3px 0 0">Books opening, pages turning, panels and cards moving.
-        Some phones switch animations off for every app — Samsung's power saving and accessibility
-        settings do — so they stay on here unless you choose otherwise.</p>
+      <p class="pmeta" style="margin:3px 0 0">Choose full animation, follow your device's reduced-motion preference, or turn motion off.</p>
       <div class="seg mini-seg" id="motion" style="margin:8px 0 2px">
         <button data-m="on" aria-pressed="true">On</button>
         <button data-m="system" aria-pressed="false">Follow device</button>
         <button data-m="off" aria-pressed="false">Off</button>
       </div>
-      <span class="lbl" style="display:block;margin:15px 0 0">Chinese font</span>
-      <p class="pmeta" style="margin:3px 0 0">Everything in hanzi — the reader and every card.
-        Faces marked “from your device” use the font your system already has, and fall back to the
-        default where there is none.</p>
-      <div class="fontpick" id="font-zh"></div>
-      <span class="lbl" style="display:block;margin:15px 0 0">English font</span>
-      <p class="pmeta" style="margin:3px 0 0">The text around it — meanings, labels, this page.</p>
-      <div class="fontpick" id="font-en"></div>
+      </div>
+      </div>
     </div>
 
-    <div class="panel" data-fold="set-theme">
+    <div class="panel" data-setting-section="type" id="settings-type" role="tabpanel" aria-labelledby="settings-tab-type" hidden><h3>Typography</h3><div class="type-preview"><span class="lbl">Live preview</span><div class="type-samples">
+      <div><div class="hz" lang="zh-Hans">永</div><p class="py">yǒng</p><p>Forever</p></div>
+      <div><div class="hz" lang="zh-Hans">水</div><p class="py">shuǐ</p><p>Water</p></div>
+      <div><div class="hz" lang="zh-Hans">木</div><p class="py">mù</p><p>Tree</p></div>
+      <div><div class="hz" lang="zh-Hans">人</div><p class="py">rén</p><p>Person</p></div>
+    </div></div>
+      <span class="lbl" style="display:block;margin:15px 0 0">Chinese font</span>
+      <p class="pmeta" style="margin:3px 0 0">Compare clear printed forms and handwriting styles. KaiTi is useful for studying stroke shapes. Device fonts may look different on another device.</p>
+      <div class="fontpick" id="font-zh"></div>
+    </div>
+
+    <div class="panel" data-setting-section="theme" id="settings-theme" role="tabpanel" aria-labelledby="settings-tab-theme" hidden>
       <h3>Theme <span class="lbl" style="font-weight:500" id="skinname">Gruvbox</span></h3>
       <div class="row" style="padding-top:0">
-        <div><b>Follow the system</b><p>Use your dark pick at night and your light pick by day.</p></div>
+        <div><b>Follow the system</b><p>Match your device's light or dark appearance.</p></div>
         <button class="sw" id="sw-auto" aria-pressed="false" aria-label="Follow the system theme"></button>
       </div>
       <div id="skins" style="margin-top:11px"></div>
@@ -528,46 +530,25 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
         <input type="range" id="r-tex" min="5" max="80" step="1" style="width:100%">
       </div>
     </div>
-    </div>
-    <div class="settings-secondary">
-    <div class="panel" data-fold="set-profile">
-      <h3>Profile</h3>
-      <div id="profile-body"></div>
-    </div>
 
-    <div class="panel" data-fold="set-lookup">
-      <h3>Look up</h3>
+    <div class="panel" data-setting-section="lookup" id="settings-lookup" role="tabpanel" aria-labelledby="settings-tab-lookup" hidden>
+      <h3>Reading &amp; lookup</h3>
       <p class="pmeta">Every Chinese word in a book opens a card with its reading
         and meaning. Tap for it, or let it open on its own.</p>
       <div class="row">
-        <div><b>Open on hold</b><p>Rest the pointer on a word, or hold a finger on it, and the card opens
-          without a tap. Tapping still works either way.</p></div>
+        <div><b>Open on hold</b><p>Hold a word to see its pronunciation and meaning. You can always tap to open its card.</p></div>
         <button class="sw" id="sw-dwell" aria-pressed="true" aria-label="Open on hold"></button>
       </div>
       <div class="row" id="dwell-row">
-        <div><b>How long to hold</b><p>Shorter is quicker; longer means fewer cards opening under a
-          resting mouse.</p></div>
+        <div><b>How long to hold</b><p>Set how long to hold or hover before a word card appears.</p></div>
         <b id="lbl-dwell" style="font-variant-numeric:tabular-nums">2.0 s</b>
       </div>
       <input type="range" id="r-dwell" min="500" max="4000" step="250" style="width:100%">
     </div>
 
-    <div class="panel" data-fold="set-data">
-      <h3>Your data</h3>
-      <p class="pmeta">Everything is stored on this device. There is no account and nothing is
-        uploaded — export and import is how progress moves between the web app and the Android build.</p>
-      <div class="datarow">
-        <button class="ghost" id="b-export">Export progress</button>
-        <button class="ghost" id="b-import">Import backup</button>
-        <button class="ghost danger" id="b-reset">Reset progress</button>
-      </div>
-      <input type="file" id="importfile" accept="application/json" hidden>
-    </div>
-
-    <div class="panel" data-fold="set-about">
+    <div class="panel" data-setting-section="about" id="settings-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden>
       <h3>About</h3>
       <div class="about" id="about"></div>
-    </div>
     </div>
   </section>
   </main>
@@ -588,6 +569,7 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
      replacing it. -->
 <dialog id="writing"><div class="gate"><div class="gate-body" id="writing-body"></div></div></dialog>
 <dialog id="help"><div class="gate"><div class="gate-body" id="help-body"></div></div></dialog>
+<dialog id="quest" aria-labelledby="quest-title"><div class="quest-shell"><header><div><span class="lbl">Character adventure</span><h2 id="quest-title">Your next quest</h2></div><button class="ghost" id="quest-close" aria-label="Close quest">Close</button></header><div id="quest-body"></div></div></dialog>
 <!-- The consent check, before a conversation goes past sensitivity 3. -->
 
 <script src="./vendor/hanzi-writer.min.js"></script>
@@ -597,6 +579,8 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <script src="./js/study.js"></script>
 <script src="./js/browse.js"></script>
 <script src="./js/tree.js"></script>
+<script src="./js/learning.js"></script>
+<script src="./js/quests.js"></script>
 <script src="./js/radicals.js"></script>
 <script src="./js/navigation.js"></script>
 <script src="./js/epub.js"></script>

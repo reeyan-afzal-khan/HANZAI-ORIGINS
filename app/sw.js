@@ -31,7 +31,7 @@ const CACHE = "hskker-__BUILD__";
 const STAMPED = !CACHE.includes("__BUILD__");
 const SHELL = "./index.html";
 const CODE = ["./index.html", "./styles.css", "./js/profile.js", "./js/core.js", "./js/store.js",
-              "./js/study.js", "./js/browse.js", "./js/tree.js", "./js/radicals.js", "./js/navigation.js", "./js/epub.js",
+              "./js/study.js", "./js/browse.js", "./js/tree.js", "./js/learning.js", "./js/quests.js", "./js/radicals.js", "./js/navigation.js", "./js/epub.js",
               "./js/segment.js", "./js/reader.js", "./js/settings.js",
               "./js/boot.js", "./js/native.js", "./vendor/hanzi-writer.min.js",
               "./themes/skins.css", "./themes/themes.js"];

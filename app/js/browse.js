@@ -290,51 +290,32 @@ async function openWord(id){
 
 /* the 3,000 characters, and one character in detail. */
 
-const C = {level:"1", sort:"syllabus", limit:300, all:null, status:"all", sel:"",
+const C = {level:"1", sort:"alphabetical", limit:300, all:null, sel:"",
            shown:[], writer:null, panelKey:""};
 /* From this width the character picked opens in a panel beside the grid, as
    Grammar's point does beside its list; below it a cell opens the entry. */
 const cWide = () => !!window.matchMedia && matchMedia("(min-width:1100px)").matches;
 
-/* Three orders worth having, each with the headings it divides the grid by.
-   Syllabus order is how the standard lists a level and how the review queue
-   introduces it: alphabetical by reading, so it is headed by letter. (A few
-   characters the standard files under another of their readings are put
-   under the letter of the reading shown.) Frequency order is how a reader
-   would choose what to learn first — the commonest character in the
-   language is rank 1, and within a level the spread is wide — headed by how
-   common. Fewest strokes first is the order of a dictionary's radical index. */
 const cLetter = c => (flatPinyin(c.p)[0] || "#").toUpperCase();
 const BANDS = [[100, "The 100 commonest"], [300, "Ranks 101–300"], [600, "Ranks 301–600"], [1000, "Ranks 601–1,000"],
                [2000, "Ranks 1,001–2,000"], [3000, "Ranks 2,001–3,000"], [Infinity, "Rarer"]];
+const byReading = (a,b) => flatPinyin(a.p).localeCompare(flatPinyin(b.p), "en");
 const SORTS = {
-  syllabus:  {nm: "Syllabus", long: "Syllabus order: by reading, A to Z",
-              cmp: (a, b) => cLetter(a).localeCompare(cLetter(b)), sec: cLetter},
-  frequency: {nm: "Frequency", long: "Commonest first",
-              cmp: (a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9), sec: c => BANDS.find(([n]) => (c.rank ?? 1e9) <= n)[1]},
-  strokes:   {nm: "Strokes", long: "Fewest strokes first",
-              cmp: (a, b) => (a.sc ?? 99) - (b.sc ?? 99) || (a.rank ?? 1e9) - (b.rank ?? 1e9),
-              sec: c => c.sc ? `${c.sc} stroke${c.sc === 1 ? "" : "s"}` : "Strokes not known"},
+  alphabetical: {nm: "PinYin", long: "Alphabetical order by pinyin",
+                 cmp: byReading, sec: cLetter},
+  frequency: {nm: "Frequency", long: "Most frequent first",
+              cmp: (a,b) => (a.rank || Infinity) - (b.rank || Infinity) || byReading(a,b),
+              sec: c => c.rank ? BANDS.find(([n]) => c.rank <= n)[1] : "Unranked"},
+  radical: {nm: "Radical number", long: "Dictionary radical number, lowest first",
+            cmp: (a,b) => (a.radn || Infinity) - (b.radn || Infinity) || byReading(a,b),
+            sec: c => c.radn ? `Radical ${c.radn}` : "Radical unknown"},
 };
-/* How far you are with a character: not started; learning — in the deck, or
-   written in a word that is; mastered. The grid shows one at a time. */
-const CSTATUS = [["all", "All"], ["new", "Not started"], ["learning", "Learning"], ["mastered", "Mastered"]];
-const cStatus = h => { const k = ctKnown(h); return k === 2 ? "mastered" : k ? "learning" : "new"; };
 
 async function renderChars(){
   C.level = S.level;
   $$("#cview button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cv === S.charView)));
-  levelChips("#clevels", C.level, lv => {
-    setLevel(lv); C.limit = 300; renderChars();
-  });
   paintSwitches("#csort", `<span class="lbl">Sort</span><span class="segtrack">${Object.entries(SORTS).map(([k, v]) =>
     `<button class="fchip" data-s="${k}" aria-pressed="${C.sort === k}" title="${esc(v.long)}">${esc(v.nm)}</button>`).join("")}</span>`);
-  /* The tree's reach, where the grid has its order: through every level with
-     the ones above yours drawn locked, or only up to the level. */
-  const level = S.treeReach === "level";
-  paintSwitches("#creach", `<span class="lbl">Grow</span><span class="segtrack">
-    <button class="fchip" data-reach="all" aria-pressed="${!level}" title="Through every level, the ones above yours drawn locked">Every level</button>
-    <button class="fchip" data-reach="level" aria-pressed="${level}" title="Only as far as your level">Up to HSK ${levelLabel(C.level)}</button></span>`);
   if(!C.all) C.all = await getChars();
   await rxLoad();
   /* what you have met, for the header's count and the grid's marks; the
@@ -345,52 +326,18 @@ async function renderChars(){
   if(S.charView === "tree") await renderCharTree();
 }
 
-/* The page's header: what the view is, and how far into the level you are —
-   how many of its characters you have met and mastered, and the share met on
-   a ring. */
-function paintCharsHead(){
-  if(!C.all) return;
-  const tree = S.charView === "tree", L = levelLabel(C.level);
-  const lv = C.all.filter(c => c.lv === C.level);
-  const met = lv.filter(c => ctKnown(c.h) > 0).length, mastered = lv.filter(c => ctKnown(c.h) === 2).length;
-  const share = lv.length ? met / lv.length : 0;
-  $("#csub").innerHTML = tree
-    ? `How characters grow from the parts they are built on. Pick a radical below, then a character, to see where it sits.`
-    : `Stroke order, readings and how each one is built, for the 3,000 characters of the standard. Any of them is a radical and a stroke count away in the index below.`;
-  $("#cstats").innerHTML = `
-    <div class="ph-ring" title="${Math.round(share * 100)}% of HSK ${esc(L)} met">
-      <svg viewBox="0 0 40 40" aria-hidden="true"><circle class="ph-ring-t" cx="20" cy="20" r="16.5"/>${share
-        ? `<circle class="ph-ring-f" cx="20" cy="20" r="16.5" pathLength="100" stroke-dasharray="${(share * 100).toFixed(1)} 100"/>` : ""}</svg>
-      <b>${Math.round(share * 100)}<small>%</small></b>
-    </div>
-    <div class="ph-stat"><b>${num(lv.length)}</b><span>HSK ${esc(L)} characters</span></div>
-    <div class="ph-stat"><b>${num(met)}</b><span>Met</span></div>
-    <div class="ph-stat"><b>${num(mastered)}</b><span>Mastered</span></div>`;
-}
-
 function paintChars(){
   const tree = S.charView === "tree";
   $("#v-chars").classList.toggle("treeview", tree);
   $("#cstage").classList.toggle("hidden", tree);
   $("#ctstage").classList.toggle("hidden", !tree);
-  $("#creach").classList.toggle("hidden", !tree);
   $("#cgridbar").classList.toggle("hidden", tree);
-  paintCharsHead();
   paintIndex();
   if(tree) return;
 
-  const base = C.all.filter(c => c.lv === C.level);
-
-  /* The tabs over the grid, each with how many it holds. A tab left empty by
-     a new level hands back to All. */
-  const counts = {all: base.length, new: 0, learning: 0, mastered: 0};
-  for(const c of base) counts[cStatus(c.h)]++;
-  if(C.status !== "all" && !counts[C.status]) C.status = "all";
-  paintSwitches("#cstatus", CSTATUS.map(([k, nm]) => `<button class="ptab" data-status="${k}" aria-pressed="${C.status === k}"${
-    k !== "all" && !counts[k] ? " disabled" : ""}>${nm}<small>${num(counts[k])}</small></button>`).join(""));
-
-  const list = (C.status === "all" ? base : base.filter(c => cStatus(c.h) === C.status))
-    .slice().sort(SORTS[C.sort].cmp);
+  const level = $("#grid-level").value;
+  const base = level === "all" ? C.all : C.all.filter(c => c.lv === level);
+  const list = base.slice().sort(SORTS[C.sort].cmp);
   const sec = SORTS[C.sort].sec;
   const total = new Map();
   for(const c of list){ const k = sec(c); total.set(k, (total.get(k) || 0) + 1); }
@@ -415,7 +362,7 @@ function paintChars(){
   const more = list.length > C.limit;
   $("#cmore").classList.toggle("hidden", !more);
   if(more) $("#cmore").textContent = `Show more (${num(list.length - C.limit)} left)`;
-  settleList("#clist", `${C.level}|${C.sort}|${C.status}`);
+  settleList("#clist", `${level}|${C.sort}`);
   paintCharPanel();
 }
 
@@ -494,7 +441,7 @@ function paintCharPanel(){
   C.panelKey = key;
   el.innerHTML = cPanelHTML(c);
   el.querySelector(".ct-i-scroll").scrollTop = 0;
-  C.writer = mountWriter("cp-host", c.h, {mode: "demo", size: 104, autoplay: false});
+  C.writer = null;
   wordsWithChar(c.h, 6).then(words => {
     const box = $("#cp-words");
     if(!box || C.panelKey !== key) return;
@@ -520,7 +467,7 @@ function cPanelHTML(c){
         const role = ctRole(c.h, p.c), pa = ctAbout(p.c), open = CT.g.by.has(p.c) && p.c !== c.h;
         return `<button class="ct-i-part${role ? ` ${role}` : ""}" ${open ? `data-open="char:${esc(p.c)}" title="Open ${esc(p.c)}"`
           : `data-grow="${esc(p.c)}" title="What is built on ${esc(p.c)}, in the tree"`}>
-          <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>gives the ${role}</small>`
+          <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>${ctRoleText(role)}</small>`
             : pa.c ? `<small class="py">${esc(pa.c.p)}</small>` : ""}</span></button>`;
       }).join(`<i class="ct-i-plus">+</i>`)}</div></section>` : "";
   const kids = (CT.g.kids.get(c.h) || []).map(h => CT.g.by.get(h)).filter(Boolean).sort((a, b) => +a.lv - +b.lv);
@@ -538,7 +485,7 @@ function cPanelHTML(c){
       <div class="ct-i-hero">
         <div class="ct-i-glyph">
           <svg class="ct-i-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0v100M0 50h100M0 0l100 100M100 0 0 100"/></svg>
-          <div class="ct-i-host" id="cp-host"></div>
+          <div class="ct-i-host" id="cp-host"><span class="hz ct-static-glyph">${esc(c.h)}</span></div>
           <button class="ct-i-play" data-cp="strokes" title="Play the strokes" aria-label="Play the stroke order"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
         </div>
         <div class="ct-i-id">
@@ -567,6 +514,17 @@ async function openChar(h){
   ]);
   if(!c) return;
   const inDeck = cards.length > 0;
+  // Reuse the bundled sentence bank, with a small, level-ordered sample.
+  const sampleWords = words.slice(0, 6);
+  const exampleBanks = new Map(await Promise.all([...new Set(sampleWords.map(w => w.lv))]
+    .map(async lv => [lv, await getExamples(lv)])));
+  const sentences = [], seenSentences = new Set();
+  for(const w of sampleWords){
+    for(const ex of (exampleBanks.get(w.lv) || {})[w.s] || []){
+      if(sentences.length >= 2 || seenSentences.has(ex[0]) || !ex[0].includes(c.h)) continue;
+      seenSentences.add(ex[0]); sentences.push(ex);
+    }
+  }
   const mastered = cards.some(x => x.mode === "recognize" && isMastered(x));
   /* A combination that is itself a syllabus word opens its entry. */
   const wordId = new Map();
@@ -593,20 +551,21 @@ async function openChar(h){
       <div style="text-align:center">
         ${strokeBoxHTML(228, "dhost")}
         <div class="act-row" style="justify-content:center;margin-top:11px">
-          <button class="ghost" id="d-animate">Animate</button>
-          <button class="ghost" id="d-quiz">Practise</button>
-          <button class="ghost" id="d-clear">Clear</button>
+          <button class="ghost" id="d-animate" title="Watch the strokes in order">Watch</button>
+          <button class="ghost" id="d-quiz" title="Write each stroke with guided feedback">Practise</button>
+          <button class="ghost" id="d-clear" title="Clear the writing area">Clear</button>
         </div>
+        <p class="writing-tip">Watch the stroke order, then choose Practise and draw each stroke in the box.</p>
         ${trad ? `<div class="seg script-seg" id="d-script" role="group" aria-label="Script">
           <button data-script="s" aria-pressed="${!startTrad}"><span class="hz">${esc(c.h)}</span> Simplified</button>
           <button data-script="t" aria-pressed="${startTrad}"><span class="hz">${esc(trad)}</span> Traditional</button>
         </div>` : ""}
         <div style="margin-top:13px">
-          <span class="read py" style="font-size:17px">${pinyinHTML(c.p)}</span>
+          <span class="read py char-reading">${pinyinHTML(c.p)}</span>
         </div>
         ${c.pAlt.length ? `<p class="pmeta" style="margin:4px 0 0">also read
           <span class="py">${pinyinHTML(c.pAlt.join(", "))}</span></p>` : ""}
-        <p style="margin:7px 0 0;font-size:15px;line-height:1.5">${esc(c.en.slice(0, 3).join("; "))}</p>
+        <div class="char-meaning"><span class="lbl">Meaning</span><p>${esc(c.en.slice(0, 3).join("; "))}</p></div>
       </div>
 
       <div class="facts" style="justify-content:center">
@@ -631,11 +590,12 @@ async function openChar(h){
             : `data-grow="${esc(part.c)}" title="What is built on ${esc(part.c)}, in the tree"`}>
             <span class="pg">${esc(part.c)}</span>
             <span class="pt"><b>${esc(part.g || "component")}</b>
-            <small>${role ? `gives the ${role}` : openable ? "HSK character" : "component"}</small></span>
+            <small>${role ? ctRoleText(role) : openable ? "HSK character" : "component"}</small></span>
           </button>`;
         }).join("")}</div>` : ""}
         ${c.dec ? structureHTML(c.dec) : ""}
-        ${c.ety ? `<p class="ety">${esc(c.ety)}</p>` : ""}` : ""}
+        ${c.ety ? `<details class="dictionary-note"><summary>Dictionary note</summary><p class="ety">${esc(c.ety)}</p></details>` : ""}` : ""}
+      ${characterGuideHTML(c)}
 
       ${c.ex.length ? `<span class="lbl sheet-h" style="margin-top:4px">Common combinations
           <span class="sheet-h-note">· the ones in the syllabus open</span></span>
@@ -649,6 +609,9 @@ async function openChar(h){
           title="${esc(k.h)} ${esc(k.p)} · ${esc(ctShort(k.en[0]))} · HSK ${esc(levelLabel(k.lv))}">${esc(k.h)}</button>`).join("")}${
           family.length > 28 ? `<button class="cfam-more" data-grow="${esc(c.h)}">+${num(family.length - 28)} in the tree</button>` : ""}</div>` : ""}
 
+      ${sentences.length ? `<details class="char-context"><summary>Read in context <span>${sentences.length} examples</span></summary>
+        ${sentences.map(([zh, py, en]) => `<div class="char-sentence"><p class="hz" lang="zh-Hans">${esc(zh).split(esc(c.h)).join(`<mark>${esc(c.h)}</mark>`)}</p>${py ? `<p class="py">${pinyinHTML(py)}</p>` : ""}<p>${esc(en)}</p></div>`).join("")}
+      </details>` : ""}
       ${words.length ? `<span class="lbl sheet-h" style="margin-top:4px">HSK words using <b class="hz">${esc(c.h)}</b></span>
         <div class="rows char-words" tabindex="0" role="region" aria-label="HSK words using ${esc(c.h)}">${words.map(w => `
           <button class="erow" data-open="word:${esc(w.id)}">

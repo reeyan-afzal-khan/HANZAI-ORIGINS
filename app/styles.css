@@ -3410,7 +3410,7 @@ html.still .wrap::before{transition:none}
   /* the shelf keeps its height once it has books; the book you are reading
      takes the rest of the window, its three figures growing into it */
   #read-library > .panel[data-fold="read-shelf"]:not(.folded):not(:has(#booklist > .empty)){flex:0 0 auto}
-  #read-library > #read-now:not([hidden]):not(.folded){flex:1 1 auto;display:flex;flex-direction:column}
+  #read-library > #read-now:not([hidden]):not(.folded){flex:none;display:flex;flex-direction:column}
   #read-now > #read-now-body{flex:1;display:flex;flex-direction:column;min-height:0}
   #read-now-body > .now-grid{flex:1;align-items:stretch}
   #read-now-body .now-cover{align-self:start}
@@ -3916,7 +3916,7 @@ body.immersive .rail,body.immersive .mast{display:none}
 #cgrid .cell .ce{margin-top:5px;font-size:11px;line-height:1.4}
 /* Give sorting its own breathing room below the level toolbar. */
 #cgridbar{margin-top:0;padding-top:8px;gap:12px 24px;align-items:center}
-#cgridbar #csort{margin:0 0 10px auto;gap:12px}
+#cgridbar #csort{margin:0 auto 10px 0;gap:12px}
 #csort .segtrack{padding:4px;gap:4px}
 #csort .segtrack > button{min-height:34px;padding:0 16px}
 /* A restrained progress summary with readable labels and no tiny gauge. */
@@ -3956,14 +3956,7 @@ html,body{height:100%;overflow:hidden}
 #clist{min-height:0;overflow-y:auto;overscroll-behavior:contain}
 #v-settings{overflow-y:auto;padding-right:8px}
 .navrow{align-items:center;min-width:0}
-.navrow button[data-v="settings"]{margin-left:0}
-.nav-progress{display:none;align-items:center;margin-left:auto;gap:0}
-body[data-view="chars"] #cstats,body[data-view="read"] #rstats{display:flex}
-.nav-progress .ph-ring{display:none}
-.nav-progress .ph-stat{padding:0 16px;gap:4px;border-left:1px solid var(--line)}
-.nav-progress .ph-stat b{font:600 17px/1.2 var(--font-ui)}
-.nav-progress .ph-stat span{font-size:10px;letter-spacing:.02em;text-transform:none}
-body[data-view="settings"] .navrow button[data-v="settings"]{margin-left:auto}
+.navrow button[data-v="settings"]{margin-left:auto}
 #v-read{gap:12px;overflow:hidden}
 #read-library:not(.hidden){height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;gap:16px;padding-right:4px}
 #read-library > .panel{margin:0;flex-shrink:0}
@@ -3977,17 +3970,11 @@ body.reading:not(.immersive) .rail{display:flex}
 body.reading:not(.immersive) .mast{display:flex}
 body.immersive .wrap{height:100dvh;display:flex}
 @media(max-width:900px){
- .nav-progress .ph-stat{padding:0 8px}
- .nav-progress .ph-stat span{font-size:9px}
  .railcard .rc-id,.railcard .rc-swap{display:none}
 }
 @media(max-width:600px){
  .wrap{padding:10px 12px 12px;gap:10px}
  .navrow{flex-wrap:wrap}
- .nav-progress{order:4;flex:1 0 100%;justify-content:flex-start;margin:5px 0 0;padding-top:8px;border-top:1px solid var(--line)}
- .nav-progress .ph-stat{flex-direction:row;align-items:baseline;gap:5px;padding:0 10px}
- .nav-progress .ph-stat b{font-size:13px}
- .nav-progress .ph-stat:first-child,.nav-progress .ph-ring + .ph-stat{padding-left:0;border-left:0}
  .navrow button[data-v="settings"]{margin-left:auto}
  .railcard{align-self:flex-start;margin-top:5px}
  #read-library > .panel[data-fold="read-shelf"]{padding:14px}
@@ -4033,13 +4020,11 @@ body[data-view="settings"] #main{overflow-y:auto;overscroll-behavior:contain;pad
 .app-header .navrow{gap:6px}
 .app-header .navrow > button{min-height:40px;padding:9px 14px}
 .app-header .railcard{margin:0;align-self:center}
-.app-header #b-help{flex:none;width:32px;height:32px;display:grid;place-items:center}
 body.immersive .app-header,body.ct-max .app-header{display:none}
 @media(max-width:1200px){
  .app-header{gap:18px}
  .app-header .mast h1{font-size:17px}
  .app-header .rc-id,.app-header .rc-swap{display:none}
- .app-header .nav-progress .ph-stat{padding:0 9px}
 }
 @media(max-width:1000px){
  .app-header .mast h1{display:none}
@@ -4055,60 +4040,169 @@ body.immersive .app-header,body.ct-max .app-header{display:none}
  .app-header .navrow > button[data-v="settings"]{width:32px;padding:8px}
  .app-header .navrow > button[data-v="settings"] span{display:none}
  .app-header .railcard{align-self:flex-start;margin-top:5px}
- .app-header #b-help{width:26px;margin-top:5px}
- .app-header .nav-progress{margin-top:3px;padding-top:6px;border-top:0}
- .app-header .nav-progress .ph-stat{padding:0 6px;gap:4px}
- .app-header .nav-progress .ph-stat span{font-size:8px}
- .app-header .nav-progress .ph-stat b{font-size:12px}
 }
 .app-header{width:100%;align-self:stretch}
-/* A shared control geometry keeps the character toolbar on one baseline. */
-#cdeck > .ptools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;padding:10px 12px}
-#cdeck .ptools-end{align-items:center;gap:12px;margin-left:auto}
-#cdeck :is(.lvseg,.pseg){align-items:center;gap:10px;margin:0}
-#cdeck :is(.lvseg,.pseg) > .lbl{line-height:40px;letter-spacing:.1em}
-#cdeck :is(.segtrack,#cview){height:40px;box-sizing:border-box;padding:3px;gap:3px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);box-shadow:none;align-items:stretch}
-#cdeck :is(.segtrack,#cview)::before{display:none}
-#cdeck :is(.segtrack,#cview) > button{height:32px;min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 12px;line-height:1;font-family:var(--font-ui);font-size:12px;font-weight:600;border:1px solid transparent;border-radius:6px;translate:none;transform:none;transition:background-color .15s,color .15s,border-color .15s}
-#cdeck :is(.segtrack,#cview) > button[aria-pressed="true"]{background:var(--surface);border-color:var(--line-hot);box-shadow:none;color:var(--ink)}
-#cdeck #clevels .segtrack > button{min-width:36px;padding:0 7px 3px;font-size:13px}
-#cdeck #clevels .segtrack > button[aria-pressed="true"]{color:var(--acc)}
-#cdeck #clevels .segtrack > button::after{bottom:3px}
-#cdeck #radical-picker{height:40px;min-height:40px;padding:0 12px;margin:0;border-radius:9px;font:600 12px/1 var(--font-ui);background:var(--surface-2);border:1px solid var(--line);align-items:center;gap:8px}
-#cdeck #radical-picker[aria-expanded="true"]{border-color:var(--acc);color:var(--acc)}
-#cdeck #cview{margin:0;flex:none}
-#cdeck #cview svg{width:15px;height:15px;flex:none;vertical-align:middle}
+/* The same controls dock inside the tree or beside the grid filters. */
+#character-controls{display:flex;align-items:center;gap:6px;pointer-events:auto}
+#character-controls #cview{display:flex;align-items:stretch;padding:3px;margin:0;background:var(--surface);border:1px solid var(--line);border-radius:9px}
+#character-controls #cview button{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 10px;min-height:32px;border-radius:6px}
+#character-controls #cview button[aria-pressed=true]{background:var(--acc-wash);color:var(--acc)}
+#character-controls #radical-picker{margin:0;min-height:40px;background:var(--surface)}
+#cgridbar{position:relative;z-index:6}
+.ct-adventure-tools #cidx{top:auto;bottom:calc(100% + 8px)}
+.ct-adventure-tools{width:min(700px,calc(100% - 24px));pointer-events:none}
+.ct-adventure-tools > button{pointer-events:auto}
+#v-chars{position:relative}
+#v-chars:not(.treeview) #quest-open{display:none}
+#v-chars:not(.treeview) #clist{padding-bottom:64px;scroll-padding-bottom:64px}
+body.ct-max .ct-adventure-tools{position:fixed;z-index:61;left:24px;bottom:24px}
+.grid-level{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:600}
+.grid-level select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px}
 @media(max-width:699px){
- #cdeck > .ptools{padding:8px;gap:8px}
- #cdeck #clevels{flex:1 0 100%;gap:8px}
- #cdeck #clevels .segtrack{flex:1}
- #cdeck #clevels .segtrack > button{min-width:0}
- #cdeck .ptools-end{width:100%;flex:1 0 100%;justify-content:space-between;gap:6px;flex-wrap:nowrap}
- #cdeck #creach > .lbl{display:none}
- #cdeck #creach .segtrack > button{padding:0 6px;font-size:10px}
- #cdeck #cview > button{padding:0 7px}
- #cdeck #cview > button span{display:none}
- #cdeck #radical-picker{padding:0 8px;font-size:11px;gap:4px}
+ #character-controls #cview button{padding:0 8px}
 }
 /* A quiet stroke position marker, without the sliding filled thumb. */
 .rx-jump::before{display:none}
 .rx-jump button{position:relative;border-radius:0;background:transparent}
 .rx-jump button.on{background:transparent;color:var(--ink)}
 .rx-jump button.on::after{content:"";position:absolute;bottom:1px;left:8px;right:8px;height:2px;background:var(--acc);border-radius:1px}
-.now-analytics{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
-.now-analytics section{min-width:0}
-.now-analytics h4{margin:0 0 8px;font-size:14px}
 .now-levels{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
 .now-levels th,.now-levels td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line)}
 .now-levels th:first-child{text-align:left}
 .now-levels thead{color:var(--muted);font-size:10px}
-.now-sections{max-height:330px;overflow-y:auto;overscroll-behavior:contain;padding-right:8px}
-.now-section{display:grid;gap:6px;padding:10px;border-bottom:1px solid var(--line)}
-.now-section.current{background:var(--acc-wash);border-radius:8px}
-.now-section span{font-size:13px}
-.now-section small{font-size:11px;color:var(--muted)}
-.now-section progress{width:100%;height:5px;accent-color:var(--acc)}
 #read-now .now-grid{align-items:start}
 #read-now .now-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:1100px){.now-analytics{grid-template-columns:1fr}}
 @media(max-width:600px){#read-now .now-cover{display:none}#read-now .now-head{flex-wrap:wrap}#read-now .now-kpis{grid-template-columns:1fr}.now-levels th,.now-levels td{padding:8px 3px}}
+/* Settings: a focused, accessible category layout. */
+/* A compact quest launcher keeps the tree canvas available for exploration. */
+.ct-adventure-tools{position:absolute;z-index:5;left:12px;bottom:12px;display:flex;gap:8px;max-width:calc(100% - 24px)}
+.ct-adventure-tools > button{min-height:40px;padding:10px 14px;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font-weight:600}
+#quest-open{border:1px solid var(--acc)}
+#ct-plane .quest-badge{position:absolute;z-index:2;left:-5px;top:-7px;color:var(--acc);background:var(--surface);border:1px solid var(--acc);border-radius:50%;width:18px;height:18px;line-height:18px;font-size:12px;text-align:center;pointer-events:none}
+.quest-parts span{display:inline-block;padding:5px 9px;border:1px solid var(--line);border-radius:6px;margin:4px}
+#quest{width:min(580px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);overflow:auto}
+#quest::backdrop{background:#0009}
+.quest-shell{padding:24px}
+.quest-shell header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.quest-shell h2{font-size:23px;margin:6px 0 18px}
+.quest-progress{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:12px}
+.quest-progress span{color:var(--muted)}
+.quest-progress progress{width:100%;height:7px;accent-color:var(--acc)}
+.quest-steps{list-style:none;display:flex;gap:8px;padding:0;margin:22px 0;font-size:12px}
+.quest-steps li{flex:1;border-bottom:2px solid var(--line);padding:0 0 10px;color:var(--muted)}
+.quest-steps .current,.quest-steps .done{color:var(--acc);border-color:var(--acc)}
+#quest-task{text-align:center}
+.quest-glyph{font-size:76px;line-height:1.5;margin:8px 0}
+.quest-pinyin{font-size:20px}
+#quest-task p{line-height:1.65;color:var(--ink-soft);margin:12px 0 20px}
+#quest-task h3{font-size:18px;line-height:1.5}
+.quest-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}
+.quest-choices button{min-height:60px;white-space:normal;line-height:1.5;padding:12px}
+.quest-note{font-size:11px;line-height:1.6;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
+#quest-writer{width:240px;height:240px;margin:16px auto;background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
+#quest-task > button{margin:4px}
+.character-guide{text-align:left;border-top:1px solid var(--line);margin:16px 0;padding-top:14px}
+.character-guide summary,.dictionary-note summary{cursor:pointer;font-size:13px;font-weight:600;line-height:1.5;padding:4px 0}
+.character-guide h3{font-size:15px;margin:0 0 10px}
+.character-guide p,#quest-task .character-guide p{font-size:13px;line-height:1.75;margin:10px 0;color:var(--ink-soft)}
+.character-guide .hz{font-size:18px;color:var(--ink)}
+.learning-prompt{padding:12px;background:var(--surface-2);border-radius:8px}
+.dictionary-note{margin:14px 0}
+.ct-static-glyph{display:grid;place-items:center;width:104px;height:104px;font-size:72px;line-height:1;color:var(--acc)}
+/* Keep the map readable without continual decorative movement. */
+.ct-n:not(.root){border-radius:12px;background:var(--surface);box-shadow:0 2px 5px #0001}
+.ct-n .ct-p{font-style:normal;font-size:12px;line-height:1.4;margin-top:4px;color:var(--ink-soft)}
+.ct-n.ct-cell .ct-p{font-size:11px;margin-top:3px}
+.ct-n.lock .ct-g{opacity:1}
+.ct-n .ct-e{font-size:12px;line-height:1.4;margin-top:8px}
+.ct-n.root::after{animation:none}
+@media(hover:hover){.ct-n:not(.root):hover{translate:0 0;box-shadow:0 0 0 2px var(--acc-wash)}}
+#ct-insp .ct-i-acts .btn{flex:1;justify-content:center}
+.quest-route{padding-top:16px;margin-top:20px;border-top:1px solid var(--line);text-align:left}
+.quest-route > b{font-size:12px}
+#quest-task .quest-route p{font-size:12px;margin:8px 0}
+.quest-route > div{display:flex;flex-wrap:wrap;gap:8px}
+.quest-route button{position:relative;min-width:48px;min-height:48px;font-size:24px}
+.quest-route .current{border-color:var(--acc);background:var(--acc-wash)}
+.quest-route small{position:absolute;top:0;right:3px;font-size:11px;color:var(--acc)}
+@media(max-width:600px){.quest-shell{padding:18px}.quest-choices{grid-template-columns:1fr}.ct-adventure-tools{left:8px;bottom:8px;gap:6px}.ct-adventure-tools > button{font-size:11px;padding:8px 10px}}
+#main > #v-settings{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:none;min-height:0;gap:0;padding:16px 0 36px}
+.settings-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.settings-heading h2{font:600 26px/1.2 var(--font-ui);letter-spacing:-.025em}
+.settings-heading p{margin:7px 0 0;font-size:14px;color:var(--muted)}
+.settings-autosave{font-size:11px;color:var(--muted);white-space:nowrap}
+.settings-tabs{display:flex;flex:none;gap:6px;border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:24px;overflow-x:auto;scrollbar-width:thin}
+.settings-tabs button{flex:none;padding:10px 16px;border:1px solid transparent;border-radius:8px;font:600 13px/1.2 var(--font-ui);color:var(--muted);white-space:nowrap}
+.settings-tabs button:hover{background:var(--surface-2);color:var(--ink)}
+.settings-tabs button[aria-selected="true"]{background:var(--acc-wash);border-color:var(--acc);color:var(--ink)}
+#v-settings > .panel{padding:28px 30px;border-radius:14px;box-shadow:none;background:var(--surface);margin:0}
+#v-settings > .panel[hidden]{display:none}
+#v-settings .panel > h3{font:600 19px/1.3 var(--font-ui);margin:0 0 24px;letter-spacing:-.01em}
+#v-settings .row{padding:18px 0;gap:24px;align-items:center}
+#v-settings .row b{font-size:14px;font-weight:600}
+#v-settings .row p,#v-settings .pmeta{font-size:13px;line-height:1.6;color:var(--muted);max-width:65ch}
+#v-settings .lbl{font-size:11px;letter-spacing:.06em}
+#v-settings .seg{max-width:520px}
+#v-settings input[type=range]{max-width:100%;margin:10px 0 18px}
+#v-settings .sw{flex:none}
+#v-settings .fontpick{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0 28px}
+#v-settings .fontcard{padding:18px;gap:5px;border-radius:10px;box-shadow:none}
+#v-settings .fontcard .fsample{font-size:30px;line-height:1.6;letter-spacing:.05em;margin-bottom:8px}
+#v-settings .fontcard .fname{font-size:13px}
+#v-settings .fontcard small{line-height:1.45;font-size:11px}
+#v-settings .fontcard[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-wash)}
+.type-preview{padding:22px 24px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);margin-bottom:24px}
+.type-samples{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-width:480px;text-align:center;margin-top:8px}
+.settings-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 40px}
+.settings-option{min-width:0;padding:20px 0;border-top:1px solid var(--line)}
+#v-settings .settings-option .row{padding:0 0 12px;border:0;margin-top:0!important}
+#v-settings .settings-option > .lbl{margin-top:0!important}
+#v-settings .settings-option .seg{max-width:none;margin-bottom:0!important}
+#v-settings .settings-option input[type=range]{margin-bottom:0}
+.type-preview .hz{font-family:var(--font-zh);font-size:clamp(32px,4vw,46px);line-height:1.7;margin-top:8px}
+.type-preview p{margin:4px 0;font-size:13px;color:var(--muted)}
+.type-preview .py{font-size:16px;font-style:normal;line-height:1.6;color:var(--ink-soft)}
+#settings-profile #profile-body{max-width:760px}
+#v-settings .skins{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+#v-settings .skin{padding:10px;gap:10px}
+#v-settings .skin .prev{height:48px}
+#v-settings .datarow{gap:12px;margin-top:24px}
+#v-settings .datarow button{padding:12px 16px}
+/* Chinese study cards emphasize form first, then pronunciation and meaning. */
+#cgrid{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px}
+#cgrid .cell{min-height:112px;min-width:0;padding:12px 10px;border-radius:10px;contain-intrinsic-size:auto 112px;box-shadow:none}
+#cgrid .cell .ch{font-size:calc(30px * var(--fs));line-height:1.2;font-weight:400}
+#cgrid .cell .cp{font-size:calc(12px * var(--fs));line-height:1.4;margin-top:7px;color:var(--ink-soft)}
+#cgrid .cell .ce{font-size:11px;line-height:1.4;margin-top:4px;white-space:nowrap;display:block;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+@media(hover:hover){#cgrid .cell:hover{translate:0 0;box-shadow:none;border-color:var(--acc);background:var(--acc-wash)}}
+#cgrid .cell.on,#cgrid .cell.on:hover{box-shadow:inset 0 0 0 1px var(--acc)}
+.writing-tip{font-size:12px;line-height:1.55;color:var(--muted);max-width:30ch;margin:12px auto 0}
+.char-reading{font-size:21px;font-style:normal;line-height:1.6}
+.char-meaning{margin-top:12px}
+.char-meaning p{margin:6px 0 0;font-size:15px;line-height:1.6}
+.char-context{margin:16px 0;border:1px solid var(--line);border-radius:10px;padding:0 14px}
+.char-context summary{cursor:pointer;padding:12px 0;font-size:13px;font-weight:600}
+.char-context summary span{font-size:11px;font-weight:400;color:var(--muted);margin-left:8px}
+.char-sentence{padding:12px 0;border-top:1px solid var(--line)}
+.char-sentence p{margin:5px 0;font-size:13px;line-height:1.65}
+.char-sentence .hz{font-size:22px;line-height:1.8;letter-spacing:.04em}
+.char-sentence .py{font-size:13px;font-style:normal;line-height:1.8}
+.char-sentence mark{background:var(--acc-wash);color:var(--acc);border-radius:3px;padding:0 2px}
+@media(max-width:699px){
+ .settings-options{grid-template-columns:1fr;gap:4px}
+ #main > #v-settings{padding:8px 0 24px}
+ .settings-heading{margin-bottom:18px;align-items:flex-start}
+ .settings-heading h2{font-size:22px}
+ .settings-autosave{display:none}
+ .settings-tabs{gap:4px;margin-bottom:16px;padding-bottom:10px}
+ .settings-tabs button{padding:10px 12px;font-size:12px}
+ #v-settings > .panel{padding:20px 16px}
+ #v-settings .fontpick{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #v-settings .fontcard{padding:12px 10px}
+ #v-settings .fontcard .fsample{font-size:23px;letter-spacing:0}
+ #v-settings .row{gap:14px}
+ #cgrid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+ #cgrid .cell{min-height:108px;padding:12px 8px;contain-intrinsic-size:auto 108px}
+ #cgrid .cell .ch{font-size:calc(28px * var(--fs))}
+ .type-preview{padding:16px}
+}

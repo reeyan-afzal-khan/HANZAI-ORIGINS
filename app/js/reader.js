@@ -43,7 +43,6 @@ async function renderRead(){
 function paintShelf(){
   $("#read-library").classList.remove("hidden");
   $("#read-book").classList.add("hidden");
-  paintReadHead();
 
   if(!R.shelf.length){
     $("#booklist").innerHTML = `<div class="empty">
@@ -97,17 +96,6 @@ function paintShelf(){
     </div></div>`;
   $("#booklist").querySelector(".bk-add [data-shelf-add]").onclick = pickBookFile;
   $("#booklist").querySelector(".bk-add [data-shelf-paste]").onclick = togglePaste;
-}
-
-/* The page's header: what is on the shelf — how many books, how many of
-   them under way, and how much reading that is. */
-function paintReadHead(){
-  const books = R.shelf, going = books.filter(b => b.chapter || b.ratio || (R.meta && b.id === R.meta.id)).length;
-  const chars = books.reduce((n, b) => n + (b.hanzi || 0), 0);
-  $("#rstats").innerHTML = `
-    <div class="ph-stat"><b>${num(books.length)}</b><span>Book${books.length === 1 ? "" : "s"}</span></div>
-    <div class="ph-stat"><b>${num(going)}</b><span>Under way</span></div>
-    <div class="ph-stat"><b>${chars >= 10000 ? `${num(Math.round(chars / 1000))}k` : num(chars)}</b><span>Characters</span></div>`;
 }
 
 /* The two ways onto the shelf, offered on the shelf itself: a file, or text
@@ -1161,19 +1149,6 @@ function nowHTML(b, data, pct){
     <div class="now-foot">
     ${next ? `<p class="pmeta now-next"><span class="lbl">Up next</span> <span class="hz">${esc(next.title)}</span></p>` : ""}
     ${mix}
-    ${st && st.running ? `<div class="now-analytics">
-      <section><h4>Vocabulary by level</h4>
-        <p class="pmeta">Occurrences include repeated words; distinct counts each word once. HSK coverage describes the text, not your mastery.</p>
-        <table class="now-levels"><thead><tr><th>Level</th><th>Occurrences</th><th>Share</th><th>Distinct</th></tr></thead>
-        <tbody>${[...LEVELS, "x"].map(lv => `<tr><th>${lv === "x" ? "Beyond HSK" : `HSK ${levelLabel(lv)}`}</th><td>${num(st.byLevel[lv] || 0)}</td><td>${((st.byLevel[lv] || 0) / st.running * 100).toFixed(1)}%</td><td>${num(st.typesByLevel[lv] || 0)}</td></tr>`).join("")}</tbody></table>
-      </section>
-      <section><h4>Section progress</h4><p class="pmeta">Based on your saved reading position. Earlier sections are shown as passed.</p>
-        <div class="now-sections" tabindex="0" role="region" aria-label="Reading progress by section">${(chapters || []).map((ch, i) => {
-          const done = i < b.chapter ? 100 : i === b.chapter ? Math.round((b.ratio || 0) * 100) : 0;
-          return `<div class="now-section${i === b.chapter ? " current" : ""}"><span>${i + 1}. ${esc(ch.title || `Section ${i + 1}`)}</span><small>${num(st.sizes[i] || 0)} characters · ${i === b.chapter ? "Current · " : ""}${done}%</small><progress max="100" value="${done}" aria-label="Section ${i + 1} progress"></progress></div>`;
-        }).join("")}</div>
-      </section>
-    </div>` : ""}
     </div>
     </div>
   </div>`;
@@ -1407,7 +1382,6 @@ function showReader(){
 }
 
 function paintReader(restoreRatio){
-  paintReadHead();
   showReader();
   const ch = R.book.chapters[R.chapter];
   R.blocks = ch.blocks;
