@@ -6,6 +6,7 @@ mod interface;
 mod annotation;
 mod book;
 mod archive;
+mod map;
 
 #[derive(Default)]
 struct Node {
@@ -41,9 +42,15 @@ pub extern "C" fn reset_dictionary() {
     });
 }
 
+// The whole syllable list in one call, separated by U+0000.
 #[no_mangle]
-pub extern "C" fn add_syllable() {
-    ENGINE.with_borrow_mut(|e| { e.syllables.insert(e.input.clone()); });
+pub extern "C" fn add_syllables() {
+    ENGINE.with_borrow_mut(|e| {
+        let Engine { input, syllables, .. } = e;
+        for syllable in input.split(|&u| u == 0).filter(|s| !s.is_empty()) {
+            syllables.insert(syllable.to_vec());
+        }
+    });
 }
 
 #[no_mangle]
@@ -72,22 +79,28 @@ pub extern "C" fn split_syllables(want: usize) -> usize {
     })
 }
 
+// The whole dictionary in one call: words separated by U+0000, numbered from
+// 1 in the order given. One call instead of one per word keeps the eleven
+// thousand crossings between JavaScript and Wasm out of opening the reader.
 #[no_mangle]
-pub extern "C" fn add_word(id: u32) {
+pub extern "C" fn add_words() {
     ENGINE.with_borrow_mut(|e| {
-        let mut node = 0;
-        for &unit in &e.input {
-            node = match e.nodes[node].edges.get(&unit) {
-                Some(&index) => index,
-                None => {
-                    let index = e.nodes.len();
-                    e.nodes[node].edges.insert(unit, index);
-                    e.nodes.push(Node::default());
-                    index
-                }
-            };
+        let Engine { input, nodes, .. } = e;
+        for (index, word) in input.split(|&u| u == 0).enumerate() {
+            let mut node = 0;
+            for &unit in word {
+                node = match nodes[node].edges.get(&unit) {
+                    Some(&next) => next,
+                    None => {
+                        let next = nodes.len();
+                        nodes[node].edges.insert(unit, next);
+                        nodes.push(Node::default());
+                        next
+                    }
+                };
+            }
+            nodes[node].word = index as u32 + 1;
         }
-        e.nodes[node].word = id;
     });
 }
 

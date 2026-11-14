@@ -1,65 +1,37 @@
-/* tree.js — the Characters tab drawn as a tree.
+/* tree.js — the Characters tab as a map: from a radical to the characters
+ * built on it, to the characters built on those, to the words they write.
  *
- * Every character is built from parts — 林 from 木 twice, 森 from 木 and 林,
- * 妈 from 女 and 马 — and the syllabus records those parts one step down
- * (charextra's decomposition). Read the other way round, a part is the root
- * of everything built on it: 木 grows 林, 林 grows 森. This view draws that as
- * a skill tree on an open canvas: the root on the left, what it builds into
- * branching off to the right a tier at a time, and what the root is itself
- * made of off to its left. A branch is opened like a game's, any node can be
- * the start of a tree of its own, and the trail of roots leads back.
+ * Every character is built from parts — 海 from 氵 and 每, 林 from 木 twice,
+ * 森 from 木 and 林 — and the syllabus records those parts one step down
+ * (charextra's decomposition). Read the other way round, a part is the core
+ * of everything built on it, and that is what the map draws, left to right:
  *
- * The tree grows through every level by default, and the characters above
- * the reader's own are drawn locked, as a game shows the skills still to
- * come: a radical's family is wide but rarely deep within one level, and the
- * tiers are what make it a tree. Grown only to the chosen level, a character
- * above it stays in as the bridge to one within it. A character appears once
- * in a tree, under the parent that puts it deepest — 森 hangs from 林 rather
- * than from 木 — which is what gives the tree its tiers.
+ *   Built from   the core's own parts, where it has any (木 is 十 and 八)
+ *   Core         the radical or character the map grows from
+ *   Tier I       every character built on the core — one card each for a
+ *                small family, a card for each HSK level for a big one —
+ *                with its recipe on the link: 氵 +每 → 海
+ *   Tier II …    a character opened shows what is built on it in turn, and
+ *                the words it is written in. A word that uses two characters
+ *                on the map (海洋: 海 and 洋) is linked from both, so paths
+ *                that start apart meet in the words they make: the map ends
+ *                as a mind map of how the family hangs together.
  *
- * A family of a handful is drawn as branches, each with its own link. A
- * bigger one — 氵 has 161 — is drawn in groups, one a level, stacked under
- * each other: a card named with its level and how many it holds, its tiles
- * in rows under the name. The levels up to the reader's own and the next
- * one arrive open, the ones further up folded to their names. A character
- * whose own branch is opened leaves its group for a row above the groups,
- * with its branches beside it.
+ * It is played as a role-playing game's skill tree. Each character is a
+ * skill — locked, ready, learned or mastered — and opens once the character
+ * it is built on is learned (a component with no entry of its own holds
+ * nothing back). A word is a combination: ready once all its characters are
+ * learned. The next quest is always named over the map; quests and their XP
+ * are quests.js's.
  *
- * Nodes are buttons laid over one SVG of links, all inside a plane the camera
- * moves with a single transform: dragging pans, the wheel or a pinch zooms.
- * Positions are tweened in script and the links redrawn from them on every
- * frame, so a branch opening slides the rest of the tree aside rather than
- * making it jump. Under the plane, each tier is a band; over it, a header
- * names the root and the tiers and carries the tools, and a map in the
- * corner shows the whole tree and where the view is on it. Beside the canvas
- * a panel tells about the tile picked — or, with none, the root. Everything
- * here is named ct… — the app's scripts share one global scope. */
+ * Boxes (cards, level groups, word lists) are laid over one SVG of links,
+ * all inside a plane the camera moves with a single transform: dragging
+ * pans, the wheel or a pinch zooms. When the map changes, boxes glide to
+ * their new places and the links follow them. Beside the map on a wide
+ * screen, or over it while something is picked on a narrower one, the panel
+ * tells about it. Everything here is named ct… or mm… — the app's scripts
+ * share one global scope. */
 
-/* The sizes the layout works in, in the plane's own pixels. */
-const CT_SLOT = 68;               // a character's tile
-const CT_CELLT = 60;              // a tile in a group, a size down
-const CT_ROOT = 104;              // the root's
-const CT_PART = 58;               // a part with no entry of its own (氵, 扌)
-const CT_ROW = 108;               // a branch's pitch, top to bottom: the tile, its meaning, and air
-/* A tier's pitch, left to right: room for a link's curve and the tag on
-   it; closer on a phone, where the root and the tiers either side of it
-   should all be on the screen at once. */
-const CT_COL_WIDE = 244, CT_COL_NARROW = 178;
-let CT_COL = CT_COL_WIDE;
-/* A family of more than CT_ROWS goes in groups, one a level. */
-const CT_ROWS = 6;
-const CT_GCELL = 88;              // a group's cell, across
-const CT_GCELL_H = 102;           // and down: the tile, its meaning under it, and air
-const CT_GHEAD = 42;              // a group's name strip
-const CT_GPAD = 12;               // the group's margin round its tiles
-const CT_GGAP = 12;               // under a group, before the next one
-const CT_GCOLS_NARROW = 3;        // a group's row on a phone; wider, as many as the canvas has room for
-const CT_DOT = 26;                // the canvas's dot grid
-const CT_HEAD = 52;               // the header strip over the canvas
-/* How far the view may draw back, and close in: at a third of the size the
-   shape of a big family still shows, and past it the map in the corner is
-   the overview. */
-const CT_ZMIN = .35, CT_ZMAX = 2.4;
 /* Single strokes are parts of nearly everything — 一 is somewhere inside
    1,741 of the 3,000 characters — so a tree grown from one is the whole
    syllabus with no shape to it. They are never offered as a root, and are
@@ -71,34 +43,32 @@ const CT_STAR = `<svg viewBox="0 0 12 12" aria-hidden="true"><path class="star" 
 
 const CT = {
   g: null,               // the graph: by, kids, gloss, form, alias
-  root: "",              // what the tree grows from
-  trail: [],             // the roots walked through to get here
-  open: new Set(),       // nodes whose branches are out
-  gopen: new Map(),      // group -> open or folded, where the reader has said
-  gall: "",              // "open" or "shut": every group, by the header's tools; "" by level
-  gnext: true,           // the next level's groups open by default: the tree has the room (ctAutoOpen)
-  sel: "",               // the node picked
-  hover: "",             // the node under the pointer
-  kin: "",               // the part whose family is lit, from a tag under the pointer
-  tree: null,            // what grows from the root, at this level
-  makes: null,           // what the root is made of
-  lay: null,             // the last layout: nodes, links and tiers
-  recs: new Map(),       // key -> the node's element and its motion
-  wires: new Map(),      // link id -> its path and tag
+  root: "",              // the core the map grows from
+  trail: [],             // the cores walked through to get here
+  tree: null,            // what grows from the core: branches, parent, under, tall, size
+  makes: null,           // what the core is made of
+  depth: new Map(),      // character -> its tier (the core is 0)
+  open: new Set(),       // characters opened on the map: what they build, and their words
+  fold: new Map(),       // a level group -> open or folded, where the reader has said
+  wall: new Map(),       // character -> how many of its words its list shows, where more than the first few
+  sel: "",               // what is picked: a character, or "w:" and a word's id
+  hover: "",             // what the pointer rests on
+  quest: "",             // the next quest, as last worked out
+  seen: null,            // {root, states}: the states last drawn, to tell what has just opened
+  lay: null,             // the last layout: boxes, links, columns, extent
+  recs: new Map(),       // box key -> its element and where it is drawn now
   cam: {x: 0, y: 0, k: 1},
-  touched: false,        // moved by hand since the tree last fitted itself
+  touched: false,        // moved by hand since the map last placed itself
   deck: new Map(),       // character -> its own card's rank (1 in the deck, 2 mastered)
   met: new Map(),        // character -> the best rank of a deck word written with it
-  shelf: null,      // level -> the roots worth starting from, grouped
-  reach: new Map(),      // level -> character -> leads to something within the level
-  head: {l: 0, r: 1e9},  // the header's free stretch, between the title and the tools
-  wide: 0, high: 0,      // the canvas's size when it was last sized
-  reachK: "",            // the small targets' reach as last set (--ct-reach)
-  map: null,             // how the map is scaled onto the tree
+  famWords: new Map(),   // word id -> its card's rank
+  words: null,           // character -> the words written with it
+  wordById: new Map(),   // word id -> its row in the search index
+  shelf: null,           // the roots worth starting from besides the radicals, grouped
   insp: "",              // what the panel was last drawn for
-  next: "",              // a root asked for from an entry, for the next drawing
   writer: null,          // the panel's stroke-order writer
-  raf: 0, timer: 0, camRaf: 0, camTimer: 0, glide: 0, idle: 0, mapRaf: 0, mapTimer: 0,
+  next: "",              // a root asked for from an entry, for the next drawing
+  anim: 0, glide: 0, camAnim: 0, mapTimer: 0, size: "", hotLinks: new Set(), mapXform: null,
   wired: false,
 };
 
@@ -277,30 +247,147 @@ function ctOthers(h, from){
   const times = others.length ? 1 : [...String(c.dec || "")].filter(x => x === from).length;
   return {others, times};
 }
-
-/* The tag on a link, as its markup: the other parts, each a button that
-   grows the tree from it, or "×2". "" for no tag. */
-function ctTag(h, from){
+/* The recipe on a link into a character: "+每", or "×2"; "" for none. */
+function ctRecipe(h, from){
   const o = ctOthers(h, from);
   if(!o) return "";
-  if(o.others.length) return o.others.map(p => `<button class="ct-tagp" type="button" data-ct="grow" data-arg="${esc(p)}"
-      data-part="${esc(p)}" aria-label="Grow the tree from ${esc(p)}"><i>+</i><b class="hz">${esc(p)}</b></button>`).join("");
-  return o.times > 1 ? `<span class="ct-tagx">×${o.times}</span>` : "";
+  return o.others.length ? "+" + o.others.join("+") : o.times > 1 ? `×${o.times}` : "";
 }
-/* The same on a tile in a group, which has no link of its own to carry it:
-   a small plate on the tile's foot. */
-function ctPlate(h, from){
-  const o = ctOthers(h, from);
-  if(!o) return "";
-  if(o.others.length) return `<span class="ct-plate"><i>+</i><b class="hz">${esc(o.others.join(""))}</b></span>`;
-  return o.times > 1 ? `<span class="ct-plate"><b>×${o.times}</b></span>` : "";
+
+/* ---------------- the game: stars, locks and the next quest ---------------- */
+
+/* The scholar's titles, a level each (quests.js: a level every 150 XP). */
+const CT_RANKS = ["Novice", "Apprentice", "Initiate", "Scribe", "Calligrapher", "Scholar", "Sage", "Master", "Grandmaster"];
+const ctTitle = rank => CT_RANKS[Math.max(0, Math.min(rank, CT_RANKS.length) - 1)];
+const CT_ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+const ctRoman = d => CT_ROMAN[d] || String(d);
+const CT_STATES = {locked: "Locked", ready: "Ready to learn", learned: "Learned", mastered: "Mastered", part: "Component", known: "In your deck"};
+
+/* How far along a character is, in stars: 1 once recognised in a quest or
+   met in the deck, 2 once its writing quest is done, 3 once its card (or a
+   word written with it) is mastered. */
+function ctStars(h){
+  if(!CT.g.by.has(h)) return 0;
+  if(ctKnown(h) === 2) return 3;
+  if(questInfo.written.has(h)) return 2;
+  return questInfo.recognised.has(h) || ctKnown(h) > 0 ? 1 : 0;
+}
+const ctLearned = h => ctStars(h) >= 2;
+/* Open once what it is built on is learned; a component with no entry of
+   its own has nothing to learn, so it holds nothing back. */
+function ctUnlocked(h){
+  const p = CT.tree.parent.get(h);
+  return p === undefined || !CT.g.by.has(p) || ctLearned(p);
+}
+function ctState(h){
+  if(!CT.g.by.has(h)) return "part";
+  const s = ctStars(h);
+  return s === 3 ? "mastered" : s === 2 ? "learned" : ctUnlocked(h) ? "ready" : "locked";
+}
+/* XP still to be had from a character's quest: 10 for recognising it and 20
+   for writing it, each the first time only. */
+const ctReward = h => (questInfo.recognised.has(h) ? 0 : 10) + (questInfo.written.has(h) ? 0 : 20);
+const ctRank = h => (CT.g.by.get(h) || {}).rank ?? 1e9;
+
+/* Every character in the tree: the core where it is one, and all it grows. */
+const ctMembers = () => [...(CT.g.by.has(CT.root) ? [CT.root] : []), ...CT.tree.parent.keys()];
+
+/* The quest to take next: the core while it is still to learn; then the open
+   skill at the reader's level or below before one above it, the lower level
+   first, the commoner character first. "" once every skill is learned. */
+function ctNextQuest(){
+  if(!CT.tree) return "";
+  const lv = +S.level;
+  const before = (a, b) => { for(let i = 0; i < a.length; i++) if(a[i] !== b[i]) return a[i] < b[i]; return false; };
+  let best = "", key = null;
+  for(const h of ctMembers()){
+    if(ctState(h) !== "ready") continue;
+    const c = CT.g.by.get(h);
+    const k = [h === CT.root ? 0 : 1, +c.lv > lv ? 1 : 0, +c.lv, c.rank ?? 1e9, CT.depth.get(h) || 0];
+    if(!key || before(k, key)){ best = h; key = k; }
+  }
+  return best;
+}
+
+/* How far through the family the reader is. */
+function ctProgress(){
+  let total = 0, learned = 0, stars = 0;
+  for(const h of ctMembers()){
+    total++;
+    const s = ctStars(h);
+    stars += s;
+    if(s >= 2) learned++;
+  }
+  return {total, learned, stars, pct: total ? Math.round(learned / total * 100) : 0};
+}
+
+/* Each character's tier, the core being 0. */
+function ctDepths(){
+  const d = new Map([[CT.root, 0]]), queue = [CT.root];
+  for(let i = 0; i < queue.length; i++)
+    for(const k of CT.tree.branches.get(queue[i]) || []) if(!d.has(k)){ d.set(k, d.get(queue[i]) + 1); queue.push(k); }
+  return d;
+}
+
+/* ---------------- the words ---------------- */
+
+/* The words by each character written in them — what a character goes on to
+   make. Rows are [id, simplified, pinyin, gloss, level, frequency]: the
+   syllabus's words, then the everyday ones it leaves out (data/extra.js, ids
+   X-…). The engine (map.rs) indexes them in one pass, three to four times
+   quicker than doing it here; each character's list, lower level first and
+   then the commoner word, is read out of it the first time it is asked for. */
+function ctWordsIndex(rows){
+  CT.wordRows = rows;
+  CT.wordById = new Map(rows.map(r => [r[0], r]));
+  CT.words = new Map();
+  let size = 0;
+  for(const r of rows) size += 4 + r[1].length;
+  const ptr = webEngine.input(size);
+  const buf = new Uint16Array(webEngine.memory.buffer, ptr, size);
+  let at = 0;
+  for(const r of rows){
+    const s = r[1], f = r[5] ?? 1e9;
+    buf[at] = s.length; buf[at + 1] = +r[4] || 0; buf[at + 2] = f & 65535; buf[at + 3] = f >>> 16;
+    at += 4;
+    for(let k = 0; k < s.length; k++) buf[at++] = s.charCodeAt(k);
+  }
+  webEngine.vocab_build();
+}
+function ctWordsOf(h){
+  if(!CT.words) return [];
+  let list = CT.words.get(h);
+  if(!list){
+    const n = h.length === 1 ? webEngine.vocab_of(h.charCodeAt(0)) : 0;
+    const ids = new Uint32Array(webEngine.memory.buffer, webEngine.output(), n);
+    list = new Array(n);
+    for(let i = 0; i < n; i++) list[i] = CT.wordRows[ids[i]];
+    CT.words.set(h, list);
+  }
+  return list;
+}
+/* A word the HSK list leaves out (build-extrawords.mjs). */
+const ctEveryday = r => r[0].startsWith("X-");
+/* The words, once, the first time the map is drawn. */
+async function ctLoadWords(){
+  if(CT.words) return;
+  const [index, extra] = await Promise.all([getSearch(), loadData("extra").catch(() => [])]);
+  if(!CT.words) ctWordsIndex(index.concat(extra));
+}
+/* A word as a combination: in the deck or mastered; ready once every one of
+   its characters is learned; locked until then. */
+function ctWordState(r){
+  const k = CT.famWords.get(r[0]) || 0;
+  if(k === 2) return "mastered";
+  if(k === 1) return "known";
+  return [...new Set(r[1])].every(ch => !CT.g.by.has(ch) || ctLearned(ch)) ? "ready" : "locked";
 }
 
 /* ---------------- what is known ---------------- */
 
 /* Read from the deck when the tab is drawn. A character counts as met when it
    has a card of its own or is written in a word that has one — most decks
-   are words, and a tree that lit up only for character cards would stay
+   are words, and a map that lit up only for character cards would stay
    dark for nearly everybody. */
 async function ctLoadKnown(){
   const [fam, index] = await Promise.all([
@@ -308,11 +395,12 @@ async function ctLoadKnown(){
     getSearch(),
   ]);
   CT.deck = new Map(fam.chars);
+  CT.famWords = new Map(fam.words);
   const met = new Map();
   if(fam.words.size){
-    const spelt = new Map(index.map(r => [r[0], r[1]]));
+    const spelt = CT.wordById.size ? null : new Map(index.map(r => [r[0], r[1]]));
     for(const [id, rank] of fam.words)
-      for(const ch of spelt.get(id) || "") if((met.get(ch) || 0) < rank) met.set(ch, rank);
+      for(const ch of (spelt ? spelt.get(id) : (CT.wordById.get(id) || [0, ""])[1]) || "") if((met.get(ch) || 0) < rank) met.set(ch, rank);
   }
   CT.met = met;
 }
@@ -320,111 +408,108 @@ const ctKnown = h => Math.max(CT.deck.get(h) || 0, CT.met.get(h) || 0);
 
 /* ---------------- drawing the tab ---------------- */
 
-/* The tab in tree form: called by renderChars whenever the tab is drawn or
+/* The tab in map form: called by renderChars whenever the tab is drawn or
    its level changes. */
 async function renderCharTree(){
-  if(typeof questRefresh === "function") await questRefresh();
+  if(typeof questRefresh === "function") await questRefresh(false);
   if(!CT.g) CT.g = ctGraph(C.all || await getChars());
-  await ctLoadKnown();
+  await Promise.all([ctLoadKnown(), ctLoadWords()]);
   ctWire();
-  ctDock();
   sizeCharTree();
-  /* Start writing practice with ?; explicitly selected roots still resume. */
   const want = CT.next || CT.root || S.treeRoot || "永", asked = !!CT.next;
   CT.next = "";
   const root = CT.g.by.has(want) || CT.g.kids.has(want) ? want : "口";
-  if(root !== CT.root){ ctStart(root, {fresh: !CT.root, trail: asked}); return; }
-  /* the same root at another level: grown again, what was open kept open */
+  if(root !== CT.root){ ctStart(root, {trail: asked}); return; }
+  /* the same core at another level: grown again, its order follows the level */
   CT.tree = ctGrow(CT.root);
-  if(CT.sel && !ctPlaced(CT.sel)) CT.sel = "";
-  ctRender();
-  if(!CT.touched) ctFit(0);
+  CT.depth = ctDepths();
+  if(CT.sel && !ctPlaced(CT.sel) && !CT.sel.startsWith("w:")) CT.sel = "";
+  ctRefresh();
+}
+/* Whether a character is somewhere in the tree as grown. */
+const ctPlaced = h => h === CT.root || (!!CT.tree && CT.tree.parent.has(h));
+
+/* Everything drawn again from what is known: after a quest, a card added,
+   a level changed. What has just opened is shown opening. */
+function ctRefresh(ms){
+  if(!CT.tree) return;
+  ctRender({ms});
   ctPaintHead();
   ctPaintInsp();
 }
-/* Whether a key is somewhere in the tree as grown, open or not. */
-const ctPlaced = h => h === CT.root || CT.tree.parent.has(h) || ctMakingsHave(h);
-const ctMakingsHave = h => [...(CT.makes || new Map()).values()].some(list => list.includes(h));
 
-/* The header's title: the way back, the trail of roots, then the root
-   itself, what it means and how much grows from it. */
+/* The HUD: the way back and the core; the family's progress; the scholar. */
 function ctPaintHead(){
   const title = $("#ct-title");
   if(!title || !CT.tree) return;
-  const a = ctAbout(CT.root), n = CT.tree.size;
-  const direct = (CT.tree.branches.get(CT.root) || []).length;
-  const back = CT.trail.length ? CT.trail[CT.trail.length - 1] : "";
-  title.innerHTML = (back ? `<button class="ct-back" data-ct="back" data-arg="${CT.trail.length - 1}" title="Back to ${esc(back)} (Backspace)"
+  const a = ctAbout(CT.root), back = CT.trail.length ? CT.trail[CT.trail.length - 1] : "";
+  title.innerHTML = (back ? `<button class="sk-back" type="button" data-ct="back" data-arg="${CT.trail.length - 1}" title="Back to ${esc(back)} (Backspace)"
         aria-label="Back to ${esc(back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>` : "")
-    + CT.trail.map((h, i) =>
-      `<button class="ct-crumb hz" data-ct="back" data-arg="${i}" title="Back to ${esc(h)}">${esc(h)}</button><i aria-hidden="true">›</i>`).join("")
-    + `<b class="ct-title-g hz">${esc(CT.root)}</b>`
-    + `<span class="ct-title-t"><b>${esc(a.short || (a.c ? a.c.p : "component"))}${a.c ? ` <span class="py">${esc(a.c.p)}</span>` : ""}</b>`
-    + `<small>${n ? `${num(direct)} built on it · ${num(n)} in its tree` : `nothing built on it`}</small></span>`;
-  ctPaintTools();
-  ctMeasureHead();
-  ctPlaceTiers();
-}
-/* The tools' state: whether every level is open, folded, or as the level
-   has it; and whether the panel is beside the canvas. */
-function ctPaintTools(){
-  for(const b of $$("#ct-zoom [data-ct='expand'], #ct-zoom [data-ct='collapse']"))
-    b.setAttribute("aria-pressed", String(CT.gall === (b.dataset.ct === "expand" ? "open" : "shut")));
-  const ip = $("#ct-zoom [data-ct='insp']");
-  if(ip) ip.setAttribute("aria-pressed", String(S.treeInsp !== false));
-  const mx = $("#ct-zoom [data-ct='max']");
-  if(mx) mx.setAttribute("aria-pressed", String(document.body.classList.contains("ct-max")));
-}
-/* Where the tier names may go: between the title and the tools. Measured
-   when either changes, never while the camera moves. */
-function ctMeasureHead(){
-  const title = $("#ct-title"), zoom = $("#ct-zoom");
-  if(!title || !zoom || !title.offsetParent) return;
-  CT.head = {l: title.offsetLeft + title.offsetWidth + 18, r: zoom.offsetLeft - 18};
+    + CT.trail.slice(-3).map((h, i, list) =>
+      `<button class="sk-crumb hz" type="button" data-ct="back" data-arg="${CT.trail.length - list.length + i}" title="Back to ${esc(h)}">${esc(h)}</button><i aria-hidden="true">›</i>`).join("")
+    + `<b class="sk-title-g hz">${esc(CT.root)}</b>`
+    + `<span class="sk-title-t"><small>${a.c ? "Character map" : "Radical map"}</small><b>${esc(a.short || (a.c ? a.c.p : "component"))}${a.c ? ` <span class="py">${esc(a.c.p)}</span>` : ""}</b></span>`;
+  const p = ctProgress();
+  $("#sk-fam").innerHTML = `<span class="sk-fam-t"><b>${num(p.learned)}</b><span>/ ${num(p.total)} learned</span><small>${CT_STAR}${num(p.stars)}</small></span>
+    <span class="sk-bar" role="progressbar" aria-label="Characters learned on this map" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.learned}"><i style="width:${p.pct}%"></i></span>`;
+  const {xp, rank} = questInfo, into = xp % 150;
+  $("#sk-me").innerHTML = `<span class="sk-rank" aria-hidden="true">${rank}</span>
+    <span class="sk-me-t"><b>Lv ${rank} · ${esc(ctTitle(rank))}</b><small>${num(xp)} XP · ${150 - into} to level ${rank + 1}</small>
+    <span class="sk-bar" role="progressbar" aria-label="XP towards the next level" aria-valuemin="0" aria-valuemax="150" aria-valuenow="${into}"><i style="width:${(into / 150 * 100).toFixed(1)}%"></i></span></span>`;
+  ctPaintQuest();
 }
 
-/* The canvas sized to what is left of the window, as the lists are. On a
-   phone the page around it does not scroll, so it takes the rest of the
-   screen there too. Full window, it is the window. */
+/* The next quest, over the map: what to learn, why, and what it is worth. */
+function ctPaintQuest(){
+  const box = $("#sk-q-main"), go = $("#quest-open");
+  if(!box || !go) return;
+  const h = CT.quest;
+  if(!h){
+    const p = ctProgress();
+    box.innerHTML = `<span class="sk-q-done">${CT_STAR}</span><span class="sk-q-text"><small>${p.total ? "Map complete" : "Nothing to learn here"}</small>
+      <b>${p.total ? `All ${num(p.total)} characters learned` : `Nothing in the syllabus is built on ${esc(CT.root)}`}</b></span>`;
+    go.hidden = true;
+    return;
+  }
+  const c = CT.g.by.get(h), kids = (CT.tree.branches.get(h) || []).length, started = questInfo.recognised.has(h);
+  const why = h === CT.root ? (kids ? `opens ${num(kids)} character${kids === 1 ? "" : "s"}` : "the core")
+    : kids ? `opens ${num(kids)} more` : `HSK ${levelLabel(c.lv)}`;
+  box.innerHTML = `<button class="sk-q-glyph hz v${c.lv}" type="button" data-ct="pick" data-arg="${esc(h)}" title="Show ${esc(h)} on the map">${esc(h)}</button>
+    <span class="sk-q-text"><small>Next quest · ${esc(why)}</small>
+      <b>${started ? "Finish" : "Learn"} <span class="hz">${esc(h)}</span> <span class="py">${esc(c.p)}</span> <span class="sk-q-en">${esc(ctShort(c.en[0]))}</span></b></span>
+    <span class="sk-xp">+${ctReward(h)} XP</span>`;
+  go.hidden = false;
+  go.textContent = started ? "Continue" : "Begin";
+  go.dataset.arg = h;
+}
+
+/* The stage sized to what is left of the window, as the lists are. */
 function sizeCharTree(){
-  const stage = $("#ctstage"), el = $("#ctree");
-  /* not offsetParent: a stage filling the window is fixed, and has none */
-  if(!stage || !el || !el.offsetWidth || !window.innerHeight) return;
-  const max = document.body.classList.contains("ct-max");
+  const stage = $("#ctstage"), box = $("#ctree");
+  if(!stage || !stage.offsetWidth || !window.innerHeight) return;
   const wrap = document.querySelector(".wrap");
-  const phone = window.innerWidth < 700;
   const pad = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 0 : 0;
   let top = -window.scrollY;
   for(let e = stage; e; e = e.offsetParent) top += e.offsetTop;
-  const want = max ? "" : `${Math.max(80, Math.round(window.innerHeight - top - pad))}px`;
-  const wide = el.clientWidth;
-  if(stage.style.height === want && CT.wide === wide && CT.high === el.clientHeight) return;
-  stage.style.height = want;
-  CT.wide = el.clientWidth;
-  CT.high = el.clientHeight;
-  ctMeasureHead();
-  /* across a phone's width the tiers draw closer, and a group's rows hold
-     as many as the width has room for, so the tree is laid out again */
-  if(CT.lay) ctRender(0);
-  if(CT.lay && !CT.touched) ctFit(0);
-  else if(CT.lay) ctCam();
+  const want = `${Math.max(360, Math.round(window.innerHeight - top - pad))}px`;
+  if(stage.style.height !== want) stage.style.height = want;
+  if(!box || !CT.lay) return;
+  const size = box.clientWidth + "x" + box.clientHeight;
+  if(size === CT.size) return;
+  /* across a phone's width the map draws tighter, so it is laid out again */
+  const relay = CT.size && mmPhone() !== (MM === MM_NARROW);
+  CT.size = size;
+  if(relay) ctRender({ms: 0});
+  if(!CT.touched) mmHome(0); else mmCam();
 }
 
-/* The panel beside the canvas, where the window has the room and the reader
-   has not put it away; elsewhere it is a card over the canvas, up while a
-   tile is picked. */
-function ctDock(){
-  const stage = $("#ctstage");
-  if(stage) stage.classList.toggle("dock", S.treeInsp !== false);
-}
-const ctDocked = () => S.treeInsp !== false && !!window.matchMedia && matchMedia("(min-width:1280px)").matches;
+/* The panel sits beside the map where the window has room for both. */
+const ctDocked = () => !!window.matchMedia && matchMedia("(min-width:1100px)").matches;
 
-/* ---------------- a new root ---------------- */
+/* ---------------- a new core ---------------- */
 
-/* @param opts.trail  keep the way back: the root left behind goes on the trail
- * @param opts.keepTrail  the trail as it stands (a step back along it)
- * @param opts.fresh  the first tree of the visit: the camera is placed at once,
- *   and the tree unfolds from its root in front of it */
+/* @param opts.trail  keep the way back: the core left behind goes on the trail
+ * @param opts.keepTrail  the trail as it stands (a step back along it) */
 function ctStart(root, opts = {}){
   if(opts.trail && CT.root && CT.root !== root){
     CT.trail = CT.trail.filter(h => h !== root);
@@ -435,1077 +520,787 @@ function ctStart(root, opts = {}){
   S.treeRoot = root; save();
   CT.tree = ctGrow(root);
   CT.makes = ctMakings(root);
-  CT.open = new Set(); CT.gopen = new Map(); CT.gall = "";
-  CT.sel = ""; CT.hover = ""; CT.kin = "";
-  ctAutoOpen();
-  ctRender(520, "", "tier");
+  CT.depth = ctDepths();
+  CT.open = new Set(); CT.fold = new Map(); CT.wall = new Map();
+  CT.sel = ""; CT.hover = "";
+  for(const r of CT.recs.values()) r.el.remove();
+  CT.recs = new Map();
   CT.touched = false;
-  ctFit(opts.fresh ? 0 : 520);
+  ctRender({ms: 0});
   ctPaintHead();
   ctPaintInsp();
-  paintIndexRoot();
+  mmHome(0);
+  if(typeof paintIndexRoot === "function") paintIndexRoot();
 }
 
-/* A tree opens itself on arrival as far as it can while the whole of it
-   still fits the canvas at a size it reads at: first its branches, deepest
-   first — of the folded characters on show, the one with the most tiers
-   under it opens next, one within the reader's level before one above it —
-   then the group of the level after the reader's, and the branches that
-   brings into view. On a phone, narrower than any tree, only the height is
-   held to that. */
-function ctAutoOpen(){
-  const box = $("#ctree"), t = CT.tree;
-  const W = (box && box.clientWidth) || 1200, H = (box && box.clientHeight) || 640, phone = W < 600;
-  const reads = () => {
-    const e = ctExtent(ctLayout());
-    return Math.min(phone ? 9 : (W - 68) / e.w, (H - CT_HEAD - 40) / e.h) >= (phone ? .7 : .8);
-  };
-  const tried = new Set();
-  let opened = 0;
-  const branches = () => {
-    while(opened < 5){
-      let best = null;
-      for(const n of ctLayout().nodes.values()){
-        if(n.side <= 0 || !n.hidden || tried.has(n.key)) continue;
-        const c = CT.g.by.get(n.key);
-        const score = t.tall.get(n.key) * 100 + (c && +c.lv <= +S.level ? 40 : 0) - n.depth * 10 - Math.min(9, n.hidden);
-        if(!best || score > best.score) best = {key: n.key, score};
-      }
-      if(!best) break;
-      tried.add(best.key);
-      CT.open.add(best.key);
-      if(!reads()){ CT.open.delete(best.key); continue; }
-      opened++;
-    }
-  };
-  /* the tree's tiers before the next level's breadth: a branch is what the
-     view is for */
-  CT.gnext = false;
-  branches();
-  CT.gnext = true;
-  if(reads()) branches(); else CT.gnext = false;
+/* ---------------- the map's shape ---------------- */
+
+/* The sizes the map is laid out in, in the plane's own pixels: a little
+   tighter on a phone, where the core and its first tier should share the
+   screen. */
+const MM_WIDE = {NODE_W: 184, NODE_H: 64, ROOT_W: 244, ROOT_H: 104, PART_W: 148, PART_H: 56,
+  TILE_W: 78, TILE_H: 100, CPAD: 12, CHEAD: 46, FOLD_H: 46, CMIN: 280, COLS: 5,
+  WORD_W: 272, WHEAD: 44, WROW: 52, WMORE: 38, WSHOW: 6, WSTEP: 12, GAP_X: 132, GAP_Y: 18, SMALL: 8};
+const MM_NARROW = {...MM_WIDE, NODE_W: 168, ROOT_W: 216, ROOT_H: 96, PART_W: 132, COLS: 3, WORD_W: 244, GAP_X: 92, GAP_Y: 14};
+const mmPhone = () => { const box = $("#ctree"); return !!box && box.clientWidth > 0 && box.clientWidth < 700; };
+let MM = MM_WIDE;
+/* A level group stays whole up to this size of family: past it, the levels
+   above the reader's next one arrive folded. */
+const CT_SMALL = 30;
+
+/* Whether a level group is open: as the reader left it; or else the one the
+   next quest is in, every group of a small family, and in a big one the
+   levels up to the one after the reader's. */
+function mmOpen(fold, list, parent){
+  if(CT.fold.has(fold)) return CT.fold.get(fold);
+  if(CT.quest && list.includes(CT.quest)) return true;
+  const lv = +fold.slice(fold.lastIndexOf(":") + 1);
+  return (CT.tree.branches.get(parent) || []).length <= CT_SMALL || lv <= +S.level + 1;
 }
 
-/* ---------------- layout ---------------- */
-
-/* Whether a group is open: as the reader set it, or as every group was set
-   from the header, or — by default — when its level is the reader's or
-   below it, and the next one up where the tree has the room (ctAutoOpen). */
-function ctGroupOpen(key, lv){
-  if(CT.gopen.has(key)) return CT.gopen.get(key);
-  if(CT.gall) return CT.gall === "open";
-  return +lv <= +S.level || (+lv === +S.level + 1 && CT.gnext);
-}
-const ctGroupKey = (h, lv) => `▦${h}|${lv}`;
-
-/* A horizontal tidy tree, both ways from the root: each node's branches are
-   stacked in the band it is given and it sits at their middle. The root is
-   at 0,0; a tier is a column CT_COL wide. A family bigger than CT_ROWS goes
-   in groups under its branches; a group is placed at the middle of its name
-   strip, on its left edge, which is where the link from the parent comes in,
-   and its tiles in rows under the name, the first column on the tier's own. */
-function ctLayout(){
-  const t = CT.tree, nodes = new Map(), links = [];
-  const box = $("#ctree");
-  const W = (box && box.clientWidth) || 1200, H = (box && box.clientHeight) || 640;
-  CT_COL = W < 600 ? CT_COL_NARROW : CT_COL_WIDE;
-  const shown = h => h === t.root || CT.open.has(h) ? t.branches.get(h) || [] : [];
-  const parts = h => CT.makes.get(h) || [];
-  const branchy = k => CT.open.has(k) && (t.branches.get(k) || []).length > 0;
-  const gcols = W < 600 ? CT_GCOLS_NARROW : ctGroupCols(W, H, shown(t.root).filter(k => !branchy(k)), shown(t.root).filter(branchy).length);
-
-  /* A family's groups, one a level from the lowest, each laid in rows as
-     even as the most a row holds allows — fourteen are two rows of seven, not
-     eight and six — and all of one family the same width, so they stack as
-     one column of cards. The levels folded are not cards but chips, on one
-     shelf under the cards: a folded level costs a chip's width, not a row. */
-  const groupsOf = (h, list) => {
-    const by = new Map();
-    for(const k of list){
-      const lv = CT.g.by.get(k).lv;
-      if(!by.has(lv)) by.set(lv, []);
-      by.get(lv).push(k);
-    }
-    const all = [...by].sort((a, b) => +a[0] - +b[0]).map(([lv, ks]) => {
-      const rows = Math.ceil(ks.length / gcols), cols = Math.ceil(ks.length / rows), key = ctGroupKey(h, lv);
-      return {key, kind: "group", lv, list: ks, rows, cols, open: ctGroupOpen(key, lv),
-        known: ks.filter(k => ctKnown(k) > 0).length};
-    });
-    const w = Math.max(W < 600 ? 250 : 330, Math.max(...all.map(g => g.cols)) * CT_GCELL + CT_GPAD * 2);
-    const out = all.filter(g => g.open);
-    for(const g of out){ g.w = w; g.h = CT_GHEAD + g.rows * CT_GCELL_H + CT_GPAD / 2; }
-    const shut = all.filter(g => !g.open);
-    if(shut.length){
-      /* the shelf's chips wrap where the width runs out: a label's worth and
-         then a chip's worth each */
-      const lines = Math.ceil((130 + shut.length * 98) / (w - 24));
-      out.push({key: `▤${h}`, kind: "fold", lv: "", list: shut.flatMap(g => g.list), shut, w,
-        h: lines > 1 ? 10 + lines * 33 : CT_GHEAD});
-    }
-    return out;
-  };
-
-  const side = (dir, kidsOf) => {
-    const box = new Map();
-    const measure = (h, d = 0) => {
-      const list = kidsOf(h);
-      const b = {rows: [], groups: [], inner: 0, height: h === t.root ? CT_ROOT + 56 : CT_ROW};
-      if(list.length){
-        if(dir < 0 || list.length <= CT_ROWS) b.rows = list;
-        else{
-          b.rows = list.filter(branchy);
-          b.groups = groupsOf(h, list.filter(k => !branchy(k)));
-        }
-        for(const k of b.rows) b.inner += measure(k, d + 1);
-        for(const g of b.groups) b.inner += g.h + CT_GGAP;
-        b.height = Math.max(b.height, b.inner);
-      }
-      box.set(h, b);
-      return b.height;
-    };
-    const place = (h, d, top, from) => {
-      const b = box.get(h);
-      let y = top + b.height / 2;
-      if(b.rows.length || b.groups.length){
-        const ys = [];
-        let cy = top + (b.height - b.inner) / 2;
-        for(const k of b.rows){
-          place(k, d + 1, cy, h);
-          ys.push(nodes.get(k).y);
-          cy += box.get(k).height;
-        }
-        const gx = dir * (d + 1) * CT_COL - CT_GCELL / 2 - CT_GPAD;
-        for(const g of b.groups){
-          const hy = cy + CT_GHEAD / 2;
-          nodes.set(g.key, {key: g.key, kind: g.kind, box: true, x: gx, y: hy, w: g.w, h: g.h, side: dir, depth: d + 1,
-            parent: h, of: h, lv: g.lv, list: g.list, open: g.open, known: g.known, shut: g.shut});
-          links.push({a: h, b: g.key, group: true, lv: g.lv});
-          ys.push(hy);
-          if(g.kind === "group") g.list.forEach((k, i) => {
-            const col = i % g.cols, row = Math.floor(i / g.cols), kids = t.branches.get(k);
-            nodes.set(k, {key: k, kind: "char",
-              x: gx + CT_GPAD + CT_GCELL / 2 + col * CT_GCELL,
-              y: cy + CT_GHEAD + row * CT_GCELL_H + CT_GCELL_H / 2 - 12,
-              side: dir, depth: d + 1, parent: g.key, grid: g.key, of: h,
-              hidden: kids ? kids.length : 0, opened: false});
-          });
-          cy += g.h + CT_GGAP;
-        }
-        y = (ys[0] + ys[ys.length - 1]) / 2;
-      }
-      if(h === t.root && dir < 0) return y;
-      const kids = dir > 0 ? t.branches.get(h) : null;
-      nodes.set(h, {key: h, kind: CT.g.by.has(h) ? "char" : "part",
-        x: dir * d * CT_COL, y, side: h === t.root ? 0 : dir, depth: d, parent: from,
-        hidden: kids && h !== t.root && !CT.open.has(h) ? kids.length : 0,
-        opened: !!kids && h !== t.root && CT.open.has(h)});
-      if(from !== undefined) links.push(dir > 0 ? {a: from, b: h} : {a: h, b: from});
-      return y;
-    };
-    measure(t.root);
-    return () => place(t.root, 0, 0, undefined);
-  };
-
-  const ry = side(1, shown)();
-  for(const n of nodes.values()) n.y -= ry;
-  const before = new Set(nodes.keys());
-  const ly = side(-1, parts)();
-  for(const n of nodes.values()) if(!before.has(n.key)) n.y -= ly;
-  for(const w of links){
-    w.id = `${w.a}>${w.b}`;
-    if(w.group){
-      /* a group's link is lit as soon as one of its characters is met */
-      w.lit = nodes.get(w.b).list.some(k => ctKnown(k) > 0);
-      continue;
-    }
-    const child = nodes.get(w.b), from = nodes.get(w.a);
-    w.tag = child && child.side > 0 ? ctTag(w.b, w.a) : "";
-    w.lit = ctKnown(w.b) > 0 && (from.kind !== "char" || ctKnown(w.a) > 0 || w.a === t.root);
-  }
-  /* the tiers there are, left to right, for the bands and their names */
-  const tiers = [...new Set([...nodes.values()].map(n => n.side < 0 ? -n.depth : n.depth))].sort((a, b) => a - b);
-  return {nodes, links, tiers};
-}
-
-/* How many tiles a group's row holds: of four to ten, the number that lets
-   the root's family be shown largest on the canvas — wide groups are short
-   and narrow ones tall, and the canvas is one shape, which this matches.
-   One number for every group in the tree, so they line up. */
-function ctGroupCols(W, H, rest, branches){
-  if(rest.length <= CT_ROWS) return 7;
-  const lvs = new Map();
-  for(const k of rest){ const lv = CT.g.by.get(k).lv; lvs.set(lv, (lvs.get(lv) || 0) + 1); }
-  /* what lies left of the root: one tier of its parts, or two */
-  const parts = CT.makes.get(CT.root) || [];
-  const left = !parts.length ? CT_ROOT : parts.some(p => CT.makes.has(p)) ? CT_COL * 2 + CT_SLOT : CT_COL + CT_SLOT;
-  const roomW = W - 68, roomH = H - CT_HEAD - 40;
-  let best = null;
-  for(let c = 4; c <= 10; c++){
-    let h = branches * CT_ROW, shut = 0;
-    for(const [lv, n] of lvs){
-      if(ctGroupOpen(ctGroupKey(CT.root, lv), lv)) h += CT_GHEAD + CT_GGAP + Math.ceil(n / c) * CT_GCELL_H + CT_GPAD / 2;
-      else shut++;
-    }
-    if(shut) h += CT_GHEAD + CT_GGAP;
-    const w = left + CT_COL + Math.min(c, rest.length) * CT_GCELL + CT_GPAD * 2 + 40;
-    const k = Math.min(roomW / w, roomH / h);
-    if(!best || k > best.k + .005) best = {c, k};
-  }
-  return best.c;
-}
-
-/* The box the laid-out tree fills, in plane pixels. */
-function ctExtent(lay){
-  if(lay.extent) return lay.extent;
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for(const n of lay.nodes.values()){
-    if(n.box){
-      const top = n.y - CT_GHEAD / 2;
-      x0 = Math.min(x0, n.x - 12); x1 = Math.max(x1, n.x + n.w + 12);
-      y0 = Math.min(y0, top - 10); y1 = Math.max(y1, top + n.h + 10);
-      continue;
-    }
-    const half = ctHalf(n);
-    x0 = Math.min(x0, n.x - half - (n.side > 0 && !n.grid ? 64 : 12));
-    x1 = Math.max(x1, n.x + half + 22);
-    y0 = Math.min(y0, n.y - half - 14);
-    y1 = Math.max(y1, n.y + half + 28);
-  }
-  /* room for the note a root with nothing built on it carries */
-  if(CT.tree && !(CT.tree.branches.get(CT.root) || []).length) x1 = Math.max(x1, CT_COL + 250);
-  return lay.extent = {x0, x1, y0, y1, w: x1 - x0, h: y1 - y0};
-}
-/* How far a node's edge is from where it is placed — where a link meets it.
-   A group is placed at its edge already. */
-const ctHalf = n => n.box ? 0 : n.key === CT.root ? CT_ROOT / 2 : n.grid ? CT_CELLT / 2
-  : n.kind === "part" ? CT_PART / 2 : CT_SLOT / 2;
-
-/* ---------------- painting ---------------- */
-
-function ctNodeClass(n){
-  if(n.kind === "group") return `ct-group v${n.lv}${+n.lv > +S.level ? " lock" : ""}${+n.lv === +S.level ? " now" : ""}`;
-  if(n.kind === "fold") return "ct-fold";
-  const cls = ["ct-n"], c = CT.g.by.get(n.key);
-  if(n.key === CT.root) cls.push("root");
-  if(!c) cls.push("ct-comp");
+/* What a character opened on the map shows to its right: what is built on it
+   — a card each for a few, a group for each level for more, with any opened
+   in turn pulled out as cards of their own — then the words it writes. */
+function mmKids(key){
+  const kids = CT.tree.branches.get(key) || [], out = [];
+  const card = h => mmBox("node", h, key);
+  if(kids.length <= MM.SMALL) for(const h of kids) out.push(card(h));
   else{
-    cls.push(`v${c.lv}`);
-    if(+c.lv > +S.level) cls.push("lock");
-    else if(c.lv === S.level) cls.push("now");
-    const k = ctKnown(n.key);
-    if(k === 2) cls.push("mastered"); else if(k === 1) cls.push("met");
-  }
-  if(n.side < 0) cls.push("making");
-  if(n.grid) cls.push("ct-cell");
-  if(n.hidden) cls.push("shut");
-  if(n.opened) cls.push("open");
-  if(n.key === CT.sel) cls.push("sel");
-  return cls.join(" ");
-}
-
-/* A tile: the character and its reading, its level on a plate in the
-   level's colour in the corner (with a lock above the reader's own), a mark
-   on the other corner once it is met — a tick, or a star when mastered —
-   its meaning under it, and on its right edge the knob that opens its
-   branches: the count folded in it, or a bar when it is open. A tile in a
-   group carries on its foot what else goes into it, which a branch carries
-   on its link. A part has its gloss where a reading would be. */
-function ctNodeHTML(n){
-  if(n.kind === "group") return ctGroupHTML(n);
-  if(n.kind === "fold") return ctFoldHTML(n);
-  const a = ctAbout(n.key), c = a.c;
-  const sub = c ? c.p : a.short;
-  const known = c ? ctKnown(n.key) : 0;
-  return `<span class="ct-g">${esc(n.key)}</span>`
-    + (sub ? `<span class="ct-p">${esc(sub)}</span>` : "")
-    + (c ? `<span class="ct-lv" title="HSK ${esc(levelLabel(c.lv))}">${esc(levelLabel(c.lv))}</span>` : "")
-    + (known ? `<span class="ct-st">${known === 2 ? CT_STAR : CT_TICK}</span>` : "")
-    + (c && a.short ? `<span class="ct-e">${esc(a.short)}</span>` : "")
-    + (n.grid ? ctPlate(n.key, n.of) : "")
-    + (n.hidden ? `<span class="ct-knob" data-knob title="Open its ${n.hidden} branch${n.hidden === 1 ? "" : "es"}"><i>+</i>${n.hidden}</span>`
-      : n.opened ? `<span class="ct-knob on" data-knob title="Fold its branch"></span>` : "");
-}
-
-/* A group's name strip: its level in the level's colour, how many it holds,
-   how many of those are met, and where it stands against the reader's
-   level. The strip is the button that folds it onto the shelf. */
-function ctGroupHTML(n){
-  const me = +S.level, lv = +n.lv;
-  const where = lv === me ? "Your level" : lv === me + 1 ? "Next up" : lv > me ? "Above your level" : "";
-  return `<button class="ct-gh" type="button" data-ct="group" data-arg="${esc(n.key)}" aria-expanded="true"
-      title="Fold HSK ${esc(levelLabel(n.lv))}">
-    <span class="ct-gl">HSK ${esc(levelLabel(n.lv))}</span>
-    <span class="ct-gn">${num(n.list.length)}</span>
-    ${n.known ? `<span class="ct-gk" title="${n.known} met">${CT_TICK}${num(n.known)}</span>` : ""}
-    ${where ? `<span class="ct-gt">${lv > me ? CT_LOCK : ""}${where}</span>` : ""}
-    <svg class="ct-gc" viewBox="0 0 24 24" aria-hidden="true"><path d="m7.5 10 4.5 4.5 4.5-4.5"/></svg>
-  </button>`;
-}
-/* A family's folded levels, on one shelf under its cards: a chip a level,
-   in the level's colour, with how many it holds and how many of those are
-   met — each the button that opens its level as a card. */
-function ctFoldHTML(n){
-  const me = +S.level, above = n.shut.every(g => +g.lv > me);
-  return `<span class="ct-fl">${above ? `${CT_LOCK}Above your level` : "Folded"}</span>` + n.shut.map(g =>
-    `<button class="ct-fc v${g.lv}" type="button" data-ct="group" data-arg="${esc(g.key)}" aria-expanded="false"
-      title="Open HSK ${esc(levelLabel(g.lv))}: ${esc(g.list.slice(0, 10).join(" "))}${g.list.length > 10 ? " …" : ""}"><i></i>HSK ${esc(levelLabel(g.lv))}<b>${num(g.list.length)}</b>${
-      g.known ? `<em>${CT_TICK}${num(g.known)}</em>` : ""}</button>`).join("");
-}
-
-function ctLabel(n){
-  if(n.box) return "";
-  const a = ctAbout(n.key), o = n.grid ? ctOthers(n.key, n.of) : null;
-  return [n.key, a.c ? a.c.p : "", a.en, a.c ? `HSK ${levelLabel(a.c.lv)}` : "component",
-    a.c && +a.c.lv > +S.level ? "above your level" : "",
-    o && o.others.length ? `${n.of} and ${o.others.join(" and ")}` : "",
-    n.hidden ? `${n.hidden} branches folded` : ""].filter(Boolean).join(", ");
-}
-
-/* Lays the tree out and moves every node from where it is to where it now
-   goes. A node arriving grows out of the nearest of its elders already on
-   the canvas, in its turn: a tree grown afresh unfolds a tier at a time, and
-   a branch opened lets its tiles out one after another. One leaving shrinks
-   back into the nearest elder that stays.
-   @param ms  how long each node's move takes; 0 places everything at once
-   @param anchor  a node to hold still on screen while the tree moves round it
-   @param by  "tier" to unfold tier by tier; otherwise arrivals go top to bottom */
-function ctRender(ms = 420, anchor = "", by = ""){
-  const plane = $("#ct-plane");
-  if(!plane || !CT.tree) return;
-  const lay = ctLayout();
-  CT.lay = lay;
-
-  const was = anchor && CT.recs.get(anchor) && !CT.recs.get(anchor).gone ? {...CT.recs.get(anchor).to} : null;
-  const arriving = [];
-
-  for(const n of lay.nodes.values()){
-    let r = CT.recs.get(n.key);
-    const fresh = !r || r.gone;
-    if(r) r.delay = 0;
-    if(!r){
-      /* a group is a card under everything else on the plane, its name strip
-         the button; a tile is a button */
-      const el = document.createElement(n.box ? "div" : "button");
-      if(n.box) plane.insertBefore(el, plane.firstChild);
-      else{ el.type = "button"; plane.appendChild(el); }
-      el.dataset.k = n.key;
-      r = {key: n.key, el};
-      CT.recs.set(n.key, r);
+    for(const h of kids) if(CT.open.has(h)) out.push(card(h));
+    const by = new Map();
+    for(const h of kids){
+      if(CT.open.has(h)) continue;
+      const lv = CT.g.by.get(h).lv;
+      if(!by.has(lv)) by.set(lv, []);
+      by.get(lv).push(h);
     }
-    if(r.gone) r.el.classList.remove("gone");
-    r.gone = false;
-    r.parent = n.parent;
-    r.node = n;
-    const cls = ctNodeClass(n), html = ctNodeHTML(n);
-    if(r.cls !== cls){ r.el.className = cls; r.cls = cls; }
-    if(r.html !== html){
-      r.el.innerHTML = html; r.html = html;
-      if(!n.box) r.el.setAttribute("aria-label", ctLabel(n));
-    }
-    if(typeof questMarkNode === "function") questMarkNode(r.el,n.key);
-    if(n.box){
-      const size = `${n.w}x${n.h}`;
-      if(r.size !== size){ r.el.style.width = `${n.w}px`; r.el.style.height = `${n.h}px`; r.size = size; }
-    }
-    r.to = {x: n.x, y: n.y, s: 1, o: 1};
-    if(fresh){
-      /* a group fades up where it stands; a tile grows out of its elder */
-      const from = n.box ? null : ctElder(n.parent, lay);
-      r.cur = from ? {x: from.x, y: from.y, s: .3, o: 0} : {x: n.x, y: n.y, s: n.box ? 1 : .7, o: 0};
-      r.delay = 0;
-      arriving.push(r);
-    }
-    r.from = {...r.cur};
-  }
-  /* Each arrival's turn. By tier: the tier sets the beat and a ripple runs
-     down it; otherwise one after another from the top. Capped, so a big
-     reveal does not keep the reader waiting. */
-  if(ms && arriving.length > 1){
-    /* a family of a hundred arriving at once ripples through in the same
-       half second as a branch of four */
-    const tier = r => Math.abs(r.node.depth), run = new Map(), step = Math.min(34, 560 / arriving.length);
-    const order = r => r.node.box ? r.node.y - CT_GHEAD / 2 : r.node.y;
-    arriving.sort((a, b) => by === "tier" ? tier(a) - tier(b) || order(a) - order(b) : order(a) - order(b) || a.node.x - b.node.x);
-    arriving.forEach((r, i) => {
-      const t = tier(r), n = run.get(t) || 0;
-      run.set(t, n + 1);
-      r.delay = Math.round(by === "tier" ? Math.min(560, t * 110 + n * Math.min(18, step)) : i * step);
-    });
-  }
-  for(const r of arriving) r.pop = !r.node.box;
-  for(const r of CT.recs.values()){
-    if(lay.nodes.has(r.key)) continue;
-    r.from = {...r.cur};
-    r.delay = 0;
-    if(r.gone) continue;
-    r.gone = true;
-    /* on its way out: seen, not touched */
-    r.el.classList.add("gone");
-    /* a group fades where it stands; a tile shrinks back into the nearest
-       elder that stays — into the name strip of a group folding round it */
-    if(r.node && r.node.box){ r.to = {...r.cur, s: 1, o: 0}; continue; }
-    let k = r.parent, to = null;
-    for(let i = 0; i < 60 && k !== undefined && !to; i++){
-      const n = lay.nodes.get(k);
-      if(n) to = n.box ? {x: n.x + 70, y: n.y} : n;
-      else{ const up = CT.recs.get(k); k = up && up.parent; }
-    }
-    r.to = to ? {x: to.x, y: to.y, s: .3, o: 0} : {...r.cur, s: .7, o: 0};
-  }
-
-  const links = $("#ct-wires"), tags = $("#ct-tags");
-  const live = new Set();
-  for(const w of lay.links){
-    live.add(w.id);
-    let rec = CT.wires.get(w.id);
-    if(!rec){
-      const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      links.appendChild(el);
-      rec = {id: w.id, el, tag: null};
-      CT.wires.set(w.id, rec);
-    }
-    rec.a = w.a; rec.b = w.b; rec.gone = false;
-    if(rec.tag) rec.tag.classList.remove("gone");
-    const making = lay.nodes.get(w.b).side < 0 || lay.nodes.get(w.a).side < 0;
-    const cls = `ct-l${w.group ? ` grp${w.lv ? ` v${w.lv}` : " fold"}` : ""}${w.lit ? " lit" : ""}${making ? " making" : ""}`;
-    if(rec.cls !== cls){ rec.el.setAttribute("class", cls); rec.cls = cls; }
-    if(w.tag && !rec.tag){
-      rec.tag = document.createElement("span");
-      rec.tag.className = "ct-tag";
-      tags.appendChild(rec.tag);
-    }
-    if(rec.tag && rec.tagHTML !== (w.tag || "")){
-      rec.tag.innerHTML = w.tag || "";
-      rec.tag.hidden = !w.tag;
-      rec.tagHTML = w.tag || "";
+    for(const lv of [...by.keys()].sort((a, b) => +a - +b)){
+      const list = by.get(lv).sort((a, b) => ctRank(a) - ctRank(b)), fold = `lv:${key}:${lv}`;
+      out.push({type: "cluster", key: `c:${key}:${lv}`, parent: key, lv, list, fold, open: mmOpen(fold, list, key), kids: []});
     }
   }
-  for(const rec of CT.wires.values()) if(!live.has(rec.id)){ rec.gone = true; if(rec.tag) rec.tag.classList.add("gone"); }
-
-  if(was && lay.nodes.has(anchor)){
-    const now = lay.nodes.get(anchor), k = CT.cam.k;
-    ctCamTo({x: CT.cam.x - (now.x - was.x) * k, y: CT.cam.y - (now.y - was.y) * k, k}, ms);
-  }
-  ctPaintNone();
-  ctPaintTiers();
-  ctTween(ms);
-}
-
-/* The tiers' names in the header, one over each band. */
-function ctPaintTiers(){
-  const row = $("#ct-tiers");
-  if(!row || !CT.lay) return;
-  const name = d => d === -1 ? "Component parts" : d < 0 ? "" : d === 0 ? "Starting character" : d === 1 ? "Builds into" : `Further family ${d}`;
-  const want = CT.lay.tiers.filter(d => name(d)).map(d => `${d}`).join(",");
-  if(row.dataset.tiers !== want){
-    row.dataset.tiers = want;
-    row.innerHTML = want ? want.split(",").map(d => `<span data-d="${d}">${name(+d)}</span>`).join("") : "";
-  }
-  ctPlaceTiers();
-  ctMarkTier();
-}
-function ctPlaceTiers(){
-  const row = $("#ct-tiers");
-  if(!row) return;
-  const {x, k} = CT.cam;
-  for(const s of row.children){
-    const sx = x + +s.dataset.d * CT_COL * k;
-    s.style.transform = `translate(${sx.toFixed(1)}px,-50%) translateX(-50%)`;
-    s.style.visibility = sx > CT.head.l && sx < CT.head.r ? "" : "hidden";
-  }
-}
-
-/* The bands under the tiers, every other one tinted, drawn as one gradient
-   across the canvas from where the camera has them. */
-function ctPaintBands(){
-  const bands = $("#ct-bands");
-  if(!bands || !CT.lay) return;
-  const {x, k} = CT.cam, half = CT_COL / 2 * k, stops = [];
-  for(const d of CT.lay.tiers){
-    if(!(d & 1)) continue;
-    const a = (x + d * CT_COL * k - half).toFixed(1), b = (x + d * CT_COL * k + half).toFixed(1);
-    stops.push(`transparent ${a}px`, `var(--ct-band) ${a}px`, `var(--ct-band) ${b}px`, `transparent ${b}px`);
-  }
-  bands.style.backgroundImage = stops.length ? `linear-gradient(90deg,${stops.join(",")})` : "none";
-}
-
-/* A root nothing is built on — 好, 吃 — says so where its branches would
-   be, and offers the levels above where there are some there. */
-function ctPaintNone(){
-  const plane = $("#ct-plane");
-  let el = $("#ct-none");
-  const empty = CT.tree && !(CT.tree.branches.get(CT.root) || []).length;
-  if(!empty){ if(el) el.remove(); return; }
-  if(!el){
-    el = document.createElement("div");
-    el.id = "ct-none";
-    el.className = "ct-none";
-    plane.appendChild(el);
-  }
-  el.style.transform = `translate(${CT_COL - CT_SLOT / 2}px,0) translateY(-50%)`;
-  el.innerHTML = `<p>No syllabus characters are built on <b class="hz">${esc(CT.root)}</b>.</p>`;
-}
-
-/* Where an arriving node starts: the position, as it stands, of the nearest
-   of its elders that is already drawn — for a tile in a group, the group's
-   name strip, which it comes out of. */
-function ctElder(k, lay){
-  for(let i = 0; i < 60 && k !== undefined; i++){
-    const r = CT.recs.get(k);
-    if(r && !r.gone && r.cur) return r.node && r.node.box ? {x: r.cur.x + 70, y: r.cur.y} : r.cur;
-    const n = lay.nodes.get(k);
-    k = n && n.parent;
-  }
-  return null;
-}
-
-/* ---------------- motion ---------------- */
-
-/* Every node runs on its own clock from t0 — its own delay, then ms — so a
-   tree can unfold in turns; the move ends when the last one lands. */
-function ctTween(ms){
-  cancelAnimationFrame(CT.raf);
-  clearTimeout(CT.timer);
-  const t0 = performance.now();
-  let last = 0;
-  for(const r of CT.recs.values()) last = Math.max(last, r.delay || 0);
-  const span = ms + last;
-  const end = () => {
-    cancelAnimationFrame(CT.raf);
-    clearTimeout(CT.timer);
-    ctFrame(Infinity, ms);
-    for(const r of CT.recs.values()){ r.delay = 0; r.pop = false; }
-    ctSettle();
-    ctMapSoon();
-  };
-  if(!ms || REDUCED()){ end(); return; }
-  /* where everything starts, before anything is painted */
-  ctFrame(0, ms);
-  const step = now => {
-    const t = now - t0;
-    ctFrame(t, ms);
-    if(t < span) CT.raf = requestAnimationFrame(step);
-    else end();
-  };
-  CT.raf = requestAnimationFrame(step);
-  /* a page that is not being drawn runs no frames: it lands regardless */
-  CT.timer = setTimeout(end, span + 250);
-}
-
-/* One frame, t ms into the move. Position eases out; an arriving tile's
-   size overshoots a touch and settles, so it pops out of its branch rather
-   than fading up. */
-const ctOut = p => 1 - Math.pow(1 - p, 3);
-const ctPop = p => 1 + 2.4 * Math.pow(p - 1, 3) + 1.4 * Math.pow(p - 1, 2);
-function ctFrame(t, ms){
-  for(const r of CT.recs.values()){
-    const f = r.from, to = r.to, c = r.cur;
-    const p = t === Infinity || !ms ? 1 : Math.min(1, Math.max(0, (t - (r.delay || 0)) / ms));
-    const e = ctOut(p), s = r.pop ? ctPop(p) : e;
-    c.x = f.x + (to.x - f.x) * e; c.y = f.y + (to.y - f.y) * e;
-    c.s = f.s + (to.s - f.s) * s; c.o = f.o + (to.o - f.o) * Math.min(1, e * 1.6);
-    const tf = `translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)${Math.abs(c.s - 1) > .001 ? ` scale(${c.s.toFixed(3)})` : ""}`;
-    if(r.tf !== tf){ r.el.style.transform = tf; r.tf = tf; }
-    const o = c.o > .999 ? "" : c.o.toFixed(3);
-    if(r.op !== o){ r.el.style.opacity = o; r.op = o; }
-  }
-  ctWires();
-}
-
-/* The links, redrawn from where their two ends are now, and each one's tag
-   sat on it just short of the tile it leads to. The way to the tile picked
-   burns; the way to the tile under the pointer, and its own branches, warm. */
-function ctWires(){
-  const route = ctRoute(CT.sel);
-  const near = ctRoute(CT.hover);
-  if(CT.hover) for(const w of CT.wires.values()) if(w.a === CT.hover) near.add(w.id);
-  let glow = "";
-  for(const w of CT.wires.values()){
-    const A = CT.recs.get(w.a), B = CT.recs.get(w.b);
-    if(!A || !B) continue;
-    const ax = A.cur.x + ctHalf(A.node) * A.cur.s, ay = A.cur.y;
-    const bx = B.cur.x - ctHalf(B.node) * B.cur.s, by = B.cur.y;
-    const dx = Math.max(26, (bx - ax) * .52);
-    const d = `M${ax.toFixed(1)} ${ay.toFixed(1)}C${(ax + dx).toFixed(1)} ${ay.toFixed(1)} ${(bx - dx).toFixed(1)} ${by.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
-    if(w.d !== d){ w.el.setAttribute("d", d); w.d = d; }
-    const o = Math.min(A.cur.o, B.cur.o);
-    const os = o > .999 ? "" : o.toFixed(3);
-    if(w.op !== os){ w.el.style.opacity = os; if(w.tag) w.tag.style.opacity = os; w.op = os; }
-    if(w.tag){
-      const tf = `translate(${(bx - 12).toFixed(1)}px,${by.toFixed(1)}px)`;
-      if(w.tf !== tf){ w.tag.style.transform = tf; w.tf = tf; }
+  /* A radical's map shows every character the radical has: those filed under
+     it in the dictionary but not drawn with it — 最 is filed under 曰 and
+     drawn with 日 — come after the rest, in a group of their own. */
+  if(key === CT.root){
+    const filed = mmFiled();
+    if(filed.length){
+      const fold = `lv:${key}:filed`;
+      out.push({type: "cluster", key: `c:${key}:filed`, parent: key, lv: "", list: filed, fold, filed: true,
+        open: CT.fold.has(fold) ? CT.fold.get(fold) : true, kids: []});
     }
-    const on = route.has(w.id) && !w.gone;
-    if(w.on !== on){ w.el.classList.toggle("path", on); if(w.tag) w.tag.classList.toggle("path", on); w.on = on; }
-    const warm = !on && near.has(w.id) && !w.gone;
-    if(w.warm !== warm){ w.el.classList.toggle("warm", warm); w.warm = warm; }
-    if(on) glow += d;
   }
-  $("#ct-glow").setAttribute("d", glow);
-  $("#ct-flow").setAttribute("d", glow);
-}
-
-/* The links between the root and a node — a tile in a group goes by way of
-   its group's link. */
-function ctRoute(key){
-  const out = new Set();
-  if(!key || !CT.lay) return out;
-  let n = CT.lay.nodes.get(key);
-  for(let i = 0; i < 60 && n && n.parent !== undefined; i++){
-    out.add(n.side > 0 ? `${n.parent}>${n.key}` : `${n.key}>${n.parent}`);
-    n = CT.lay.nodes.get(n.parent);
-  }
+  if(CT.g.by.has(key) && ctWordsOf(key).length) out.push({type: "words", key: `wb:${key}`, parent: key, owner: key, kids: []});
   return out;
 }
+/* The radical picked in the index, where the map grows from it (radicals.js). */
+function mmRadical(){
+  if(typeof RX === "undefined" || !S.charRad || !RX.by.has(S.charRad)) return null;
+  return rxRootOf(S.charRad) === CT.root ? RX.by.get(S.charRad) : null;
+}
+/* Its characters that the map does not otherwise reach. */
+function mmFiled(){
+  const r = mmRadical();
+  if(!r) return [];
+  return r.chars.filter(h => h !== CT.root && CT.g.by.has(h) && !CT.tree.parent.has(h))
+    .sort((a, b) => +CT.g.by.get(a).lv - +CT.g.by.get(b).lv || ctRank(a) - ctRank(b));
+}
+function mmBox(type, h, parent){
+  return {type, key: h, parent, kids: type === "root" || CT.open.has(h) ? mmKids(h) : []};
+}
+/* What can be opened on a character: what is built on it, and its words. */
+const mmMore = h => (CT.tree.branches.get(h) || []).length + (CT.g.by.has(h) ? ctWordsOf(h).length : 0);
 
-/* A move done: what left is taken away. */
-function ctSettle(){
-  for(const r of [...CT.recs.values()]) if(r.gone){ r.el.remove(); CT.recs.delete(r.key); }
-  for(const w of [...CT.wires.values()]) if(w.gone){ w.el.remove(); if(w.tag) w.tag.remove(); CT.wires.delete(w.id); }
+/* The layout: a horizontal tidy tree. Each box's family is stacked in the
+   next column and the box sits at its middle — or, for a family taller than
+   a screen, at its top, so a big tree reads from the top down. Columns are
+   as wide as their widest box. A word is listed once, under the first
+   character on the map to write it, and linked from every other character
+   on the map that does. */
+function mmLayout(){
+  MM = mmPhone() ? MM_NARROW : MM_WIDE;
+  const root = mmBox("root", CT.root, null), placed = new Set();
+  root.depth = 0;
+  /* breadth first, so a word goes to the character nearest the core */
+  const queue = [root];
+  for(let i = 0; i < queue.length; i++){
+    const b = queue[i];
+    if(b.type === "words"){
+      const rows = ctWordsOf(b.owner).filter(r => !placed.has(r[0]));
+      b.total = ctWordsOf(b.owner).length;
+      b.more = rows.length;
+      b.rows = rows.slice(0, CT.wall.get(b.owner) || MM.WSHOW);
+      b.empty = !b.rows.length;
+      for(const r of b.rows) placed.add(r[0]);
+    }
+    for(const k of b.kids){ k.depth = b.depth + 1; queue.push(k); }
+  }
+  /* a list whose every word is already shown elsewhere goes */
+  const all = queue.filter(b => !b.empty);
+  for(const b of all) b.kids = b.kids.filter(k => !k.empty);
+  /* sizes */
+  for(const b of all){
+    if(b.type === "root"){ b.w = MM.ROOT_W; b.h = MM.ROOT_H; }
+    else if(b.type === "node"){ b.w = MM.NODE_W; b.h = MM.NODE_H; }
+    else if(b.type === "cluster"){
+      b.cols = Math.min(MM.COLS, b.list.length);
+      b.w = Math.max(MM.CMIN, MM.CPAD * 2 + b.cols * MM.TILE_W);
+      b.h = b.open ? MM.CHEAD + Math.ceil(b.list.length / b.cols) * MM.TILE_H + MM.CPAD : MM.FOLD_H;
+    }else{
+      b.w = MM.WORD_W;
+      b.h = MM.WHEAD + b.rows.length * MM.WROW + (b.more > b.rows.length || b.rows.length > MM.WSHOW ? MM.WMORE : 0) + 6;
+    }
+  }
+  /* Where everything goes: the engine lays the tree out (map.rs), three
+     times quicker than doing it here. Breadth first, each box after the one
+     it hangs from: [what it hangs from + 1, width, height]. */
+  const at = new Map(all.map((b, i) => [b.key, i]));
+  const ptr = webEngine.input(all.length * 3);
+  const buf = new Uint16Array(webEngine.memory.buffer, ptr, all.length * 3);
+  all.forEach((b, i) => { buf[3 * i] = b.parent == null ? 0 : at.get(b.parent) + 1; buf[3 * i + 1] = b.w; buf[3 * i + 2] = b.h; });
+  /* the call first: it can grow the engine's memory, which the view must be taken after */
+  const len = webEngine.map_layout(MM.GAP_X, MM.GAP_Y, 560);
+  const xy = new Int32Array(webEngine.memory.buffer, webEngine.output(), len);
+  all.forEach((b, i) => { b.x = xy[2 * i]; b.y = xy[2 * i + 1]; });
+  const colX = [];
+  for(const b of all) colX[b.depth] = b.x;
+  /* what the core is built from, stacked to its left */
+  const parts = (CT.makes.get(CT.root) || []).map(p => ({type: "part", key: `p:${p}`, ch: p, depth: -1, w: MM.PART_W, h: MM.PART_H, kids: []}));
+  const partsH = parts.reduce((n, p, i) => n + p.h + (i ? MM.GAP_Y : 0), 0);
+  let py = root.y + root.h / 2 - partsH / 2;
+  for(const p of parts){ p.x = -(MM.PART_W + MM.GAP_X * .72); p.y = py; py += p.h + MM.GAP_Y; all.push(p); }
+
+  const boxes = new Map(all.map(b => [b.key, b]));
+  const links = [];
+  for(const b of all){
+    if(b.type === "part") links.push({a: b.key, b: root.key, kind: "p"});
+    else if(b.parent != null) links.push({a: b.parent, b: b.key, kind: b.type === "words" ? "w" : b.type === "cluster" ? "c" : "t",
+      pill: b.type === "node" ? ctRecipe(b.key, b.parent) : "", trunk: boxes.get(b.parent).kids.length >= 4});
+  }
+  /* the words' other characters on the map: where paths meet */
+  for(const b of all){
+    if(b.type !== "words") continue;
+    b.rows.forEach((r, i) => {
+      for(const ch of new Set(r[1])){
+        const src = boxes.get(ch);
+        if(ch !== b.owner && src && (src.type === "node" || src.type === "root")) links.push({a: ch, b: b.key, row: i, kind: "m"});
+      }
+    });
+  }
+  /* each column's name, over its top */
+  const cols = [];
+  const tops = new Map();
+  for(const b of all) tops.set(b.depth, Math.min(tops.has(b.depth) ? tops.get(b.depth) : Infinity, b.y));
+  for(const [d, y] of tops){
+    const words = all.some(b => b.depth === d && b.type === "words"), chars = all.some(b => b.depth === d && (b.type === "node" || b.type === "cluster"));
+    const name = d < 0 ? "Built from" : d === 0 ? (CT.g.by.has(CT.root) ? "Core character" : "Radical") : chars ? `Tier ${ctRoman(d)}${words ? " · words" : ""}` : "Words";
+    cols.push({d, x: d < 0 ? parts[0].x : colX[d], y: y - 34, name});
+  }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for(const b of all){ x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
+  return {root, boxes, links, cols, ext: {x0, y0: y0 - 40, x1, y1, w: x1 - x0, h: y1 - y0 + 40}};
+}
+
+/* ---------------- the boxes ---------------- */
+
+const mmStars = n => `<span class="mm-stars" aria-hidden="true">${[1, 2, 3].map(i => `<i class="${i <= n ? "on" : ""}">${CT_STAR}</i>`).join("")}</span>`;
+const mmLock = `<span class="mm-lock" aria-hidden="true">${CT_LOCK}</span>`;
+const mmBang = `<span class="mm-bang" aria-hidden="true">!</span>`;
+/* what a character card or tile says when read aloud */
+function mmSay(h){
+  const a = ctAbout(h), c = a.c, st = ctState(h), p = CT.tree.parent.get(h);
+  return `${h}${c ? ` ${c.p}` : ""}, ${a.short || "component"}. ${CT_STATES[st]}${c ? `, HSK ${levelLabel(c.lv)}` : ""}${
+    st === "locked" && p ? `. Learn ${p} to open it` : ""}${h === CT.quest ? ". Next quest" : ""}`;
+}
+/* the knob that opens a character on the map: how much it would show */
+function mmKnob(h, cls = "mm-knob"){
+  const n = mmMore(h), open = CT.open.has(h);
+  if(!n) return "";
+  const kids = (CT.tree.branches.get(h) || []).length;
+  return `<button class="${cls}${kids ? " has" : ""}" type="button" data-ct="toggle" data-arg="${esc(h)}" aria-expanded="${open}"
+    title="${open ? "Fold" : "Show"} what ${esc(h)} builds${kids ? ` (${kids} character${kids === 1 ? "" : "s"})` : ""} and its words">${open ? "−" : kids ? `+${kids}` : "›"}</button>`;
+}
+
+function mmBoxHTML(b){
+  if(b.type === "root" || b.type === "node"){
+    const h = b.key, a = ctAbout(h), c = a.c, st = ctState(h), root = b.type === "root";
+    const p = root ? ctProgress() : null;
+    const gem = `<span class="mm-gem">${root ? `<span class="mm-ring" style="--p:${p.pct}" aria-hidden="true"></span>` : ""}<b class="hz">${esc(h)}</b>${
+      st === "locked" ? mmLock : ""}${h === CT.quest ? mmBang : ""}</span>`;
+    const txt = root
+      ? `<span class="mm-txt"><small class="mm-kick">${c ? "Core" : "Radical"}</small><b class="mm-name">${esc(a.short || "component")}</b>
+          <span class="mm-sub">${c ? `<i class="py">${esc(c.p)}</i>${mmStars(ctStars(h))}` : `<i>${num(p.total)} characters</i>`}</span></span>`
+      : `<span class="mm-txt"><span class="mm-l1"><i class="py">${esc(c.p)}</i>${mmStars(ctStars(h))}</span><span class="mm-l2">${esc(a.short)}</span></span>`;
+    return {cls: `mm-box mm-${b.type} ${st}${c ? ` v${c.lv}` : ""}`,
+      html: `<button class="mm-card" type="button" data-k="${esc(h)}" aria-label="${esc(mmSay(h))}">${gem}${txt}</button>${root ? "" : mmKnob(h)}`};
+  }
+  if(b.type === "part"){
+    const h = b.ch, a = ctAbout(h), role = ctRole(CT.root, h);
+    return {cls: "mm-box mm-part", html: `<button class="mm-card" type="button" data-ct="grow" data-arg="${esc(h)}" title="Make ${esc(h)} the core of the map">
+      <span class="mm-gem"><b class="hz">${esc(h)}</b></span><span class="mm-txt"><b class="mm-name">${esc(a.short || "component")}</b>
+      <small>${role ? ctRoleText(role) : a.c ? esc(a.c.p) : "component"}</small></span></button>`};
+  }
+  if(b.type === "cluster"){
+    const k = b.list.filter(ctLearned).length, mine = +S.level, lv = +b.lv;
+    const tag = b.filed ? "the rest of its dictionary family" : lv === mine ? "Your level" : lv < mine ? "Below your level" : lv === mine + 1 ? "Next level" : "Ahead";
+    const head = `<button class="mm-chead" type="button" data-ct="fold" data-arg="${esc(b.fold)}" aria-expanded="${b.open}">
+      <i class="mm-cdot" aria-hidden="true"></i><b>${b.filed ? `Also filed under <span class="hz">${esc(mmRadical().f)}</span>` : `HSK ${esc(levelLabel(b.lv))}`}</b><span class="mm-ctag">${tag}</span>
+      <span class="mm-cn">${k}<small>/${b.list.length}</small></span>
+      <svg class="mm-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`;
+    const tiles = b.open ? `<div class="mm-tiles" style="grid-template-columns:repeat(${b.cols}, ${MM.TILE_W}px)">${b.list.map(h => {
+      const c = CT.g.by.get(h), st = ctState(h), rec = ctRecipe(h, b.parent);
+      return `<div class="mm-tw"><button class="mm-tile ${st} v${c.lv}" type="button" data-k="${esc(h)}" aria-label="${esc(mmSay(h))}"
+          title="${esc(h)} ${esc(c.p)} · ${esc(ctShort(c.en[0]))}${rec ? ` · ${esc(b.parent)} ${esc(rec)}` : ""}">
+        <span class="mm-gem"><b class="hz">${esc(h)}</b><i class="py">${esc(c.p)}</i>${st === "locked" ? mmLock : ""}${h === CT.quest ? mmBang : ""}</span>
+        ${mmStars(ctStars(h))}<span class="mm-l2">${esc(ctShort(c.en[0]))}</span></button>${b.filed ? "" : mmKnob(h, "mm-knob mm-tknob")}</div>`;
+    }).join("")}</div>` : "";
+    return {cls: `mm-box mm-cluster v${b.lv}${b.open ? "" : " shut"}${b.filed ? " filed" : ""}`, html: head + tiles};
+  }
+  const shared = b.total - b.more;
+  const rows = b.rows.map(r => {
+    const st = ctWordState(r), daily = ctEveryday(r);
+    const mark = st === "mastered" ? CT_STAR : st === "known" ? CT_TICK : st === "locked" ? CT_LOCK : "";
+    return `<button class="mm-word ${st}${daily ? " daily" : ""}" type="button" data-k="w:${esc(r[0])}"
+        title="${esc(r[1])} ${esc(r[2])} · ${esc(r[3])}${daily ? " · an everyday word, not on the HSK list" : ""}">
+      <span class="mm-wmark" aria-hidden="true">${mark}</span><span class="mm-wl1"><b class="hz">${mmCombo(r[1], b.owner)}</b><i class="py">${esc(r[2])}</i></span>
+      <span class="mm-wl2">${esc(r[3])}</span>${daily ? `<span class="mm-wlv daily v${esc(r[4])}">Everyday</span>` : `<span class="mm-wlv v${esc(r[4])}">HSK ${esc(levelLabel(r[4]))}</span>`}</button>`;
+  }).join("");
+  /* a long list opens a dozen at a time, and folds back to its first few */
+  const left = b.more - b.rows.length;
+  const more = left > 0 ? `<button class="mm-wmore" type="button" data-ct="words" data-arg="${esc(b.owner)}">Show ${num(Math.min(left, MM.WSTEP))} more <small>· ${num(left)} left</small></button>`
+    : b.rows.length > MM.WSHOW ? `<button class="mm-wmore" type="button" data-ct="words" data-arg="${esc(b.owner)}">Show fewer</button>` : "";
+  return {cls: "mm-box mm-words", html: `<div class="mm-whead"><span class="mm-wkick">Words</span><b class="hz">${esc(b.owner)}</b>
+    <span class="mm-wn">${num(b.total)}${shared ? ` · ${num(shared)} shown elsewhere` : ""}</span></div>
+    <div class="mm-wrows">${rows}</div>${more}`};
+}
+/* A word with the character it is listed under picked out: 你好 under 你
+   reads as 你 + 好, the combination it is. */
+const mmCombo = (word, owner) => [...word].map(ch => ch === owner ? `<i class="mm-own">${esc(ch)}</i>` : esc(ch)).join("");
+
+/* ---------------- drawing the map ---------------- */
+
+/* Lays the map out and draws it: new boxes grow out of the box they come
+   from, the others glide to their new places, and the camera holds still
+   whatever was pressed (opts.anchor). */
+function ctRender(opts = {}){
+  const plane = $("#ct-plane");
+  if(!plane || !CT.tree) return;
+  CT.quest = ctNextQuest();
+  const states = new Map(ctMembers().map(h => [h, ctState(h)]));
+  const before = CT.seen && CT.seen.root === CT.root ? CT.seen.states : null;
+  CT.seen = {root: CT.root, states};
+  const opened = before ? [...states].filter(([h, s]) => s === "ready" && before.get(h) === "locked").map(([h]) => h) : [];
+  const rose = before ? [...states].filter(([h, s]) => (s === "learned" || s === "mastered") && before.get(h) !== s).map(([h]) => h) : [];
+
+  /* where the anchor is on screen now, to keep it there */
+  const anchor = opts.anchor && mmItemBox(opts.anchor);
+  const lay = mmLayout();
+  CT.lay = lay;
+  const host = $("#mm-boxes"), next = new Map();
+  const reduced = REDUCED(), ms = opts.ms ?? (reduced ? 0 : 420);
+  for(const b of lay.boxes.values()){
+    const {cls, html} = mmBoxHTML(b);
+    let r = CT.recs.get(b.key);
+    if(!r){
+      const el = document.createElement("div");
+      el.dataset.box = b.key;
+      host.appendChild(el);
+      /* a new box grows out of the one it comes from */
+      const from = b.parent != null && CT.recs.get(b.parent);
+      r = {el, key: b.key, x: from ? from.x + (from.w || 0) - b.w * .5 : b.x, y: from ? from.y + (from.h || 0) / 2 - b.h / 2 : b.y, cls: "", html: "", born: true};
+      if(ms) el.style.opacity = "0";
+    }
+    if(r.cls !== cls){ r.el.className = cls; r.cls = cls; }
+    if(r.html !== html){ r.el.innerHTML = html; r.html = html; }
+    r.el.style.width = b.w + "px"; r.el.style.height = b.h + "px";
+    r.w = b.w; r.h = b.h; r.tx = b.x; r.ty = b.y; r.b = b;
+    next.set(b.key, r);
+  }
+  for(const [k, r] of CT.recs) if(!next.has(k)){
+    r.el.classList.add("gone");
+    if(ms) setTimeout(() => r.el.remove(), 220); else r.el.remove();
+  }
+  CT.recs = next;
+  mmPaintCols();
+  /* the camera follows the anchor */
+  let cam = null;
+  if(anchor){
+    const now = mmItemBox(opts.anchor, true);
+    if(now){
+      const k = CT.cam.k;
+      cam = {x: CT.cam.x + (anchor.x - now.x) * k, y: CT.cam.y + (anchor.y - now.y) * k, k};
+      if(opts.reveal) cam = mmReveal(opts.anchor, cam);
+    }
+  }
+  mmTween(ms, cam);
+  mmMarkKin();
+  if(!reduced && !($("#quest") && $("#quest").open)){
+    requestAnimationFrame(() => {
+      for(const h of opened) mmItemEl(h)?.classList.add("opened-now");
+      for(const h of rose) mmItemEl(h)?.classList.add("learned-now");
+    });
+  }
+  if(opened.length && !($("#quest") && $("#quest").open))
+    toast(`Unlocked ${opened.length} new character${opened.length === 1 ? "" : "s"}: ${opened.slice(0, 8).join(" ")}${opened.length > 8 ? " …" : ""}`);
+}
+
+/* The element a character or word is drawn as: its card, or its tile in a
+   level group, or its row in a word list. */
+function mmItemEl(key){
+  return $("#mm-boxes").querySelector(`[data-k="${CSS.escape(key)}"]`);
+}
+/* Where an item is in the plane — as drawn now, or (target) once the boxes
+   have settled. */
+function mmItemBox(key, target){
+  const el = mmItemEl(key);
+  if(!el) return null;
+  const host = el.closest("[data-box]"), r = host && CT.recs.get(host.dataset.box);
+  if(!r) return null;
+  const x = target ? r.tx : r.x, y = target ? r.ty : r.y;
+  let ox = 0, oy = 0;
+  for(let e = el; e && e !== host; e = e.offsetParent){ ox += e.offsetLeft; oy += e.offsetTop; }
+  return {x: x + ox, y: y + oy, w: el.offsetWidth, h: el.offsetHeight};
+}
+
+/* The camera moved so that what was just opened shows, as far as it can
+   without losing the thing opened off the left edge. */
+function mmReveal(key, cam){
+  const box = $("#ctree"), b = CT.lay.boxes.get(key);
+  if(!box || !b || !b.kids.length) return cam;
+  let right = 0;
+  const walk = x => { right = Math.max(right, x.x + x.w); for(const k of x.kids) walk(k); };
+  walk(b);
+  const W = box.clientWidth - (ctDocked() ? 0 : 0), k = cam.k;
+  const over = cam.x + right * k - (W - 48);
+  if(over > 0) cam.x -= Math.min(over, cam.x + b.x * k - 24);
+  return cam;
+}
+
+/* Every box from where it is drawn to where it belongs, the links redrawn
+   from them on every frame; the camera too, where it moves with them. */
+function mmTween(ms, cam){
+  cancelAnimationFrame(CT.anim);
+  const recs = [...CT.recs.values()];
+  const from = recs.map(r => [r.x, r.y]), c0 = {...CT.cam};
+  const step = t => {
+    const p = ms ? Math.min(1, t / ms) : 1, e = 1 - Math.pow(1 - p, 3);
+    recs.forEach((r, i) => {
+      r.x = from[i][0] + (r.tx - from[i][0]) * e;
+      r.y = from[i][1] + (r.ty - from[i][1]) * e;
+      r.el.style.transform = `translate(${r.x.toFixed(1)}px,${r.y.toFixed(1)}px)`;
+      if(r.born){ r.el.style.opacity = String(Math.min(1, p * 1.6)); if(p === 1){ r.born = false; r.el.style.opacity = ""; } }
+    });
+    if(cam){
+      CT.cam.x = c0.x + (cam.x - c0.x) * e; CT.cam.y = c0.y + (cam.y - c0.y) * e; CT.cam.k = c0.k + (cam.k - c0.k) * e;
+      mmCam();
+    }
+    mmLinks();
+    if(p < 1) return true;
+    mmMapSoon();
+    return false;
+  };
+  if(!ms){ step(0); return; }
+  const start = performance.now();
+  const frame = now => { if(step(now - start)) CT.anim = requestAnimationFrame(frame); };
+  CT.anim = requestAnimationFrame(frame);
+}
+
+/* The links, from the boxes as they are drawn now: from the right of what a
+   thing comes from into the left of it — into a level group or a word list
+   at its name — with the recipe on it just short of a character. A box with
+   a few things after it fans out in curves; one with more runs a trunk down
+   beside them and branches off it with rounded corners, so the links do not
+   pile up at its edge. Where a word meets another of its characters the
+   link is dashed. What is lit is drawn last, over the rest. */
+function mmLinks(){
+  const svg = $("#mm-links"), lay = CT.lay;
+  if(!svg || !lay) return;
+  const hot = CT.hotLinks || new Set();
+  const f = n => n.toFixed(1);
+  let paths = "", lit = "", dots = "", pills = "";
+  for(const l of lay.links){
+    const A = CT.recs.get(l.a), B = CT.recs.get(l.b);
+    if(!A || !B) continue;
+    const back = l.kind === "m" && A.x + A.w / 2 > B.x + B.w / 2;
+    const ax = back ? A.x : A.x + A.w, ay = A.y + A.h / 2;
+    const by = B.y + (l.kind === "c" ? MM.CHEAD / 2 : l.kind === "w" ? MM.WHEAD / 2
+      : l.kind === "m" ? MM.WHEAD + l.row * MM.WROW + MM.WROW / 2 : B.h / 2);
+    const bx = back ? B.x + B.w : B.x, on = hot.has(l);
+    let d, seg;
+    if(l.trunk && Math.abs(by - ay) > 1){
+      const mx = ax + Math.min(56, (bx - ax) * .4), s = by > ay ? 1 : -1;
+      const r = Math.min(14, Math.abs(by - ay) / 2, (bx - mx) / 2);
+      d = `M${f(ax)} ${f(ay)}H${f(mx - r)}Q${f(mx)} ${f(ay)} ${f(mx)} ${f(ay + s * r)}V${f(by - s * r)}Q${f(mx)} ${f(by)} ${f(mx + r)} ${f(by)}H${f(bx)}`;
+      seg = mx + r;
+    }else{
+      const dx = Math.max(36, Math.abs(bx - ax) * .5) * (back ? -1 : 1);
+      d = `M${f(ax)} ${f(ay)}C${f(ax + dx)} ${f(ay)} ${f(bx - dx)} ${f(by)} ${f(bx)} ${f(by)}`;
+      seg = ax + (bx - ax) * .5;
+    }
+    const path = `<path class="mm-link ${l.kind}${on ? " hot" : ""}${l.kind === "t" && ctState(l.b) === "locked" ? " locked" : ""}" d="${d}"/>`;
+    if(on) lit += path; else paths += path;
+    if(l.kind !== "m" && l.kind !== "p") dots += `<circle class="mm-dot${on ? " hot" : ""}" cx="${f(bx)}" cy="${f(by)}" r="3.5"/>`;
+    if(l.pill){
+      /* on the last straight stretch, short of the character */
+      const w = 16 + [...l.pill].length * 13, x = Math.max((seg + bx) / 2, bx - 24 - w / 2);
+      pills += `<g class="mm-pill${on ? " hot" : ""}" transform="translate(${f(x)} ${f(by)})"><rect x="${-w / 2}" y="-11" width="${w}" height="22" rx="11"/><text y="4.5">${esc(l.pill)}</text></g>`;
+    }
+  }
+  svg.innerHTML = paths + lit + dots + pills;
+}
+
+/* Each column's name over its top. */
+function mmPaintCols(){
+  const host = $("#mm-cols");
+  if(!host || !CT.lay) return;
+  host.innerHTML = CT.lay.cols.map(c => `<span class="mm-col" style="transform:translate(${c.x}px,${c.y}px)">${esc(c.name)}</span>`).join("");
+}
+
+/* What is picked or under the pointer, and the way back to the core from
+   it, lit: the boxes on the way, the links between them; for a word, every
+   character on the map it is written with. */
+function mmMarkKin(){
+  const board = $("#mm-boxes");
+  if(!board || !CT.lay) return;
+  const focus = CT.hover || CT.sel, lit = new Set(), kin = new Set(), hot = new Set();
+  if(focus){
+    if(focus.startsWith("w:")){
+      const r = CT.wordById.get(focus.slice(2));
+      if(r) for(const ch of new Set(r[1])) kin.add(ch);
+      const host = mmItemEl(focus)?.closest("[data-box]")?.dataset.box;
+      for(const l of CT.lay.links) if(l.b === host && (l.kind === "w" || (l.kind === "m" && kin.has(l.a)))) hot.add(l);
+      let k = host && CT.lay.boxes.get(host);
+      for(let up = k && k.parent; up != null; up = CT.lay.boxes.get(up)?.parent) lit.add(up);
+    }else{
+      /* the way to the core: the character, the group it sits in, its parents */
+      let key = focus;
+      const into = new Set([focus]);
+      while(key != null){
+        const b = CT.lay.boxes.get(key);
+        const holder = b ? key : [...CT.lay.boxes.values()].find(x => x.type === "cluster" && x.list.includes(key))?.key;
+        if(holder) into.add(holder);
+        const p = CT.tree.parent.get(key);
+        if(p === undefined) break;
+        lit.add(p); into.add(p);
+        key = p;
+      }
+      for(const l of CT.lay.links) if(l.kind !== "m" && into.has(l.a) && into.has(l.b)) hot.add(l);
+      for(const k of CT.tree.branches.get(focus) || []) kin.add(k);
+    }
+  }
+  CT.hotLinks = hot;
+  for(const el of board.querySelectorAll("[data-k]")){
+    const k = el.dataset.k;
+    el.classList.toggle("sel", k === CT.sel);
+    el.classList.toggle("hov", k === CT.hover && k !== CT.sel);
+    el.classList.toggle("lit", lit.has(k));
+    el.classList.toggle("kin", kin.has(k));
+    el.setAttribute("aria-pressed", String(k === CT.sel));
+  }
+  mmLinks();
 }
 
 /* ---------------- the camera ---------------- */
 
-function ctCam(){
-  const {x, y, k} = CT.cam, box = $("#ctree");
-  $("#ct-plane").style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${k.toFixed(4)})`;
-  /* The dots are the floor the tree stands over: they move at half the
-     tree's pace and grow at the root of its zoom, so the tree reads as
-     above them; they thin out by half when zooming out would crowd them. */
-  let g = CT_DOT * Math.sqrt(k);
-  while(g < 15) g *= 2;
-  box.style.backgroundSize = `${g.toFixed(2)}px ${g.toFixed(2)}px`;
-  box.style.backgroundPosition = `${(x * .5).toFixed(1)}px ${(y * .5).toFixed(1)}px`;
-  box.classList.toggle("far", k < .6);
-  /* The small targets — a knob, a tag's part — keep about their size on the
-     screen as the view draws back: their reach grows by 1 / k, in steps. */
-  const reach = clamp(1 / k, 1, 2.2).toFixed(1);
-  if(CT.reachK !== reach){ CT.reachK = reach; box.style.setProperty("--ct-reach", reach); }
-  ctPaintBands();
-  ctPlaceTiers();
-  ctMapSoon();
-  ctHideTip();
+const CT_ZMIN = .28, CT_ZMAX = 1.8;
+function mmCam(){
+  const plane = $("#ct-plane"), box = $("#ctree"), {x, y, k} = CT.cam;
+  if(!plane) return;
+  plane.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${k.toFixed(4)})`;
+  box.style.backgroundPosition = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+  /* the dots spread out as the view draws back, rather than crowding */
+  const dot = 24 * k * (k < .5 ? 2 : 1);
+  box.style.backgroundSize = `${dot.toFixed(2)}px ${dot.toFixed(2)}px`;
+  box.classList.toggle("far", k < .55);
+  mmMapSoon();
 }
-
-function ctCamTo(to, ms = 420){
-  ctStopCam();
-  const from = {...CT.cam};
-  const land = () => { ctStopCam(); Object.assign(CT.cam, to); ctCam(); };
-  if(!ms || REDUCED()){ land(); return; }
-  const t0 = performance.now();
-  ctMoving();
-  const step = now => {
-    const t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
-    CT.cam.x = from.x + (to.x - from.x) * e;
-    CT.cam.y = from.y + (to.y - from.y) * e;
-    CT.cam.k = from.k + (to.k - from.k) * e;
-    ctCam();
-    if(t < 1){ CT.camRaf = requestAnimationFrame(step); ctMoving(); }
-    else land();
+/* Where the view rests: the whole map where it reads at that size; else the
+   core and the start of its first tier, at a size that reads. */
+function mmHome(ms = 420){
+  const box = $("#ctree"), lay = CT.lay;
+  if(!box || !lay || !box.clientWidth) return;
+  const W = box.clientWidth, H = box.clientHeight, top = mmTop(), e = lay.ext;
+  const fit = Math.min((W - 64) / e.w, (H - top - 40) / e.h, 1);
+  let cam;
+  if(fit >= (mmPhone() ? .62 : .72)) cam = {k: fit, x: (W - e.w * fit) / 2 - e.x0 * fit, y: top + (H - top - e.h * fit) / 2 - e.y0 * fit};
+  else{
+    /* too big to read whole: from its top left — what the core is built
+       from, the core, and the start of its first tier */
+    const phone = mmPhone(), k = phone ? .74 : 1;
+    /* on a phone the core comes first, its first tier showing at the edge,
+       and what it is built from a swipe away to the left */
+    cam = {k, x: phone ? 10 - lay.root.x * k : 32 - e.x0 * k, y: top + 12 - e.y0 * k};
+  }
+  mmCamTo(cam, ms);
+}
+/* the room the next quest takes over the map's top */
+const mmTop = () => { const q = $("#sk-quest"); return q && q.offsetParent ? q.offsetTop + q.offsetHeight + 8 : 16; };
+function mmFit(ms = 420){
+  const box = $("#ctree"), e = CT.lay && CT.lay.ext;
+  if(!box || !e) return;
+  const W = box.clientWidth, H = box.clientHeight, top = mmTop();
+  const k = clamp(Math.min((W - 64) / e.w, (H - top - 40) / e.h), CT_ZMIN, 1.2);
+  mmCamTo({k, x: (W - e.w * k) / 2 - e.x0 * k, y: top + (H - top - e.h * k) / 2 - e.y0 * k}, ms);
+}
+function mmCamTo(to, ms = 420){
+  cancelAnimationFrame(CT.camAnim);
+  if(!ms || REDUCED()){ Object.assign(CT.cam, to); mmCam(); return; }
+  const c0 = {...CT.cam}, start = performance.now();
+  const frame = now => {
+    const p = Math.min(1, (now - start) / ms), e = 1 - Math.pow(1 - p, 3);
+    CT.cam.x = c0.x + (to.x - c0.x) * e; CT.cam.y = c0.y + (to.y - c0.y) * e; CT.cam.k = c0.k + (to.k - c0.k) * e;
+    mmCam();
+    if(p < 1) CT.camAnim = requestAnimationFrame(frame);
   };
-  CT.camRaf = requestAnimationFrame(step);
-  /* a page that is not being drawn runs no frames: the camera lands anyway */
-  CT.camTimer = setTimeout(land, ms + 250);
+  CT.camAnim = requestAnimationFrame(frame);
 }
-/* Whatever the camera was doing on its own stops: a hand has taken it. */
-function ctStopCam(){
-  cancelAnimationFrame(CT.camRaf);
-  cancelAnimationFrame(CT.glide);
-  clearTimeout(CT.camTimer);
-  CT.camRaf = CT.glide = 0;
-}
-
-/* The whole tree in view, at a size it can be read at. One too big for that
-   is shown from its root's side: the root a third of the way in, and from
-   the top of what it builds into while the root is still in view that way,
-   centred on the root where it is not; the map in the corner shows the rest. */
-function ctFit(ms = 420){
-  const box = $("#ctree");
-  if(!box || !CT.lay || !box.clientWidth || !box.clientHeight) return;
-  const W = box.clientWidth, H = box.clientHeight;
-  const e = ctExtent(CT.lay);
-  const padX = 34, top = CT_HEAD + 18, room = H - top - 22;
-  let k = Math.min((W - padX * 2) / e.w, room / e.h);
-  /* A phone is narrower than any tree: there it keeps a size that can be
-     read and leaves the branches running off to the right, to be dragged in. */
-  k = clamp(k, W < 520 ? .72 : .66, 1.06);
-  let x = (W - (e.x0 + e.x1) * k) / 2;
-  let y = top + (room - (e.y0 + e.y1) * k) / 2;
-  /* Wider than the canvas: the root a third of the way in — a fifth on a
-     phone — so what it builds into is on screen and what it is made of is a
-     drag away, but never with the canvas left empty past either end of the
-     tree. */
-  if(e.w * k > W - padX * 2) x = clamp(W * (W < 520 ? .2 : .3), W - padX - e.x1 * k, padX - e.x0 * k);
-  if(e.h * k > room) y = -e.y0 * k < room - CT_ROOT ? top + 6 - e.y0 * k : top + room / 2;
-  ctCamTo({x, y, k}, ms);
-}
-
-function ctZoomAt(px, py, k){
+function mmStopCam(){ cancelAnimationFrame(CT.camAnim); cancelAnimationFrame(CT.glide); }
+function mmZoomAt(px, py, k){
   k = clamp(k, CT_ZMIN, CT_ZMAX);
-  const c = CT.cam, wx = (px - c.x) / c.k, wy = (py - c.y) / c.k;
-  c.x = px - wx * k; c.y = py - wy * k; c.k = k;
-  ctCam();
+  const wx = (px - CT.cam.x) / CT.cam.k, wy = (py - CT.cam.y) / CT.cam.k;
+  CT.cam.k = k; CT.cam.x = px - wx * k; CT.cam.y = py - wy * k;
+  mmCam();
 }
-function ctZoomBy(f){
+function mmZoomBy(f){
   const box = $("#ctree");
-  const to = clamp(CT.cam.k * f, CT_ZMIN, CT_ZMAX), px = box.clientWidth / 2, py = (box.clientHeight + CT_HEAD) / 2;
-  const c = CT.cam, wx = (px - c.x) / c.k, wy = (py - c.y) / c.k;
   CT.touched = true;
-  ctCamTo({x: px - wx * to, y: py - wy * to, k: to}, 220);
+  const k = clamp(CT.cam.k * f, CT_ZMIN, CT_ZMAX), px = box.clientWidth / 2, py = box.clientHeight / 2;
+  const wx = (px - CT.cam.x) / CT.cam.k, wy = (py - CT.cam.y) / CT.cam.k;
+  mmCamTo({k, x: px - wx * k, y: py - wy * k}, 220);
+}
+/* An item brought into view, centred where it is off the screen. */
+function mmShow(key, ms = 420){
+  const box = $("#ctree"), it = mmItemBox(key, true);
+  if(!box || !it) return;
+  const {x, y, k} = CT.cam, W = box.clientWidth, H = box.clientHeight, top = mmTop();
+  const sx = x + it.x * k, sy = y + it.y * k, sw = it.w * k, sh = it.h * k;
+  if(sx >= 24 && sy >= top && sx + sw <= W - 24 && sy + sh <= H - 70) return;
+  mmCamTo({k, x: W / 2 - (it.x + it.w / 2) * k, y: top + (H - top) / 2 - (it.y + it.h / 2) * k}, ms);
 }
 
-/* The part of the canvas nothing stands over: the panel, where it is a
-   card over the canvas rather than beside it, and the map. */
-function ctClear(){
-  const box = $("#ctree"), W = box.clientWidth, H = box.clientHeight;
-  let right = W, low = H - 44;
-  const insp = $("#ct-insp");
-  if(insp && !insp.hidden && !ctDocked()){
-    /* across most of the canvas it is a sheet at its foot; else a card at its side */
-    const b = box.getBoundingClientRect(), r = insp.getBoundingClientRect();
-    if(r.width > b.width * .7) low = Math.min(low, r.top - b.top - 50);
-    else right = Math.min(right, r.left - b.left - 16);
-  }
-  return {W, H, right, low};
+/* The map of the whole map, in the corner: every box, and the view on it. */
+function mmMapSoon(){
+  if(CT.mapTimer) return;
+  CT.mapTimer = requestAnimationFrame(() => { CT.mapTimer = 0; mmDrawMap(); });
 }
-
-/* Bring a node on screen if it is off it, under the header, or under the
-   panel or the map. */
-function ctReveal(key, ms = 360){
-  const box = $("#ctree"), n = CT.lay && CT.lay.nodes.get(key);
-  if(!box || !n) return;
-  const {x, y, k} = CT.cam, {W, right, low: lowest} = ctClear();
-  const sx = x + n.x * k, sy = y + n.y * k, m = 76;
-  const map = $("#ct-map");
-  let low = lowest;
-  if(map && map.offsetParent && sx > map.offsetLeft - 40) low = Math.min(low, map.offsetTop - 50);
-  let nx = x, ny = y;
-  if(sx < m) nx += m - sx; else if(sx > Math.min(W, right) - m) nx -= sx - (Math.min(W, right) - m);
-  if(sy < CT_HEAD + m) ny += CT_HEAD + m - sy; else if(sy > low) ny -= sy - low;
-  if(nx !== x || ny !== y) ctCamTo({x: nx, y: ny, k}, ms);
-}
-/* Bring a group on screen, its name strip first and as much of it under
-   that as there is room for. */
-function ctRevealGroup(key, ms = 420){
-  const n = CT.lay && CT.lay.nodes.get(key);
-  if(!n) return;
-  const {x, y, k} = CT.cam, {right, low} = ctClear(), m = 24;
-  const top = n.y - CT_GHEAD / 2;
-  const sx0 = x + n.x * k, sx1 = x + (n.x + n.w) * k, sy0 = y + top * k, sy1 = y + (top + n.h) * k;
-  let nx = x, ny = y;
-  if(sx1 > right - m) nx -= Math.min(sx1 - (right - m), sx0 - m);
-  else if(sx0 < m) nx += m - sx0;
-  if(sy1 > low + 30) ny -= Math.min(sy1 - (low + 30), sy0 - (CT_HEAD + m));
-  else if(sy0 < CT_HEAD + m) ny += CT_HEAD + m - sy0;
-  if(nx !== x || ny !== y) ctCamTo({x: nx, y: ny, k}, ms);
-}
-
-/* While the camera moves the plane is its own layer, so a pan is the
-   compositor sliding a picture; once it stops the layer goes and the text is
-   drawn sharp again at the new size. */
-function ctMoving(){
-  const box = $("#ctree");
-  box.classList.add("moving");
-  clearTimeout(CT.idle);
-  CT.idle = setTimeout(() => box.classList.remove("moving"), 180);
-}
-
-/* ---------------- the map ---------------- */
-
-/* The whole tree in miniature in the corner — every tile a dot in the
-   colour it is lit, every group a panel, the view a frame on it. Drawn on
-   the next frame after anything moves, at most once a frame. */
-function ctMapSoon(){
-  if(CT.mapRaf) return;
-  /* a frame, or a beat where frames are not running (a hidden page) */
-  const draw = () => { if(!CT.mapRaf) return; cancelAnimationFrame(CT.mapRaf); clearTimeout(CT.mapTimer); CT.mapRaf = 0; ctDrawMap(); };
-  CT.mapRaf = requestAnimationFrame(draw);
-  CT.mapTimer = setTimeout(draw, 120);
-}
-function ctDrawMap(){
-  const panel = $("#ct-map"), cv = $("#ct-mapc"), box = $("#ctree");
-  if(!panel || !CT.lay || !box.offsetParent) return;
-  /* With the whole tree on screen the map says nothing the canvas does not:
-     it folds away to the key, and comes back once some of the tree is off. */
-  {
-    const e = ctExtent(CT.lay), {x, y, k} = CT.cam;
-    const whole = x + e.x0 * k > -4 && x + e.x1 * k < box.clientWidth + 4
-      && y + e.y0 * k > CT_HEAD - 4 && y + e.y1 * k < box.clientHeight + 4;
-    panel.classList.toggle("whole", whole);
-    if(whole || !cv.offsetParent) return;
-  }
-  const W = cv.clientWidth, H = cv.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
-  if(cv.width !== Math.round(W * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-  const g = cv.getContext("2d");
+function mmDrawMap(){
+  const cv = $("#mm-map"), box = $("#ctree"), lay = CT.lay;
+  if(!cv || !lay || !cv.offsetWidth) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.offsetWidth, H = cv.offsetHeight;
+  if(cv.width !== W * dpr){ cv.width = W * dpr; cv.height = H * dpr; }
+  const g = cv.getContext("2d"), css = getComputedStyle(box);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, W, H);
-  const e = ctExtent(CT.lay), pad = 8;
-  const s = Math.min((W - pad * 2) / e.w, (H - pad * 2) / e.h);
-  const ox = (W - e.w * s) / 2 - e.x0 * s, oy = (H - e.h * s) / 2 - e.y0 * s;
-  CT.map = {s, ox, oy};
-  const cs = getComputedStyle(document.documentElement), tok = n => cs.getPropertyValue(n).trim();
-  const ink = tok("--line-hot"), acc = tok("--acc"), soft = tok("--ink-soft"), muted = tok("--muted");
-  g.lineWidth = 1;
-  g.strokeStyle = ink;
-  g.globalAlpha = .7;
-  g.beginPath();
-  for(const w of CT.lay.links){
-    const a = CT.lay.nodes.get(w.a), b = CT.lay.nodes.get(w.b);
-    g.moveTo(ox + a.x * s, oy + a.y * s);
-    g.lineTo(ox + b.x * s, oy + b.y * s);
-  }
-  g.stroke();
-  g.globalAlpha = 1;
-  /* groups as the panels they are, under their tiles' dots, each edged in
-     its level's colour */
-  for(const n of CT.lay.nodes.values()){
-    if(!n.box) continue;
-    g.fillStyle = soft;
-    g.globalAlpha = .12;
-    g.fillRect(ox + n.x * s, oy + (n.y - CT_GHEAD / 2) * s, n.w * s, n.h * s);
-    if(n.lv){
-      g.globalAlpha = .9;
-      g.fillStyle = tok(`--hsk-${n.lv}`) || soft;
-      g.fillRect(ox + n.x * s, oy + (n.y - CT_GHEAD / 2) * s, 2, Math.max(2, n.h * s));
-    }
+  const e = lay.ext, s = Math.min((W - 12) / e.w, (H - 12) / e.h), ox = (W - e.w * s) / 2 - e.x0 * s, oy = (H - e.h * s) / 2 - e.y0 * s;
+  CT.mapXform = {s, ox, oy};
+  const col = v => css.getPropertyValue(v).trim();
+  for(const r of CT.recs.values()){
+    const b = r.b;
+    g.fillStyle = b.type === "root" ? col("--acc") : b.type === "words" ? col("--line-hot") : b.type === "part" ? col("--line") : col("--line-hot");
+    g.globalAlpha = b.type === "cluster" && !b.open ? .5 : .9;
+    g.fillRect(ox + r.x * s, oy + r.y * s, Math.max(2, r.w * s), Math.max(2, r.h * s));
   }
   g.globalAlpha = 1;
-  for(const n of CT.lay.nodes.values()){
-    if(n.box) continue;
-    const c = CT.g.by.get(n.key), known = c ? ctKnown(n.key) : 0;
-    const r = n.key === CT.root ? 3.6 : n.grid ? 1.8 : 2.3;
-    g.fillStyle = n.key === CT.root || known ? acc : c && +c.lv > +S.level ? muted : soft;
-    g.globalAlpha = c && +c.lv > +S.level && !known ? .55 : 1;
-    g.beginPath();
-    g.arc(ox + n.x * s, oy + n.y * s, r, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.globalAlpha = 1;
-  /* the view: the canvas below the header, in tree pixels */
-  const {x, y, k} = CT.cam, BW = box.clientWidth, BH = box.clientHeight;
-  const vx = (0 - x) / k, vy = (CT_HEAD - y) / k, vw = BW / k, vh = (BH - CT_HEAD) / k;
-  g.strokeStyle = acc;
-  g.lineWidth = 1.5;
-  g.strokeRect(ox + vx * s, oy + vy * s, vw * s, vh * s);
-  g.fillStyle = acc;
-  g.globalAlpha = .08;
-  g.fillRect(ox + vx * s, oy + vy * s, vw * s, vh * s);
-  g.globalAlpha = 1;
-}
-/* A press or a drag on the map takes the view there. */
-function ctMapTo(e){
-  const cv = $("#ct-mapc"), box = $("#ctree");
-  if(!CT.map) return;
-  const r = cv.getBoundingClientRect(), {s, ox, oy} = CT.map;
-  const wx = (e.clientX - r.left - ox) / s, wy = (e.clientY - r.top - oy) / s;
   const k = CT.cam.k;
-  CT.cam.x = box.clientWidth / 2 - wx * k;
-  CT.cam.y = (box.clientHeight + CT_HEAD) / 2 - wy * k;
+  g.strokeStyle = col("--acc"); g.lineWidth = 1.5;
+  g.strokeRect(ox + (-CT.cam.x / k) * s, oy + (-CT.cam.y / k) * s, box.clientWidth / k * s, box.clientHeight / k * s);
+  /* with the whole map on the screen there is nothing for it to find, and it
+     only covers the corner */
+  const sx = CT.cam.x + e.x0 * k, sy = CT.cam.y + e.y0 * k;
+  cv.classList.toggle("idle", sx >= 0 && sy >= 0 && sx + e.w * k <= box.clientWidth && sy + e.h * k <= box.clientHeight);
+}
+function mmMapTo(e){
+  const cv = $("#mm-map"), m = CT.mapXform;
+  if(!cv || !m) return;
+  const r = cv.getBoundingClientRect(), box = $("#ctree");
+  const wx = (e.clientX - r.left - m.ox) / m.s, wy = (e.clientY - r.top - m.oy) / m.s, k = CT.cam.k;
+  CT.cam.x = box.clientWidth / 2 - wx * k; CT.cam.y = box.clientHeight / 2 - wy * k;
   CT.touched = true;
-  ctCam(); ctMoving();
+  mmCam();
 }
 
-/* ---------------- picking and opening ---------------- */
+/* ---------------- picking ---------------- */
 
+/* Something picked, or "" for none. */
 function ctSelect(key, opts = {}){
-  if(key && !(CT.lay && CT.lay.nodes.has(key) && !CT.lay.nodes.get(key).box)) key = "";
-  const prev = CT.sel;
   CT.sel = key;
-  for(const k of [prev, key]){
-    const r = k && CT.recs.get(k);
-    if(r && r.node){ const cls = ctNodeClass(r.node); if(r.cls !== cls){ r.el.className = cls; r.cls = cls; } }
-  }
-  ctWires();
-  ctMarkTier();
+  mmMarkKin();
   ctPaintInsp();
-  if(key && opts.focus){ const r = CT.recs.get(key); if(r) r.el.focus({preventScroll: true}); }
-  if(key && opts.reveal !== false) ctReveal(key);
-  paintIndexSel();
+  if(typeof paintIndexRoot === "function") paintIndexRoot();
+  if(key && opts.show) mmShow(key);
+  if(key && opts.focus) mmItemEl(key)?.focus({preventScroll: true});
 }
 
-/* A character's branch opened or folded. Opened, a character in a group
-   leaves it for a row of its own; the view keeps it where it was on the
-   screen while the tree moves round it. */
-function ctToggle(key){
-  if(!CT.tree.branches.has(key) || key === CT.root) return;
-  if(CT.open.has(key)) CT.open.delete(key); else CT.open.add(key);
-  CT.touched = true;
-  ctRender(420, key);
-  ctPaintInsp();
-}
-
-/* A level opened off the shelf, or folded onto it. The shelf holds still
-   on the screen while the cards above it grow or go — where there was a
-   shelf before and is one after; otherwise the character the family is
-   built on does. An opened level is then brought into view. */
-function ctGroup(key){
-  const m = /^▦(.+)\|(\d)$/u.exec(key || "");
-  if(!m || !CT.lay) return;
-  const [, h, lv] = m, open = ctGroupOpen(key, lv), shelf = `▤${h}`;
-  CT.gopen.set(key, !open);
-  CT.touched = true;
-  const sel = CT.sel && CT.lay.nodes.get(CT.sel);
-  if(open && sel && sel.grid === key) ctSelect("", {reveal: false});
-  const anchor = CT.recs.has(shelf) && ctLayout().nodes.has(shelf) ? shelf : h;
-  ctRender(380, anchor);
-  if(!open) setTimeout(() => ctRevealGroup(key), 420);
-  ctPaintInsp();
-}
-
-/* Every group open, or every group folded, from the header — or back to
-   what the reader's level opens, with the same button pressed again. */
-function ctAllGroups(how){
-  CT.gall = CT.gall === how ? "" : how;
-  CT.gopen = new Map();
-  CT.touched = false;
-  if(CT.sel && !ctLayout().nodes.has(CT.sel)) CT.sel = "";
-  ctRender(460);
-  ctFit(520);
-  ctPaintTools();
-  ctPaintInsp();
-}
-
-/* Whatever stands between the root and a character opened, so it is on the
-   canvas: its elders' branches, and the group it is in. Whether anything
-   had to open. */
-function ctEnsure(key){
-  const t = CT.tree;
+/* A character named somewhere else — the panel, the next quest, the index —
+   brought onto the map: the characters it hangs from opened, its level
+   group unfolded, then shown and picked. */
+function ctPick(key){
+  if(!ctPlaced(key)) return;
   let changed = false;
-  for(let k = key, i = 0; i < 60 && k !== t.root; i++){
-    const p = t.parent.get(k);
-    if(p === undefined) break;
-    if(p !== t.root && !CT.open.has(p)){ CT.open.add(p); changed = true; }
-    const sibs = t.branches.get(p) || [];
-    if(sibs.length > CT_ROWS && !(CT.open.has(k) && (t.branches.get(k) || []).length)){
-      const lv = CT.g.by.get(k).lv, gk = ctGroupKey(p, lv);
-      if(!ctGroupOpen(gk, lv)){ CT.gopen.set(gk, true); changed = true; }
-    }
-    k = p;
+  for(let p = CT.tree.parent.get(key); p !== undefined && p !== CT.root; p = CT.tree.parent.get(p))
+    if(!CT.open.has(p)){ CT.open.add(p); changed = true; }
+  const p = CT.tree.parent.get(key);
+  if(p !== undefined && !CT.open.has(key) && (CT.tree.branches.get(p) || []).length > MM_WIDE.SMALL){
+    const fold = `lv:${p}:${CT.g.by.get(key).lv}`;
+    if(CT.fold.get(fold) === false || !mmItemEl(key)){ CT.fold.set(fold, true); changed = true; }
   }
-  return changed;
+  if(changed) ctRender();
+  ctSelect(key, {focus: true});
+  setTimeout(() => mmShow(key), changed && !REDUCED() ? 440 : 0);
 }
 
-/* The keys, while the tree is on screen: the arrows walk it — right along a
-   branch (opening it first), left back towards the root and past it into
-   what the root is made of, up and down among siblings, cell by cell in a
-   group — Enter opens the entry, space folds a branch, +, − and 0 zoom, F
-   takes the whole window, G grows a tree from the tile picked and Backspace
-   goes back along the trail. */
+/* The Find box: a character, a word, or a reading. A character on the map
+   is brought into view; one that is not becomes the core. A word is shown
+   where it is listed — under a character on the map that writes it, or else
+   under its first character, which becomes the core — and picked, so the
+   panel says what it is built from. Pinyin with or without tones finds the
+   word, or else the character, it spells. */
+function ctFind(raw){
+  const q = String(raw || "").trim();
+  if(!q || !CT.wordRows) return;
+  let word = null, ch = "";
+  if(/^[a-züà-ǜ\s'·-]+$/i.test(q)){
+    const want = plainPinyin(q);
+    word = CT.wordRows.find(r => plainPinyin(r[2]) === want) || null;
+    if(!word){ const c = (C.all || []).find(c => plainPinyin(c.p) === want); if(c) ch = c.h; }
+  }else if([...q].length === 1) ch = q;
+  else{
+    if(!CT.wordBySimp) CT.wordBySimp = new Map(CT.wordRows.map(r => [r[1], r]).reverse());
+    word = CT.wordBySimp.get(q) || null;
+  }
+  if(word){ ctFindWord(word); return; }
+  /* a radical is its family: 竹 is the bamboo characters, built on ⺮ */
+  if(ch && typeof RX !== "undefined" && RX.by.has(ch)){
+    const root = rxRootOf(ch);
+    if(root && root !== ch && (CT.g.kids.get(root) || []).length > (CT.g.kids.get(ch) || []).length){
+      S.charRad = ch; save();
+      ctStart(root, {trail: true});
+      if(typeof paintIndex === "function") paintIndex();
+      return;
+    }
+  }
+  if(ch && (CT.g.by.has(ch) || CT.g.kids.has(ch))){
+    if(ctPlaced(ch)) ctPick(ch); else ctStart(ch, {trail: true});
+    return;
+  }
+  toast(`Nothing called “${q}” among the characters and words`);
+}
+function ctFindWord(r){
+  const chars = [...new Set(r[1])].filter(ch => CT.g.by.has(ch));
+  const owner = chars.find(ctPlaced) || chars[0];
+  if(!owner) return;
+  if(!ctPlaced(owner)) ctStart(owner, {trail: true});
+  for(let p = owner; p !== undefined && p !== CT.root; p = CT.tree.parent.get(p)) CT.open.add(p);
+  const key = `w:${r[0]}`;
+  const i = ctWordsOf(owner).findIndex(x => x[0] === r[0]);
+  if(i >= MM.WSHOW) CT.wall.set(owner, i + 1);
+  ctRender();
+  /* listed earlier under another character than counted: show all of it */
+  if(!mmItemEl(key)){ CT.wall.set(owner, ctWordsOf(owner).length); ctRender({ms: 0}); }
+  ctSelect(key, {focus: true});
+  setTimeout(() => mmShow(key), REDUCED() ? 0 : 440);
+}
+
+/* A character opened or folded on the map; the camera keeps it where it is. */
+function ctToggle(key){
+  if(!CT.g.by.has(key) || key === CT.root) return;
+  const opening = !CT.open.has(key);
+  if(opening) CT.open.add(key);
+  else for(const h of [key, ...mmBelow(key)]){ CT.open.delete(h); CT.wall.delete(h); }
+  ctRender({anchor: key, reveal: opening});
+  ctPaintInsp();
+}
+/* everything under a character in the tree */
+function mmBelow(key){
+  const out = [], stack = [...(CT.tree.branches.get(key) || [])];
+  while(stack.length){ const h = stack.pop(); out.push(h); stack.push(...(CT.tree.branches.get(h) || [])); }
+  return out;
+}
+
+/* ---------------- the keys ---------------- */
+
+/* The arrows walk the map by where things are — the nearest thing that way;
+   Space opens or folds a character; Enter opens its entry; Q starts its
+   quest; G makes it the core; + − and 0 zoom and fit; Backspace goes back
+   along the trail; Escape puts it down. */
 function treeKey(e){
-  if(S.view !== "chars" || S.charView !== "tree" || !CT.lay) return false;
+  if(S.view !== "chars" || S.charView !== "tree" || !CT.tree || e.ctrlKey || e.metaKey || e.altKey) return false;
+  if(e.target && e.target.closest && e.target.closest("input, select, textarea, dialog, #cidx")) return false;
   const k = e.key, onButton = e.target && e.target.closest && e.target.closest("button");
-  if(k === "+" || k === "="){ e.preventDefault(); ctZoomBy(1.25); return true; }
-  if(k === "-" || k === "_"){ e.preventDefault(); ctZoomBy(.8); return true; }
-  if(k === "0"){ e.preventDefault(); CT.touched = false; ctFit(); return true; }
-  if(k === "f" || k === "F"){ e.preventDefault(); ctMax(); return true; }
-  if((k === "g" || k === "G") && CT.sel && CT.sel !== CT.root){ e.preventDefault(); ctStart(CT.sel, {trail: true}); return true; }
+  const sel = CT.sel, word = sel.startsWith("w:");
+  if(k === "+" || k === "="){ e.preventDefault(); mmZoomBy(1.25); return true; }
+  if(k === "-" || k === "_"){ e.preventDefault(); mmZoomBy(.8); return true; }
+  if(k === "0"){ e.preventDefault(); CT.touched = false; mmFit(); return true; }
+  if((k === "g" || k === "G") && sel && !word && sel !== CT.root){ e.preventDefault(); ctStart(sel, {trail: true}); return true; }
+  if((k === "q" || k === "Q") && (sel && !word ? CT.g.by.has(sel) : CT.quest)){ e.preventDefault(); questStart(sel && !word ? sel : CT.quest); return true; }
   if(k === "Backspace" && CT.trail.length){ e.preventDefault(); ctCommand("back", CT.trail.length - 1); return true; }
-  if(k === "Escape" && CT.sel){ e.preventDefault(); ctSelect(""); return true; }
-  if(k === "Escape" && document.body.classList.contains("ct-max")){ e.preventDefault(); ctMax(false); return true; }
+  if(k === "Escape" && sel){ e.preventDefault(); ctSelect(""); return true; }
+  if(k === " " && sel && !word && !onButton){ e.preventDefault(); ctToggle(sel); return true; }
   if(k.startsWith("Arrow")){
     if(onButton && !onButton.closest("#ctree")) return false;
-    e.preventDefault(); ctStep(k); return true;
+    e.preventDefault(); mmStep(k); return true;
   }
-  if((k === "Enter" || k === " ") && CT.sel && !onButton){
-    e.preventDefault();
-    if(k === " ") ctToggle(CT.sel);
-    else ctActivate(CT.sel);
-    return true;
-  }
+  if(k === "Enter" && sel && !onButton){ e.preventDefault(); ctActivate(sel); return true; }
   return false;
 }
 
-/* A node used: a character opens its entry, a part with no entry grows its
-   own tree. */
+/* Something used: a character's entry, a word's entry, or a component's map. */
 function ctActivate(key){
-  if(CT.g.by.has(key)) safely("open that entry", () => openChar(key));
+  if(key.startsWith("w:")) safely("open that entry", () => openWord(key.slice(2)));
+  else if(CT.g.by.has(key)) safely("open that entry", () => openChar(key));
   else ctStart(key, {trail: true});
 }
 
-function ctStep(dir){
-  const lay = CT.lay, cur = lay.nodes.get(CT.sel);
-  if(!cur){ ctSelect(CT.root, {focus: true}); return; }
-  /* a node's own: its branches, and the tiles in its groups */
-  const owner = n => n.grid ? lay.nodes.get(n.grid).parent : n.parent;
-  const kidsOf = (key, side) => [...lay.nodes.values()]
-    .filter(n => !n.box && n.side === side && owner(n) === key).sort((a, b) => a.y - b.y || a.x - b.x);
-  const middle = list => list[Math.floor((list.length - 1) / 2)];
-  let next = null;
-  if(cur.grid){
-    /* in a group the arrows go cell by cell; left from its first column goes
-       back to the character the group is built on, up and down past its
-       edge to the nearest tile above or below — the next group's */
-    const mates = [...lay.nodes.values()].filter(n => n.grid === cur.grid);
-    const row = mates.filter(n => Math.abs(n.y - cur.y) < 2);
-    if(dir === "ArrowRight"){
-      next = row.filter(n => n.x > cur.x + 2).sort((a, b) => a.x - b.x)[0];
-      if(!next){
-        const below = mates.filter(n => n.y > cur.y + 2), top = Math.min(...below.map(n => n.y));
-        next = below.filter(n => Math.abs(n.y - top) < 2).sort((a, b) => a.x - b.x)[0];
-      }
-    }else if(dir === "ArrowLeft") next = row.filter(n => n.x < cur.x - 2).sort((a, b) => b.x - a.x)[0] || lay.nodes.get(owner(cur));
-    else{
-      const down = dir === "ArrowDown";
-      next = mates.filter(n => Math.abs(n.x - cur.x) < 2 && (down ? n.y > cur.y + 2 : n.y < cur.y - 2))
-        .sort((a, b) => Math.abs(a.y - cur.y) - Math.abs(b.y - cur.y))[0];
-      if(!next){
-        const near = [...lay.nodes.values()].filter(n => !n.box && n.side === cur.side && n.grid !== cur.grid
-          && (down ? n.y > cur.y : n.y < cur.y));
-        near.sort((a, b) => Math.abs(a.y - cur.y) + Math.abs(a.x - cur.x) * .5 - (Math.abs(b.y - cur.y) + Math.abs(b.x - cur.x) * .5));
-        next = near[0];
-      }
-    }
-  }else if(dir === "ArrowRight"){
-    if(cur.side < 0) next = lay.nodes.get(cur.parent);
-    else if(cur.hidden){ ctToggle(cur.key); return; }
-    else next = middle(kidsOf(cur.key, 1));
-  }else if(dir === "ArrowLeft"){
-    if(cur.side > 0) next = lay.nodes.get(cur.parent);
-    else next = middle(kidsOf(cur.key, -1));
-  }else{
-    const down = dir === "ArrowDown";
-    const sibs = cur.parent === undefined ? [] : kidsOf(cur.parent, cur.side);
-    const i = sibs.indexOf(cur);
-    next = sibs[i + (down ? 1 : -1)];
-    if(!next){
-      /* the end of a run of siblings: the nearest node above or below in the same tier */
-      const col = [...lay.nodes.values()].filter(n => !n.box && n.depth === cur.depth && n.side === cur.side && (down ? n.y > cur.y : n.y < cur.y));
-      col.sort((a, b) => Math.abs(a.y - cur.y) - Math.abs(b.y - cur.y));
-      next = col[0];
-    }
+function mmStep(dir){
+  const items = [...$("#mm-boxes").querySelectorAll("[data-k]")].map(el => ({k: el.dataset.k, b: mmItemBox(el.dataset.k, true)})).filter(i => i.b);
+  if(!items.length) return;
+  const cur = items.find(i => i.k === CT.sel);
+  if(!cur){ ctSelect(CT.root, {show: true, focus: true}); return; }
+  const cx = cur.b.x + cur.b.w / 2, cy = cur.b.y + cur.b.h / 2;
+  const [ux, uy] = {ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1]}[dir];
+  /* the nearest thing that way — within a cone of the arrow first, so a
+     step down does not land on something far off to the side */
+  let best = null, score = Infinity, wide = null, wideScore = Infinity;
+  for(const i of items){
+    if(i === cur) continue;
+    const dx = i.b.x + i.b.w / 2 - cx, dy = i.b.y + i.b.h / 2 - cy;
+    const along = dx * ux + dy * uy, across = Math.abs(dx * uy - dy * ux);
+    if(along <= 4) continue;
+    const s = along + across * 2.2;
+    if(across <= along * 1.6){ if(s < score){ score = s; best = i; } }
+    else if(s < wideScore){ wideScore = s; wide = i; }
   }
-  if(next) ctSelect(next.key, {focus: true});
+  best = best || wide;
+  if(best) ctSelect(best.k, {show: true, focus: true});
 }
 
 /* ---------------- the panel ---------------- */
 
-/* What the panel tells about a character: the character large, its strokes
-   ready to play; its reading, level and where the reader stands with it; its
-   meaning; how it is built, each part marked as the one that gives the
-   meaning or the sound and each a way to grow the tree from it; what it
-   builds into, level by level; and the words it is written in. With nothing
-   picked, beside the canvas, it tells about the root and its family. */
+/* What the panel tells about what is picked — with nothing picked, beside
+   the map, the core. A character: its strokes ready to play; where the
+   reader stands with it — its state, stars and the XP still in it, and what
+   it needs or opens; its reading and meaning; how it is built; the words it
+   is written in; and its quest. A word: what it means and the characters it
+   is built from, each with where the reader stands. */
 function ctPaintInsp(){
   const el = $("#ct-insp");
   if(!el || !CT.tree) return;
   const docked = ctDocked();
   const key = CT.sel || (docked ? CT.root : "");
-  const n = key && CT.lay && CT.lay.nodes.get(key);
-  if(!n || n.box){
+  if(!key){
     el.hidden = true; el.innerHTML = ""; CT.insp = ""; CT.writer = null;
     return;
   }
-  /* Drawn again only when there is something new to say: a new tile, the
-     deck changed under it, its branch opened or folded, another level. */
-  const stamp = [key, CT.root, S.level, ctKnown(key), CT.deck.get(key) || 0, CT.open.has(key), docked, n.side, questEarned.has(key)].join("|");
+  const word = key.startsWith("w:");
+  const stamp = [key, CT.root, S.level, docked, CT.quest, questInfo.xp, CT.open.has(key),
+    word ? CT.famWords.get(key.slice(2)) || 0 : `${ctStars(key)}${ctState(key)}${CT.deck.get(key) || 0}`].join("|");
   el.hidden = false;
   if(CT.insp === stamp) return;
   CT.insp = stamp;
-  el.innerHTML = ctInspHTML(key, n, docked);
+  el.innerHTML = word ? mmWordHTML(key.slice(2), docked) : ctInspHTML(key, docked);
   el.querySelector(".ct-i-scroll").scrollTop = 0;
-  const c = CT.g.by.get(key);
-  CT.writer = null; // Load strokes only when the learner requests animation.
-  if(c) wordsWithChar(key, 6).then(words => {
+  CT.writer = null; // strokes load only when asked to play
+  if(!word && CT.g.by.has(key)) wordsWithChar(key, 6).then(words => {
     const box = $("#ct-i-words");
     if(!box || CT.insp !== stamp) return;
     box.innerHTML = words.length ? words.map(w => `
@@ -1516,54 +1311,100 @@ function ctPaintInsp(){
   });
 }
 
-function ctInspHTML(key, n, docked){
+const ctCloseX = `<button class="ct-x" data-ct="unsel" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
+
+function mmWordHTML(id, docked){
+  const r = CT.wordById.get(id);
+  if(!r) return `<div class="ct-i-scroll"><p class="ct-i-none">That word is not in the syllabus.</p></div>`;
+  const st = ctWordState(r), chars = [...new Set(r[1])], inDeck = (CT.famWords.get(id) || 0) > 0, daily = ctEveryday(r);
+  const need = chars.filter(ch => CT.g.by.has(ch) && !ctLearned(ch));
+  return `${docked ? "" : ctCloseX}
+    <div class="ct-i-scroll">
+      <div class="ct-i-kicker">${daily ? "Everyday word · not on the HSK list" : "Word · a combination"}</div>
+      <div class="mm-i-word"><b class="hz">${esc(r[1])}</b><span class="py">${pinyinHTML(r[2])}</span></div>
+      <div class="sk-i-st"><span class="sk-badge ${st === "locked" ? "locked" : st === "ready" ? "ready" : st === "mastered" ? "mastered" : "learned"}">${
+        st === "locked" ? CT_LOCK : ""}${st === "ready" ? "Ready" : CT_STATES[st]}</span>${daily
+        ? `<span class="ct-chip">HSK ${esc(levelLabel(r[4]))} characters</span>${r[5] ? `<span class="ct-chip">#${num(r[5])} in films and TV</span>` : ""}` : lvChip(r[4])}</div>
+      <p class="ct-i-en">${esc(r[3])}</p>
+      <section class="ct-i-sec"><h4 class="ct-i-h"><span>Built from</span><small>${chars.length} characters</small></h4>
+        <div class="mm-i-chars">${chars.map(ch => {
+          const a = ctAbout(ch), on = ctPlaced(ch), s = CT.g.by.has(ch) ? ctStars(ch) : 0;
+          return `<button class="mm-i-char${ctLearned(ch) ? " done" : ""}" type="button" ${on ? `data-ct="pick" data-arg="${esc(ch)}"` : `data-ct="grow" data-arg="${esc(ch)}"`}
+            title="${on ? `Show ${esc(ch)} on the map` : `Grow a map from ${esc(ch)}`}"><b class="hz">${esc(ch)}</b>
+            <span><em>${esc(a.short || "")}</em>${a.c ? `<small class="py">${esc(a.c.p)}</small>` : ""}</span>${mmStars(s)}</button>`;
+        }).join(`<i class="ct-i-plus">+</i>`)}</div>
+        <p class="ct-i-note">${st === "locked" ? `Learn ${need.map(ch => `<b class="hz">${esc(ch)}</b>`).join(" and ")} to make this combination.`
+          : daily ? "Every character in it is learned, so you can read it."
+          : st === "ready" ? "Every character in it is learned — add it to your deck to practise the word." : "This word is in your deck."}</p>
+        ${daily ? `<p class="ct-i-note">An everyday word the HSK list leaves out, written only with HSK characters. It has no card of its own: its characters do.</p>` : ""}
+      </section>
+    </div>
+    ${daily ? "" : `<div class="ct-i-acts">
+      <button class="btn sm" data-open="word:${esc(id)}">Open the word</button>
+      <button class="ghost sm${inDeck ? " on" : ""}" data-deck="word:${esc(id)}:${r[4]}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>
+    </div>`}`;
+}
+
+function ctInspHTML(key, docked){
   const a = ctAbout(key), c = a.c, t = CT.tree, isRoot = key === t.root;
-  const known = c ? ctKnown(key) : 0, inDeck = (CT.deck.get(key) || 0) > 0;
-  const status = !c ? "" : known === 2 ? `<span class="ct-chip mastered">${CT_STAR}Mastered</span>`
-    : inDeck ? `<span class="ct-chip met">${CT_TICK}In your deck</span>`
-    : known ? `<span class="ct-chip met">${CT_TICK}In your words</span>`
-    : +c.lv > +S.level ? `<span class="ct-chip lock">Explore ahead</span>` : "";
-  /* how it is built */
+  const st = ctState(key), stars = ctStars(key), up = t.parent.get(key), kids = t.branches.get(key) || [];
+  const inDeck = (CT.deck.get(key) || 0) > 0, reward = c ? ctReward(key) : 0;
+  const kicker = isRoot ? (c ? "Core character" : "Radical · a component")
+    : ctPlaced(key) ? `Tier ${ctRoman(CT.depth.get(key))} character` : "Filed under this radical";
+  const standing = c ? `<div class="sk-i-st">
+      <span class="sk-badge ${st}">${st === "locked" ? CT_LOCK : ""}${CT_STATES[st]}</span>${mmStars(stars)}
+      ${reward && st !== "locked" ? `<span class="sk-xp">+${reward} XP</span>` : ""}${key === CT.quest ? `<span class="sk-badge next">Next quest</span>` : ""}
+    </div>` : "";
+  const needs = st === "locked" && up ? `<div class="sk-i-req">
+      <button class="sk-i-reqg hz" type="button" data-ct="pick" data-arg="${esc(up)}" title="Show ${esc(up)}">${esc(up)}</button>
+      <p><b>Requires <span class="hz">${esc(up)}</span></b> — it is part of <span class="hz">${esc(key)}</span>. Learn it and this character opens.</p>
+    </div>` : "";
+  const recipe = up !== undefined ? ctRecipe(key, up) : "";
   const ops = c ? [...String(c.dec || "")].filter(x => IDS[x]) : [];
   const built = c && c.comp.length ? `<section class="ct-i-sec">
       <h4 class="ct-i-h"><span>How it is built</span>${ops.length ? `<small>${esc(IDS[ops[0]])}</small>` : ""}</h4>
+      ${recipe ? `<p class="mm-i-recipe"><b class="hz">${esc(up)}</b><span>${esc(recipe)}</span><i>→</i><b class="hz">${esc(key)}</b></p>` : ""}
       <div class="ct-i-parts">${c.comp.map(p => {
         const role = ctRole(key, p.c), pa = ctAbout(p.c);
-        return `<button class="ct-i-part${role ? ` ${role}` : ""}" data-ct="grow" data-arg="${esc(p.c)}" title="Grow the tree from ${esc(p.c)}">
+        return `<button class="ct-i-part${role ? ` ${role}` : ""}" data-ct="grow" data-arg="${esc(p.c)}" title="Grow the map from ${esc(p.c)}">
           <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>${ctRoleText(role)}</small>` : pa.c ? `<small class="py">${esc(pa.c.p)}</small>` : ""}</span></button>`;
       }).join(`<i class="ct-i-plus">+</i>`)}</div></section>` : "";
-  /* what it builds into: in this tree, or for a part left of the root,
-     everything built on it at this level */
-  const into = n.side >= 0 ? t.branches.get(key) || [] : (CT.g.kids.get(key) || []);
-  let family = "";
-  if(into.length){
+  let opens = "";
+  if(kids.length){
     const by = new Map();
-    for(const h of into){ const lv = CT.g.by.get(h).lv; by.set(lv, (by.get(lv) || 0) + 1); }
+    for(const h of kids){ const lv = CT.g.by.get(h).lv; by.set(lv, (by.get(lv) || 0) + 1); }
     const lvs = [...by].sort((x, y) => +x[0] - +y[0]);
-    const met = into.filter(h => ctKnown(h) > 0).length;
+    const few = kids.slice().sort((x, y) => +CT.g.by.get(x).lv - +CT.g.by.get(y).lv || ctRank(x) - ctRank(y)).slice(0, 24);
     let roles = "";
     if(isRoot){
       let m = 0, s = 0;
-      for(const h of into){ const r = ctRole(h, key); if(r === "meaning") m++; else if(r === "sound") s++; }
+      for(const h of kids){ const r = ctRole(h, key); if(r === "meaning") m++; else if(r === "sound") s++; }
       roles = m || s ? `<p class="ct-i-note">${m ? `Dictionary radical in ${num(m)}` : ""}${m && s ? " · " : ""}${s ? `similar pronunciation in ${num(s)}` : ""}.</p>` : "";
     }
-    const few = into.slice().sort((x, y) => +CT.g.by.get(x).lv - +CT.g.by.get(y).lv).slice(0, 24);
-    family = `<section class="ct-i-sec">
-      <h4 class="ct-i-h"><span>Builds into</span><small>${num(into.length)}${isRoot && t.size > into.length ? ` · ${num(t.size)} in its tree` : ""}${met ? ` · ${num(met)} met` : ""}</small></h4>
+    opens = `<section class="ct-i-sec">
+      <h4 class="ct-i-h"><span>${!c || ctLearned(key) ? "Opens" : "Learning it opens"}</span><small>${num(kids.length)}${isRoot && t.size > kids.length ? ` · ${num(t.size)} on the map` : ""}</small></h4>
       <div class="ct-i-bar" aria-hidden="true">${lvs.map(([lv, k]) => `<i class="v${lv}" style="flex:${k}"></i>`).join("")}</div>
       <div class="ct-i-lvls">${lvs.map(([lv, k]) => `<span class="v${lv}"><i></i>HSK ${esc(levelLabel(lv))} <b>${num(k)}</b></span>`).join("")}</div>
       ${roles}
-      <div class="ct-i-kids">${few.map(h => `<button class="ct-i-kid hz v${CT.g.by.get(h).lv}${ctKnown(h) ? " met" : ""}" data-ct="${n.side >= 0 ? "pick" : "grow"}" data-arg="${esc(h)}"
+      <div class="ct-i-kids">${few.map(h => `<button class="ct-i-kid hz v${CT.g.by.get(h).lv}${ctLearned(h) ? " met" : ""}" data-ct="pick" data-arg="${esc(h)}"
         title="${esc(h)} ${esc(CT.g.by.get(h).p)} · ${esc(ctAbout(h).short)}">${esc(h)}</button>`).join("")}${
-        into.length > few.length ? `<span class="ct-i-more">+${num(into.length - few.length)}</span>` : ""}</div>
+        kids.length > few.length ? `<span class="ct-i-more">+${num(kids.length - few.length)}</span>` : ""}</div>
     </section>`;
   }
   const facts = c ? [c.sc ? `<span><b>${c.sc}</b> strokes</span>` : "", c.rank ? `<span>frequency <b>#${num(c.rank)}</b></span>` : "",
     c.inWords ? `<span>in <b>${num(c.inWords)}</b> words</span>` : ""].filter(Boolean).join("") : "";
+  const questLabel = stars >= 2 ? "Train again" : questInfo.recognised.has(key) ? "Continue quest" : "Begin quest";
+  const more = !isRoot && mmMore(key) ? `<button class="ghost sm" data-ct="toggle" data-arg="${esc(key)}">${CT.open.has(key) ? "Fold on map" : "Expand on map"}</button>` : "";
+  const acts = c ? (st === "locked" && up
+      ? `<button class="btn sm" data-ct="pick" data-arg="${esc(up)}">Go to <span class="hz">${esc(up)}</span></button>
+         <button class="ghost sm" data-ct="quest" data-arg="${esc(key)}" title="Practise it before ${esc(up)}">Train anyway</button>`
+      : `<button class="btn sm" data-ct="quest" data-arg="${esc(key)}">${questLabel}</button>`)
+      + `<button class="ghost sm" data-open="char:${esc(key)}">Full entry</button>
+         <button class="ghost sm${inDeck ? " on" : ""}" data-deck="char:${esc(key)}:${c.lv}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>` : "";
   return `
-    ${docked ? "" : `<button class="ct-x" data-ct="unsel" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}
+    ${docked ? "" : ctCloseX}
     <div class="ct-i-scroll">
-      <div class="ct-i-kicker">${isRoot ? "Root of this tree" : n.side < 0 ? `Part of ${esc(t.root)}` : n.grid ? `In HSK ${esc(levelLabel(c.lv))} of ${esc(n.of)}` : "Branch"}</div>
+      <div class="ct-i-kicker">${kicker}</div>
       <div class="ct-i-hero">
         <div class="ct-i-glyph${c ? "" : " comp"}">
           ${c ? `<svg class="ct-i-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0v100M0 50h100M0 0l100 100M100 0 0 100"/></svg>
@@ -1574,61 +1415,50 @@ function ctInspHTML(key, n, docked){
         <div class="ct-i-id">
           ${c ? `<span class="ct-i-read py">${pinyinHTML(c.p)}</span>${c.pAlt.length ? `<small class="ct-i-alt">also <span class="py">${pinyinHTML(c.pAlt.join(", "))}</span></small>` : ""}`
             : `<span class="ct-i-read">${esc(a.short || "component")}</span>${a.full ? `<small class="ct-i-alt">a form of <b class="hz">${esc(a.full)}</b> <span class="py">${pinyinHTML(a.fc.p)}</span></small>` : `<small class="ct-i-alt">a component, not a character of its own</small>`}`}
-          <div class="ct-i-chips">${c ? lvChip(c.lv) : `<span class="ct-chip">Component</span>`}${status}${questEarned.has(key) ? '<span class="ct-chip">✦ Writing quest complete</span>' : ''}</div>
+          <div class="ct-i-chips">${c ? lvChip(c.lv) : `<span class="ct-chip">Component</span>`}${inDeck ? `<span class="ct-chip met">${CT_TICK}In your deck</span>` : ""}</div>
         </div>
       </div>
+      ${standing}
+      ${needs}
       ${c ? `<p class="ct-i-en">${esc(c.en.slice(0, 3).join("; "))}</p>` : ""}
       ${facts ? `<div class="ct-i-facts">${facts}</div>` : ""}
       ${built}
-      ${c ? characterGuideHTML(c,true) : ""}
-      ${family}
+      ${c ? characterGuideHTML(c, true) : ""}
+      ${opens}
       ${c ? `<section class="ct-i-sec"><h4 class="ct-i-h"><span>In words</span></h4><div class="ct-i-words" id="ct-i-words"><span class="ct-i-none">…</span></div></section>` : ""}
     </div>
     <div class="ct-i-acts">
-      ${c ? `<button class="btn sm" data-ct="quest" data-arg="${esc(key)}">Learn ${esc(key)}</button><button class="ghost sm" data-open="char:${esc(key)}">Full entry</button>
-        <button class="ghost sm${inDeck ? " on" : ""}" data-deck="char:${esc(key)}:${c.lv}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>` : ""}
-      ${!isRoot ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(key)}" title="Make ${esc(key)} the start of this tree (G)">Focus tree on <span class="hz">${esc(key)}</span></button>` : ""}
-      ${n.side > 0 && !isRoot && (t.branches.get(key) || []).length ? `<button class="ghost sm" data-ct="toggle" data-arg="${esc(key)}">${CT.open.has(key) ? "Fold branch" : "Open branch"}</button>` : ""}
-      ${!c && a.full ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(a.full)}">Grow from <span class="hz">${esc(a.full)}</span></button>` : ""}
+      ${acts}
+      ${more}
+      ${!isRoot ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(key)}" title="Make ${esc(key)} the core of the map (G)">Map from <span class="hz">${esc(key)}</span></button>` : ""}
+      ${!c && a.full ? `<button class="ghost sm" data-ct="grow" data-arg="${esc(a.full)}">Map from <span class="hz">${esc(a.full)}</span></button>` : ""}
     </div>`;
-}
-
-/* The canvas as the whole window, and back: for a big family, or a phone,
-   where the bars above it take room the tree could use. */
-function ctMax(on = !document.body.classList.contains("ct-max")){
-  document.body.classList.toggle("ct-max", on);
-  CT.touched = false;
-  ctPaintTools();
-  requestAnimationFrame(() => { sizeCharTree(); ctFit(0); ctPaintInsp(); });
 }
 
 function ctCommand(what, arg){
   if(what === "quest") questStart(arg);
-  else if(what === "in") ctZoomBy(1.25);
-  else if(what === "out") ctZoomBy(.8);
-  else if(what === "fit"){ CT.touched = false; ctFit(); }
   else if(what === "unsel") ctSelect("");
   else if(what === "grow") ctStart(arg, {trail: true});
+  else if(what === "pick") ctPick(arg);
   else if(what === "toggle") ctToggle(arg);
-  else if(what === "group") ctGroup(arg);
-  else if(what === "expand") ctAllGroups("open");
-  else if(what === "collapse") ctAllGroups("shut");
-  else if(what === "max") ctMax();
+  else if(what === "fold"){
+    const b = [...CT.lay.boxes.values()].find(x => x.fold === arg);
+    CT.fold.set(arg, !(b ? b.open : false));
+    ctRender({anchor: b ? b.key : ""});
+  }
+  else if(what === "words"){
+    /* a dozen more, or back to the first few once every word is out */
+    const b = CT.lay.boxes.get(`wb:${arg}`);
+    if(b && b.more > b.rows.length) CT.wall.set(arg, b.rows.length + MM.WSTEP);
+    else CT.wall.delete(arg);
+    ctRender({anchor: arg});
+  }
+  else if(what === "in") mmZoomBy(1.25);
+  else if(what === "out") mmZoomBy(.8);
+  else if(what === "fit"){ CT.touched = false; mmFit(); }
   else if(what === "strokes"){
-    if(!CT.writer) CT.writer=mountWriter("ct-i-host",CT.sel || CT.root,{mode:"demo",size:104,autoplay:false});
+    if(!CT.writer) CT.writer = mountWriter("ct-i-host", CT.sel || CT.root, {mode: "demo", size: 104, autoplay: false});
     if(CT.writer) CT.writer.animate();
-  }
-  else if(what === "insp"){
-    S.treeInsp = S.treeInsp === false; save();
-    ctDock(); ctPaintTools();
-    CT.insp = "";
-    requestAnimationFrame(() => { sizeCharTree(); ctPaintInsp(); if(!CT.touched) ctFit(300); });
-  }
-  else if(what === "pick"){
-    /* a character named in the panel: whatever folds it away opens, then
-       it is picked */
-    if(ctEnsure(arg)) ctRender(420, CT.sel || "");
-    ctSelect(arg, {focus: true});
   }
   else if(what === "back"){
     const i = +arg, h = CT.trail[i];
@@ -1638,109 +1468,28 @@ function ctCommand(what, arg){
   }
 }
 
-/* ---------------- the hover tip ---------------- */
-
-/* The name of what is under the pointer: a tile, with what it is built
-   from, or a part on a tag, which says how many of the tiles on the canvas
-   it is in and what a click does. */
-function ctShowTip(el, part = ""){
-  const tip = $("#ct-tip"), box = $("#ctree");
-  const key = part || el.dataset.k;
-  if(!tip || !key) return;
-  const a = ctAbout(key);
-  const kin = part ? [...CT.recs.values()].filter(r => !r.gone && r.el.classList.contains("kin")).length : 0;
-  const parts = !part && a.c && a.c.comp.length ? a.c.comp.map(p => p.c).join(" + ") : "";
-  tip.innerHTML = `<b class="hz">${esc(key)}</b>${a.c ? ` <span class="py">${pinyinHTML(a.c.p)}</span>` : ""}<span>${esc(a.en || "component")}${
-    part ? ` · in ${kin} here · click to grow its tree` : ""}</span>${parts ? `<small class="hz">${esc(parts)}</small>` : ""}`;
-  tip.hidden = false;
-  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
-  const x = clamp(r.left + r.width / 2 - b.left, 110, b.width - 110);
-  const above = r.top - b.top > CT_HEAD + 54;
-  tip.style.transform = `translate(${x.toFixed(0)}px,${(above ? r.top - b.top - 10 : r.bottom - b.top + 10).toFixed(0)}px) translate(-50%,${above ? "-100%" : "0"})`;
-}
-function ctHideTip(){ const tip = $("#ct-tip"); if(tip && !tip.hidden) tip.hidden = true; }
-
-/* ---------------- taps ---------------- */
-
-/* What a press is on, read when it starts and kept as plain values — the
-   element itself can be redrawn under the press — : a command (a tag's
-   part, a group's name strip), a tile and whether on its knob, or the bare
-   canvas. */
-function ctTapOf(el){
-  const cmd = el && el.closest && el.closest("[data-ct]");
-  if(cmd) return {cmd: cmd.dataset.ct, arg: cmd.dataset.arg};
-  const node = el && el.closest && el.closest(".ct-n");
-  if(!node || node.classList.contains("gone")) return {bare: true};
-  return {key: node.dataset.k, knob: !!el.closest("[data-knob]")};
-}
-/* A tap used: a command runs; a knob opens or folds its branch; a tile is
-   picked, and a second tap on the tile picked uses it; the bare canvas puts
-   the tile picked down. */
-function ctTap(t){
-  if(t.cmd){ ctCommand(t.cmd, t.arg); return; }
-  if(!t.key || !(CT.lay && CT.lay.nodes.has(t.key))){ if(CT.sel) ctSelect(""); return; }
-  ctHideTip();
-  if(t.knob){ ctToggle(t.key); return; }
-  if(CT.sel === t.key){ ctActivate(t.key); return; }
-  ctSelect(t.key);
-}
-
-/* Every tile on the canvas built from a part — and every tag naming it —
-   lit while the pointer rests on one of that part's tags: the family it
-   belongs to, at a glance. "" puts them out. */
-function ctKin(part){
-  if(CT.kin === part) return;
-  CT.kin = part;
-  for(const r of CT.recs.values()){
-    const c = !r.gone && CT.g.by.get(r.key);
-    r.el.classList.toggle("kin", !!part && (r.key === part || (!!c && c.comp.some(p => p.c === part))));
-  }
-  for(const b of $$("#ct-tags [data-part]")) b.classList.toggle("kin", !!part && b.dataset.part === part);
-}
-
-/* The tile under the pointer: its way to the root warms, and its tier's
-   name in the header lights. */
-function ctHover(key){
-  if(CT.hover === key) return;
-  CT.hover = key;
-  ctWires();
-  ctMarkTier();
-}
-function ctMarkTier(){
-  const n = CT.lay && CT.lay.nodes.get(CT.hover || CT.sel);
-  const d = n ? (n.side < 0 ? -n.depth : n.depth) : null;
-  for(const s of $$("#ct-tiers span")) s.classList.toggle("on", d !== null && +s.dataset.d === d);
-}
-
-/* ---------------- the canvas's gestures ---------------- */
+/* ---------------- the gestures ---------------- */
 
 function ctWire(){
   if(CT.wired) return;
   CT.wired = true;
   const box = $("#ctree");
   const pts = new Map();
-  /* tap: what a press on the plane began on, used when the press lifts
-     without having become a drag. Taken at the press, because the tree
-     moves: a tile or knob still sliding into place after the last change, or
-     giving under the press, would otherwise take the browser's click
-     somewhere else and the press would do nothing. tapped: when the last tap
-     was used, so the click the browser sends after it is not used again. */
-  let pan = null, pinch = null, moved = false, trace = [], tap = null, tapped = 0;
+  /* a press becomes a drag past a few pixels; the click a drag ends in is
+     not a click on what it ended over */
+  let pan = null, pinch = null, moved = false, trace = [], dragged = 0;
+  const over = el => !!el.closest(".mm-hud");
 
   box.addEventListener("pointerdown", e => {
-    if(e.button > 1 || e.target.closest(".ct-hud, .ct-head")) return;
-    ctStopCam();
+    if(e.button > 1 || over(e.target)) return;
+    mmStopCam();
     pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
-    if(pts.size === 1){
-      pan = {x: e.clientX, y: e.clientY, cx: CT.cam.x, cy: CT.cam.y};
-      moved = false; trace = [];
-      tap = e.button === 0 ? {id: e.pointerId, ...ctTapOf(e.target)} : null;
-    }else if(pts.size === 2){
-      tap = null;
+    if(pts.size === 1){ pan = {x: e.clientX, y: e.clientY, cx: CT.cam.x, cy: CT.cam.y}; moved = false; trace = []; }
+    else if(pts.size === 2){
       const [p, q] = [...pts.values()], b = box.getBoundingClientRect();
       pinch = {d: Math.hypot(p.x - q.x, p.y - q.y) || 1, mx: (p.x + q.x) / 2 - b.left, my: (p.y + q.y) / 2 - b.top, cam: {...CT.cam}};
       moved = true;
-      for(const id of pts.keys()) try{ box.setPointerCapture(id); }catch(err){}
+      for(const id of pts.keys()) try{ box.setPointerCapture(id); }catch(_){}
     }
   });
   box.addEventListener("pointermove", e => {
@@ -1753,7 +1502,7 @@ function ctWire(){
       const wx = (pinch.mx - pinch.cam.x) / pinch.cam.k, wy = (pinch.my - pinch.cam.y) / pinch.cam.k;
       CT.cam.k = k; CT.cam.x = mx - wx * k; CT.cam.y = my - wy * k;
       CT.touched = true;
-      ctCam(); ctMoving();
+      mmCam();
       return;
     }
     if(!pan) return;
@@ -1761,13 +1510,13 @@ function ctWire(){
     if(!moved && Math.hypot(dx, dy) < 6) return;
     if(!moved){
       moved = true;
-      try{ box.setPointerCapture(e.pointerId); }catch(err){}
+      try{ box.setPointerCapture(e.pointerId); }catch(_){}
       box.classList.add("grabbing");
-      ctHover(""); ctKin(""); ctHideTip();
+      if(CT.hover){ CT.hover = ""; mmMarkKin(); }
     }
     CT.cam.x = pan.cx + dx; CT.cam.y = pan.cy + dy;
     CT.touched = true;
-    ctCam(); ctMoving();
+    mmCam();
     const now = performance.now();
     trace.push({t: now, x: e.clientX, y: e.clientY});
     while(trace.length > 2 && now - trace[0].t > 90) trace.shift();
@@ -1785,17 +1534,15 @@ function ctWire(){
     if(pts.size) return;
     box.classList.remove("grabbing");
     pan = null;
-    const t = tap;
-    tap = null;
-    if(t && !moved && t.id === e.pointerId && e.type === "pointerup"){ tapped = performance.now(); ctTap(t); }
-    /* let go mid-swipe: the canvas carries on and slows */
+    if(moved) dragged = performance.now();
+    /* let go mid-swipe: the map carries on and slows */
     const a = trace[0], b = trace[trace.length - 1];
     if(moved && a && b && b.t - a.t > 10 && performance.now() - b.t < 60 && !REDUCED()){
       let vx = (b.x - a.x) / (b.t - a.t), vy = (b.y - a.y) / (b.t - a.t), last = performance.now();
       const step = now => {
         const dt = Math.min(40, now - last); last = now;
         CT.cam.x += vx * dt; CT.cam.y += vy * dt;
-        ctCam(); ctMoving();
+        mmCam();
         const f = Math.pow(.93, dt / 16); vx *= f; vy *= f;
         CT.glide = Math.hypot(vx, vy) > .02 ? requestAnimationFrame(step) : 0;
       };
@@ -1806,17 +1553,35 @@ function ctWire(){
   box.addEventListener("pointercancel", up);
   box.addEventListener("lostpointercapture", e => { if(pts.has(e.pointerId) && e.pointerType !== "mouse") up(e); });
 
-  /* The clicks left once taps are taken: the controls over the canvas (the
-     header, the map's corner), and a key pressed on a focused tile, tag or
-     group, which sends a click with no pointer behind it (detail 0). A
-     pointer's click on the plane is a press already used as a tap, or the
-     end of a drag. */
+  /* a click: a command runs, something on the map is picked; a click that
+     ends a drag does nothing. An entry or the deck is the page's to take. */
   box.addEventListener("click", e => {
-    const over = !!e.target.closest(".ct-hud, .ct-head");
-    if(!over && (e.detail > 0 || performance.now() - tapped < 500)) return;
+    if(performance.now() - dragged < 250 && !over(e.target)){ e.preventDefault(); e.stopPropagation(); return; }
+    if(e.target.closest("[data-open], [data-deck]")) return;
     const cmd = e.target.closest("[data-ct]");
     if(cmd){ ctCommand(cmd.dataset.ct, cmd.dataset.arg); return; }
-    if(!over) ctTap(ctTapOf(e.target));
+    const item = e.target.closest("[data-k]");
+    if(item){ ctSelect(item.dataset.k); return; }
+    if(!over(e.target) && CT.sel) ctSelect("");
+  }, true);
+  /* a double click starts a character's quest, or opens a word */
+  box.addEventListener("dblclick", e => {
+    const item = e.target.closest("[data-k]");
+    if(!item || e.target.closest("[data-ct]")) return;
+    e.preventDefault();
+    const k = item.dataset.k;
+    if(k.startsWith("w:")) ctActivate(k);
+    else if(CT.g.by.has(k)) questStart(k);
+  });
+  $("#ct-head").addEventListener("click", e => {
+    const cmd = e.target.closest("[data-ct]");
+    if(cmd) ctCommand(cmd.dataset.ct, cmd.dataset.arg);
+  });
+  $("#sk-find").addEventListener("submit", e => {
+    e.preventDefault();
+    const q = $("#sk-find-q");
+    safely("find that", () => ctFind(q.value));
+    q.blur();
   });
   /* The panel's own controls: everything in it but an entry or the deck,
      which the page's one click handler takes. */
@@ -1828,96 +1593,83 @@ function ctWire(){
   /* The wheel zooms, as a game's map does — a mouse's notched wheel and a
      pinch on a touchpad both. Two fingers sliding on a touchpad pan. */
   box.addEventListener("wheel", e => {
-    if(e.target.closest("#cidx")) return;
+    if(over(e.target)) return;
     e.preventDefault();
-    ctStopCam();
+    mmStopCam();
     const b = box.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
     const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? b.height : 1;
     const dx = e.deltaX * unit, dy = e.deltaY * unit;
     const notched = e.deltaMode !== 0 || (dx === 0 && Math.abs(dy) >= 50);
-    if(e.ctrlKey) ctZoomAt(px, py, CT.cam.k * Math.exp(-dy * .012));
-    else if(notched && !e.shiftKey) ctZoomAt(px, py, CT.cam.k * Math.exp(-dy * .0016));
+    if(e.ctrlKey) mmZoomAt(px, py, CT.cam.k * Math.exp(-dy * .012));
+    else if(notched && !e.shiftKey) mmZoomAt(px, py, CT.cam.k * Math.exp(-dy * .0016));
     else{
       CT.cam.x -= e.shiftKey && !dx ? dy : dx;
       CT.cam.y -= e.shiftKey && !dx ? 0 : dy;
-      ctCam();
+      mmCam();
     }
     CT.touched = true;
-    ctMoving();
   }, {passive: false});
 
-  box.addEventListener("dblclick", e => {
-    if(e.target.closest(".ct-n") && !e.target.closest("[data-knob]")) e.preventDefault();
-  });
-
-  /* What the pointer rests on: a tag's part lights its whole family, a tile
-     warms its way to the root and names itself. */
+  /* what the pointer rests on, and its way back to the core, lit */
   box.addEventListener("pointerover", e => {
     if(e.pointerType !== "mouse" || pts.size) return;
-    const part = e.target.closest("#ct-tags [data-part]");
-    if(part){ ctKin(part.dataset.part); ctShowTip(part, part.dataset.part); return; }
-    const node = e.target.closest(".ct-n");
-    if(!node) return;
-    ctHover(node.dataset.k);
-    if(!node.classList.contains("sel")) ctShowTip(node);
+    const item = e.target.closest("[data-k]");
+    if(item && CT.hover !== item.dataset.k){ CT.hover = item.dataset.k; mmMarkKin(); }
   });
   box.addEventListener("pointerout", e => {
-    const part = e.target.closest("#ct-tags [data-part]");
-    if(part && !part.contains(e.relatedTarget)){ ctKin(""); ctHideTip(); return; }
-    const node = e.target.closest(".ct-n");
-    if(node && !node.contains(e.relatedTarget)){ ctHover(""); ctHideTip(); }
+    const item = e.target.closest("[data-k]");
+    if(item && !item.contains(e.relatedTarget) && CT.hover){ CT.hover = ""; mmMarkKin(); }
   });
-  /* a focused tile can scroll an overflow:hidden box; the plane is the only
+  /* a focused card can scroll an overflow:hidden box; the plane is the only
      thing that moves here */
   box.addEventListener("scroll", () => { box.scrollTop = 0; box.scrollLeft = 0; });
 
-  /* the map: press or drag to go there */
-  const map = $("#ct-mapc");
+  /* the small map: press or drag to go there */
+  const map = $("#mm-map");
   map.addEventListener("pointerdown", e => {
     e.stopPropagation();
-    ctStopCam();
-    try{ map.setPointerCapture(e.pointerId); }catch(err){}
-    ctMapTo(e);
-    const move = ev => ctMapTo(ev);
+    mmStopCam();
+    try{ map.setPointerCapture(e.pointerId); }catch(_){}
+    mmMapTo(e);
+    const move = ev => mmMapTo(ev);
     const done = () => { map.removeEventListener("pointermove", move); map.removeEventListener("pointerup", done); map.removeEventListener("pointercancel", done); };
     map.addEventListener("pointermove", move);
     map.addEventListener("pointerup", done);
     map.addEventListener("pointercancel", done);
   });
-  /* a theme picked repaints the map in it */
-  new MutationObserver(() => ctMapSoon()).observe(document.documentElement, {attributes: true, attributeFilter: ["data-skin"]});
+  /* a theme picked repaints the small map in it */
+  new MutationObserver(() => mmMapSoon()).observe(document.documentElement, {attributes: true, attributeFilter: ["data-skin"]});
   /* the window across the line where the panel docks: it moves */
   if(window.matchMedia){
-    const mq = matchMedia("(min-width:1280px)");
+    const mq = matchMedia("(min-width:1100px)");
     const swap = () => { CT.insp = ""; ctPaintInsp(); };
     if(mq.addEventListener) mq.addEventListener("change", swap);
   }
 }
 
-/* A card added or taken out — from the panel, an entry the tree or the
-   grid opened, or a word sheet opened from that — lights the tiles, or
-   marks the cells, afresh. */
+/* A card added or taken out — from the panel, an entry the map or the
+   grid opened, or a word sheet opened from that — lights the map, or marks
+   the cells, afresh. */
 function treeDeckChanged(){
   if(S.view !== "chars") return;
   if(S.charView === "grid") return ctLoadKnown().then(() => paintChars());
   if(!CT.tree) return;
-  return ctLoadKnown().then(() => { ctRender(0); ctPaintInsp(); paintIndex(); });
+  return ctLoadKnown().then(() => { ctRefresh(); paintIndex(); });
 }
 
-/* "Explore in the tree", from an entry: the Characters tab in tree form,
-   grown from the character or part. */
+/* "Explore in the tree", from an entry: the Characters tab as a map, grown
+   from the character or part. */
 function treeGrowFrom(h){
   closeDetail();
   CT.next = h;
   S.charView = "tree"; save();
-  if(S.view === "chars") safely("grow the tree", renderChars);
+  if(S.view === "chars") safely("grow the map", renderChars);
   else show("chars");
 }
 
-/* The grid or the tree. */
+/* The grid or the map. */
 function setCharView(v){
   S.charView = v === "grid" ? "grid" : "tree";
-  if(S.charView !== "tree") document.body.classList.remove("ct-max");
   save();
   safely("show the characters", renderChars);
 }

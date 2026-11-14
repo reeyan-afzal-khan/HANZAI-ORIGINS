@@ -302,7 +302,7 @@ async function importAll(payload){
        and the ID is not taken in. */
     const {baiduAppId, baiduKey, ...settings} = payload.settings;
     Object.assign(S, settings);
-    if(!["auto", "google", "offline"].includes(S.readTranslator)) S.readTranslator = "auto";
+    delete S.readTranslator; delete S.readTranslatorV; delete S.readOfflineModel;
     save();
   }
   /* The file's profile block is read but not applied: a backup is restored

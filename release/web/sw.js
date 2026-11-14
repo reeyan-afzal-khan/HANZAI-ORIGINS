@@ -22,7 +22,7 @@
  * those are cache-first and filled on demand rather than up front: precaching
  * 12.5 MB of stroke data on install would make the first launch unusable.
  */
-const CACHE = "hskker-e90550a12277";
+const CACHE = "hskker-9bbedb8562ee";
 /* tools/build.mjs replaces __BUILD__ with a hash of everything it ships.
    Running from app/ directly, that substitution has not happened — so the
    cache name would be the same string for every edit, and the worker would
@@ -64,8 +64,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   const taken = caches.keys().then(ks => {
     /* Only this app's own build caches; anything else in the same storage
-       is not ours to clear. (The offline translator lives in IndexedDB,
-       "hskker-mt", out of the way of all of this — see reader.js MT.) */
+       is not ours to clear. */
     const ours = ks.filter(k => k.startsWith("hskker-"));
     const upgraded = ours.some(k => k !== CACHE);
     // Unstamped, CACHE matches nothing, so this clears all of ours.
@@ -125,8 +124,7 @@ self.addEventListener("fetch", e => {
   let url;
   try{ url = new URL(req.url); }catch(_){ return; }
   /* Other sites' requests go straight to the network, untouched — Google
-     Translate, and the offline translator's download, which is stored in
-     IndexedDB — except Google Fonts, which are kept below. */
+     Translate among them — except Google Fonts, which are kept below. */
   if(url.origin !== self.location.origin && !url.hostname.startsWith("fonts.g")) return;
 
   // During an update an older worker can still control a newly loaded page.

@@ -44,17 +44,23 @@ async function rxLoad(){
 /* The radical whose characters are on show, or null for the radicals. */
 const rxOpen = () => (S.charRad && RX.by.get(S.charRad)) || null;
 
-/* What the tree grows from for a radical: the radical as written where the
-   tree knows it, or the spelling it does know it by (⺼ for 月) — whichever
-   has the most built on it. Single strokes grow no tree (tree.js). */
+/* What the map grows from for a radical: the radical as written, one of its
+   other spellings (⺼ for 月), or the form its own characters are written
+   with (⺼ in 肝, filed under 肉) — whichever is a part of the most of the
+   radical's characters, then the one with the most built on it. Single
+   strokes grow no map (tree.js). */
 function rxRootOf(f){
   const r = RX.by.get(f);
   if(!r || !CT.g) return "";
-  let best = "", most = -1;
-  for(const x of [f, ...r.spelt]){
+  const forms = new Set([f, ...r.spelt]);
+  for(const h of r.chars){ const c = CT.g.by.get(h); if(c && c.r) forms.add(c.r); }
+  const mine = new Set(r.chars);
+  let best = "", most = -1, size = -1;
+  for(const x of forms){
     if(CT_STROKES.has(x) || !(CT.g.kids.has(x) || CT.g.by.has(x))) continue;
-    const n = (CT.g.kids.get(x) || []).length;
-    if(n > most){ best = x; most = n; }
+    const kids = CT.g.kids.get(x) || [];
+    const n = kids.filter(h => mine.has(h)).length;
+    if(n > most || (n === most && kids.length > size)){ best = x; most = n; size = kids.length; }
   }
   return best;
 }

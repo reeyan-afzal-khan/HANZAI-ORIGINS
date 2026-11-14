@@ -22,7 +22,6 @@
     "android:apk": "npm run android:sync && node tools/android.mjs",
     "serve:release": "node tools/serve.mjs release/web 5179",
     "charextra": "node tools/build-charextra.mjs",
-    "translation": "node tools/build-translation.mjs",
     "build:pages": "node tools/build.mjs"
   },
   "dependencies": {

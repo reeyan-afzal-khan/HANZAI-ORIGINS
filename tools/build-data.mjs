@@ -17,8 +17,9 @@
  * file:// will not allow. So the store is authoritative and these files are
  * its projection — one place to query, one format to ship.
  */
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { openDb, rows } from './lib/db.mjs'
+import { DICT } from './lib/paths.mjs'
 
 const OUT = 'release/web/data'
 const db = openDb()
@@ -54,6 +55,16 @@ for (const lv of levels) {
 emit('search',
   rows(db, 'SELECT id, simplified, pinyin, gloss, level, freq FROM search ORDER BY ord')
     .map((r) => [r.id, r.simplified, r.pinyin, r.gloss, r.level, r.freq]))
+
+/* The everyday words the HSK list leaves out (build-extrawords.mjs), in the
+   search index's shape: [id, simplified, pinyin, gloss, level, frequency].
+   Only the character map reads them; an id starting X- marks one as not part
+   of the standard. */
+if (existsSync(DICT.extrawords)) {
+  const extra = JSON.parse(readFileSync(DICT.extrawords, 'utf8'))
+  emit('extra', extra.map(([s, p, en, lv, rank], i) => [`X-${String(i + 1).padStart(4, '0')}`, s, p, en, String(lv), rank]))
+  console.log(`  extra   ${extra.length} everyday words`)
+}
 
 // ---------------------------------------------------------------- characters
 emit('chars', rows(db, 'SELECT * FROM chars ORDER BY ord').map((c) => ({

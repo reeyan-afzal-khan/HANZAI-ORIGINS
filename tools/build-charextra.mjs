@@ -17,7 +17,11 @@ const CACHE = 'node_modules/.cache/hskker'
 
 /** Ideographic Description Characters — the operators in a decomposition. */
 const IDS = /[⿰-⿿]/g
-const CJK = /[㐀-鿿豈-﫿]/
+/* A part worth keeping: an ideograph, or one of the radical forms that half the
+   radicals are written as inside a character (⺮ in 笑, ⺼ in 肝, ⺌ in 当), which
+   live in their own Unicode blocks. Leaving those out once dropped the radical
+   from 127 characters, and with it their place in the radical's map. */
+const CJK = /[\u2e80-\u2fd5\u3400-\u9fff\uf900-\ufaff]/
 
 const hsk = parseCsv(readFileSync(HSK3.chars, 'utf8'))
 const wanted = new Set(hsk.map((c) => c.Hanzi))
@@ -44,10 +48,13 @@ function components(decomposition, self) {
 }
 
 /** A one-line gloss for a component, so the breakdown reads as meaning and not just shapes. */
+const RADICALS = JSON.parse(readFileSync(DICT.radicals, 'utf8'))
+const RADICAL_NAME = new Map(RADICALS.forms.map((f) => [f.f, f.en]))
 function gloss(ch) {
   const d = mm.get(ch)
-  if (!d?.definition) return ''
-  return d.definition.split(/[;,]/)[0].trim().slice(0, 40)
+  if (d?.definition) return d.definition.split(/[;,]/)[0].trim().slice(0, 40)
+  /* a radical form has no entry of its own: it is named as its radical */
+  return RADICAL_NAME.get(ch) || RADICAL_NAME.get(RADICALS.written[ch]) || ''
 }
 
 const out = {}

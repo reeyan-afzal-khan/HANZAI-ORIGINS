@@ -7,7 +7,8 @@ named below), cut down to the HSK headwords so the checkout builds offline.
 Read by `tools/lib/compile.mjs`; rebuild the app with `npm run data`.
 
 A fourth, `radicals.json`, is kept by hand: the radicals as they are written,
-for the Characters tab's radical index.
+for the Characters tab's radical index. A fifth, `extrawords.json`, adds the
+everyday words the HSK list leaves out, for the character map.
 
 ## glosses.json — English meanings, by headword
 
@@ -93,9 +94,27 @@ checks the list as it builds: every character has to land on a radical in it,
 and a radical that is also a character of the syllabus has to have that
 character's stroke count.
 
+## extrawords.json — everyday words outside the HSK list
+
+A list of 6,000 words, commonest first, that the official list omits but
+people say every day (你好, 早上好, 生日快乐). Built by
+`tools/build-extrawords.mjs` from CC-CEDICT and the OpenSubtitles 2018
+frequency list ([FrequencyWords](https://github.com/hermitdave/FrequencyWords)):
+two to four characters, written only with the 3,000 HSK characters, with a
+dictionary entry that is not a name or a variant, and not already an HSK word.
+
+```json
+["你好", "nǐhǎo", "hello; hi", 1, 203]   // simplified, pinyin, meaning, level, frequency rank
+```
+
+The level is the level of the word's hardest character. `npm run data` turns
+the list into `release/web/data/extra.js`, which only the character map reads:
+the words are shown as **Everyday**, and they are not added to the deck or the
+reader's dictionary.
+
 ## Editing
 
-These are ordinary JSON files: fix an entry and run `npm run data`. The three
+These are ordinary JSON files: fix an entry and run `npm run data`. The
 reductions are committed, so a fix stays — but `npm run sources` regenerates
 them from upstream and would overwrite it; a correction that should outlive a
 refresh belongs in the reducing script instead. `radicals.json` is not

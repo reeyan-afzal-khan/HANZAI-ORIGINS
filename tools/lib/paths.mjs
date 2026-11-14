@@ -5,7 +5,7 @@
  *
  *   src/data/hsk3/        the official HSK 3.0 lists (words, characters, grammar)
  *   src/data/dictionary/  glosses, character readings and analysis
- *   src/data/talk/        the conversation bank and its model answers
+ *   src/data/grammar/     the grammar points' notes and example sentences
  *   src/data/hskker.db    the generated store, not committed
  */
 
@@ -24,23 +24,8 @@ export const DICT = {
   chardict: `${DATA}/dictionary/chardict.json`,
   charextra: `${DATA}/dictionary/charextra.json`,
   radicals: `${DATA}/dictionary/radicals.json`,
-}
-
-export const TALK = {
-  dir: `${DATA}/talk`,
-  questions: `${DATA}/talk/questions.json`,
-  answers: `${DATA}/talk/answers.json`,
+  /** everyday words the HSK list leaves out (build-extrawords.mjs) */
+  extrawords: `${DATA}/dictionary/extrawords.json`,
 }
 
 export const DB_PATH = `${DATA}/hskker.db`
-
-/** The offline translator (the reader's "Compact"): the files it is made of,
- *  listed in src/data/translation/files.json and kept there exactly as
- *  downloaded; the list as the app reads it (release/web/data/translation-files.js,
- *  which the Android app installs from); and the files as the copies that
- *  carry them load them, under release/web/data/mt/ (see tools/build-translation.mjs). */
-export const TRANSLATION = {
-  dir: `${DATA}/translation`,
-  list: 'release/web/data/translation-files.js',
-  out: 'release/web/data/mt',
-}

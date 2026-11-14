@@ -1244,11 +1244,6 @@ body.selecting .prose{cursor:text}
 .sl-tr[dir="rtl"]{text-align:right}
 .sl-tr.wait{color:var(--muted);font-style:italic}
 .sl-tr.err{color:var(--h5);font-size:12.5px}
-/* A translation from the device: why it came from there, when it was not
-   asked for, and how far it has got while it is still going. */
-.sl-tr .sl-note{display:block;margin-bottom:4px;font-size:11px;font-style:normal;color:var(--muted)}
-.sl-tr .sl-more{font-size:11.5px;font-style:italic;color:var(--muted);white-space:nowrap}
-.sl-lang-one{font-size:12.5px;color:var(--ink)}
 .sl-src{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   font-size:11px;color:var(--muted)}
 .sl-src .linky{font-size:11px;font-weight:600}
@@ -1325,324 +1320,6 @@ body.selecting .prose{cursor:text}
 .cview button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 15px}
 .cview svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-/* The stage: the canvas, and beside it, where the window is wide enough and
-   the reader has not put it away, the panel that tells about the tile
-   picked. Narrower, the panel is a card over the canvas's right side while a
-   tile is picked; on a phone, over its foot. The levels' colours are the
-   reader's (--hsk-1 … --hsk-7), so a level reads the same in a book, on a
-   tile and on a group's name. */
-.ct-stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-height:400px;
-  --lvc:var(--line-hot);--lvc-on:#fff}
-:root[data-mode="dark"] .ct-stage{--lvc-on:var(--void)}
-@media (min-width:1280px){
-  .ct-stage.dock{grid-template-columns:minmax(0,1fr) 340px}
-}
-
-/* The canvas: an open sheet with a dot grid the tree floats over — the dots
-   move at half its pace (ctCam) — a band under every other tier, and a soft
-   shadow round the edge. Strokes and fills are all tokens, so it follows the
-   theme like everything else. */
-.ctree{position:relative;overflow:hidden;min-height:380px;height:100%;border:1px solid var(--line);border-radius:var(--r);
-  container-type:inline-size;
-  --ct-band:color-mix(in srgb, var(--surface-2) 46%, transparent);
-  background-color:var(--surface);
-  background-image:radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--line-hot) 70%, transparent) 1px, transparent 1.45px);
-  background-size:26px 26px;box-shadow:var(--shadow);contain:layout paint;
-  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;outline:none}
-.ctree::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;
-  box-shadow:inset 0 0 80px -16px rgba(0,0,0,.14)}
-.ctree.grabbing,.ctree.grabbing .ct-n,.ctree.grabbing .ct-gh{cursor:grabbing}
-.ctree:focus-visible{border-radius:var(--r);box-shadow:var(--shadow),inset 0 0 0 2px var(--acc-dim)}
-.ct-bands{position:absolute;inset:0;pointer-events:none}
-.ct-plane{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
-.ctree.moving .ct-plane{will-change:transform}
-.ct-links{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
-.ct-l{fill:none;stroke:color-mix(in srgb, var(--line-hot) 80%, var(--muted));stroke-width:2;stroke-linecap:round;
-  transition:stroke .2s ease,stroke-width .2s ease}
-/* a group's link carries its level's colour, faintly */
-.ct-l.grp{stroke:color-mix(in srgb, var(--lvc) 42%, var(--line-hot));stroke-width:2.2}
-.ct-l.making{stroke-dasharray:6 5}
-/* a link into something you have met is lit; the way to the tile under the
-   pointer warms; the way to the tile picked burns */
-.ct-l.lit{stroke:color-mix(in srgb, var(--acc) 62%, var(--line-hot))}
-.ct-l.warm{stroke:color-mix(in srgb, var(--acc) 72%, var(--line-hot));stroke-width:2.6;stroke-dasharray:none}
-.ct-l.path{stroke:var(--acc);stroke-width:2.8;stroke-dasharray:none}
-.ct-glow{fill:none;stroke:var(--acc);stroke-width:12;stroke-linecap:round;opacity:.15}
-.ct-flow{fill:none;stroke:var(--acc-hi);stroke-width:2.6;stroke-linecap:round;stroke-dasharray:1.5 16;
-  animation:ct-flow 1.1s linear infinite}
-@keyframes ct-flow{to{stroke-dashoffset:-17.5}}
-html.still .ct-flow{animation:none;stroke:none}
-/* What else goes into a character, on the link just short of its tile: each
-   part a button that grows the tree from it, and lights every tile it is in
-   while the pointer rests on it. */
-.ct-tags{position:absolute;left:0;top:0}
-.ct-tag{position:absolute;left:0;top:0;translate:-100% 0;margin-top:-11px;height:22px;display:flex;align-items:center;gap:3px;
-  white-space:nowrap;pointer-events:none}
-.ct-tag[hidden]{display:none}
-.ct-tag.gone .ct-tagp,.ct-n.gone,.ct-group.gone,.ct-fold.gone{pointer-events:none}
-.ct-tagp,.ct-tagx{height:22px;display:inline-flex;align-items:center;gap:1px;padding:0 8px 0 6px;border-radius:11px;
-  font-size:12px;line-height:1;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);
-  box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.ct-tagp{position:relative;pointer-events:auto;cursor:pointer;
-  transition:border-color .14s ease,background-color .14s ease,box-shadow .18s ease,scale .18s var(--ease)}
-/* a finger's worth of target round a small pill */
-.ct-tagp::after{content:"";position:absolute;inset:calc(-9px * var(--ct-reach, 1)) calc(-5px * var(--ct-reach, 1))}
-.ct-tagp i{font-style:normal;font-size:11px;color:var(--muted);margin-right:1px}
-.ct-tagp b{font-size:13px;font-weight:500;color:var(--ink)}
-@media (hover:hover){.ct-tagp:hover{border-color:var(--acc);background:var(--acc-wash);scale:1.14;
-  box-shadow:0 5px 14px -5px color-mix(in srgb, var(--acc) 60%, transparent)}}
-.ct-tagp:active{scale:.94}
-.ct-tagp:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:11px}
-.ct-tagp.kin{border-color:var(--acc);background:var(--acc-wash)}
-.ct-tagp.kin i,.ct-tagp.kin b{color:var(--acc)}
-.ct-tagx{color:var(--muted);font-weight:600}
-.ct-tag.path .ct-tagp,.ct-tag.path .ct-tagx{border-color:var(--acc)}
-.ctree.far .ct-tags{display:none}
-
-/* A tile: lit from above and lifted off the canvas. The character and its
-   reading inside; its level on a plate in the level's colour on one corner
-   (grey, with a lock, above the reader's own) and, once met, a tick — a star
-   when mastered — on the other; its meaning under it; and on its right edge
-   the knob that opens its branches, with the count folded in it, or a bar
-   when it is open. */
-.ct-n{--lvc:var(--line-hot);position:absolute;left:0;top:0;width:68px;height:68px;margin:-34px 0 0 -34px;padding:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, #fff), var(--surface) 66%);
-  border:1px solid color-mix(in srgb, var(--line-hot) 88%, transparent);border-radius:18px;color:var(--ink);
-  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent),0 1px 2px rgba(0,0,0,.14),0 12px 24px -16px rgba(0,0,0,.55);
-  transition:border-color .15s ease,background-color .15s ease,box-shadow .2s ease,translate .22s var(--ease),scale .14s ease}
-/* a tile rises to the pointer and gives under a press, as a button does */
-@media (hover:hover){.ct-n:hover{border-color:var(--acc);translate:0 -3px;
-  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent),0 3px 6px rgba(0,0,0,.16),0 20px 32px -16px rgba(0,0,0,.55),
-    0 0 0 4px color-mix(in srgb, var(--acc) 12%, transparent)}}
-.ct-n:active{scale:.95}
-.ctree.grabbing .ct-n:hover{translate:none}
-/* the family of the part under the pointer, lit and lifted */
-.ct-n.kin{border-color:var(--acc);translate:0 -3px;
-  box-shadow:0 0 0 4px color-mix(in srgb, var(--acc) 26%, transparent),0 0 28px -4px color-mix(in srgb, var(--acc) 70%, transparent)}
-.ct-n:focus-visible{outline:2px solid var(--acc);outline-offset:5px;border-radius:18px}
-.ct-g{font-family:var(--font-zh);font-size:29px;line-height:1.02;font-weight:500}
-.ct-p{font-size:10.5px;line-height:1.15;color:var(--muted);font-style:italic;max-width:60px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ct-lv{position:absolute;top:-8px;right:-9px;display:inline-flex;align-items:center;justify-content:center;gap:2px;
-  min-width:21px;height:20px;padding:0 6px;border-radius:10px;
-  font:700 10px/1 var(--font-ui);font-style:normal;letter-spacing:.02em;white-space:nowrap;
-  background:var(--lvc);color:var(--lvc-on);box-shadow:0 0 0 2px var(--surface),0 2px 5px -1px rgba(0,0,0,.3)}
-.ct-lv svg{width:9px;height:9px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6}
-.ct-lv svg rect{fill:currentColor;stroke:none}
-.ct-st{position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
-  background:var(--surface);border:1.5px solid var(--acc);color:var(--acc);box-shadow:0 0 0 2px var(--surface)}
-.ct-st svg{width:11px;height:11px}
-.ct-stage .tick{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.ct-stage .star{fill:currentColor}
-.ct-n.mastered .ct-st{background:var(--acc);color:var(--on-acc)}
-.ct-e{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:7px;max-width:124px;
-  font-size:11px;line-height:1.25;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  pointer-events:none;transition:opacity .2s ease}
-.ctree.far .ct-e{opacity:0}
-.ct-knob{position:absolute;top:50%;right:-15px;margin-top:-12px;min-width:26px;height:24px;padding:0 7px;border-radius:12px;
-  display:inline-flex;align-items:center;justify-content:center;gap:1px;
-  background:var(--acc);color:var(--on-acc);font:700 10.5px/1 var(--font-ui);font-style:normal;
-  box-shadow:0 0 0 3px var(--surface),0 3px 8px -2px color-mix(in srgb, var(--acc) 60%, transparent);transition:transform .12s ease}
-.ct-knob i{font-style:normal;opacity:.8}
-/* the knob's reach, wider as the view draws back (--ct-reach, ctCam) — out
-   from the tile only, never back over it, where a press picks the tile */
-.ct-knob::after{content:"";position:absolute;border-radius:12px;
-  inset:calc(-9px * var(--ct-reach, 1)) calc(-9px * var(--ct-reach, 1)) calc(-9px * var(--ct-reach, 1)) 0}
-@media (hover:hover){.ct-knob:hover{transform:scale(1.12)}}
-.ct-knob.on{min-width:24px;background:var(--surface-3);border:1px solid var(--line-hot);box-shadow:0 0 0 3px var(--surface)}
-.ct-knob.on::before{content:"";position:absolute;left:50%;top:50%;width:8px;height:2px;margin:-1px 0 0 -4px;
-  border-radius:1px;background:var(--ink-soft)}
-/* this level's tiles, met, mastered */
-.ct-n.now{border-color:color-mix(in srgb, var(--lvc) 55%, var(--line-hot))}
-.ct-n.met{border-color:var(--acc);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--acc) 14%, transparent),0 12px 24px -16px rgba(0,0,0,.55)}
-.ct-n.mastered{background:var(--acc-wash);border-color:var(--acc);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--acc) 26%, transparent),0 0 24px -4px color-mix(in srgb, var(--acc) 60%, transparent)}
-/* above your level: a tile still to come — flat and quieter, its plate grey
-   and carrying a lock with the level that opens it */
-.ct-n.lock{background:var(--surface-2);border-color:var(--line);color:var(--ink-soft);box-shadow:none}
-.ct-n.lock .ct-g{opacity:.78}
-.ct-n.lock .ct-lv{background:var(--surface-3);color:var(--muted);box-shadow:0 0 0 2px var(--surface)}
-.ct-n.lock .ct-e{color:var(--muted)}
-.ct-n.lock.met,.ct-n.lock.mastered{border-color:var(--acc)}
-/* a part with no entry of its own: a dashed ring, its gloss where a reading would be */
-.ct-n.ct-comp{width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;border-style:dashed;background:var(--surface-2);box-shadow:none}
-.ct-n.ct-comp:focus-visible{border-radius:50%}
-.ct-n.ct-comp .ct-g{font-size:24px;color:var(--ink-soft)}
-.ct-n.ct-comp .ct-p{font-style:normal;font-size:9px;max-width:48px}
-/* the root, larger, on a pool of light, with a slow ring breathing round it */
-.ct-n.root{width:104px;height:104px;margin:-52px 0 0 -52px;border-radius:28px;border:2px solid var(--acc);color:var(--ink);
-  background:linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, #fff), var(--surface));
-  box-shadow:0 0 0 8px color-mix(in srgb, var(--acc) 12%, transparent),0 22px 46px -16px color-mix(in srgb, var(--acc) 70%, transparent)}
-.ct-n.root:focus-visible{border-radius:28px}
-.ct-n.root.ct-comp{border-radius:50%;border-style:solid}
-.ct-n.root .ct-g{font-size:46px;color:var(--ink);opacity:1}
-.ct-n.root .ct-p{font-size:12px;max-width:88px}
-.ct-n.root .ct-e{margin-top:11px;font-size:12px;font-weight:600;color:var(--ink)}
-.ct-n.root .ct-lv{top:-7px;right:-7px}
-.ct-n.root::before{content:"";position:absolute;inset:-80px;z-index:-1;border-radius:50%;pointer-events:none;
-  background:radial-gradient(closest-side, color-mix(in srgb, var(--acc) 16%, transparent), transparent)}
-.ct-n.root::after{content:"";position:absolute;inset:-13px;border-radius:36px;pointer-events:none;
-  border:1px solid color-mix(in srgb, var(--acc) 45%, transparent);animation:ct-breathe 3s ease-in-out infinite}
-.ct-n.root.ct-comp::after{border-radius:50%}
-@keyframes ct-breathe{0%,100%{opacity:.2;transform:scale(.97)}50%{opacity:.85;transform:scale(1.03)}}
-html.still .ct-n.root::after{animation:none;opacity:.5}
-.ct-n.sel{outline:2px solid var(--acc);outline-offset:5px;
-  box-shadow:0 0 0 9px color-mix(in srgb, var(--acc) 14%, transparent),0 16px 30px -14px color-mix(in srgb, var(--acc) 60%, transparent)}
-.ct-n.ct-comp.sel{outline-offset:4px}
-
-/* A group: a big family's characters of one level, on a card of their own —
-   named along the top in the level's colour, with how many it holds, how
-   many of them are met and where the level stands against the reader's, and
-   hatched above the reader's level. The strip folds it onto the shelf. */
-.ct-group{--lvc:var(--line-hot);position:absolute;left:0;top:0;margin-top:-21px;border-radius:16px;
-  background:color-mix(in srgb, var(--surface) 86%, transparent);border:1px solid var(--line);
-  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),0 1px 2px rgba(0,0,0,.05),0 16px 34px -26px rgba(0,0,0,.5);
-  transition:height .34s var(--ease),width .34s var(--ease),border-color .2s ease,background-color .2s ease}
-html.still .ct-group{transition:none}
-.ct-group::before{content:"";position:absolute;left:-1px;top:11px;width:4px;height:20px;border-radius:0 4px 4px 0;background:var(--lvc)}
-.ct-group.now{border-color:color-mix(in srgb, var(--lvc) 45%, var(--line))}
-.ct-group.lock{background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--surface) 86%, transparent) 0 9px,
-  color-mix(in srgb, var(--surface-2) 80%, transparent) 9px 10px)}
-.ct-gh{position:relative;display:flex;align-items:center;gap:9px;width:100%;height:42px;padding:0 12px 0 18px;
-  border-radius:15px;color:var(--ink-soft);text-align:left;font-size:12px;transition:background-color .15s ease}
-@media (hover:hover){.ct-gh:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}
-  .ct-gh:hover .ct-gc{color:var(--acc)}}
-.ct-gh{border-radius:15px 15px 0 0}
-.ct-gh:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.ct-gl{flex:none;font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--lvc)}
-.ct-gn{flex:none;min-width:26px;height:21px;padding:0 8px;border-radius:999px;text-align:center;
-  font:700 11.5px/19px var(--font-ui);font-variant-numeric:tabular-nums;
-  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-soft)}
-.ct-gk{flex:none;display:inline-flex;align-items:center;gap:3px;font:700 11px/1 var(--font-ui);color:var(--acc)}
-.ct-gk svg{width:11px;height:11px}
-.ct-gt{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--muted)}
-.ct-group.now .ct-gt{color:var(--lvc)}
-.ct-gt svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6}
-.ct-gt svg rect{fill:currentColor;stroke:none}
-.ct-gc{flex:none;margin-left:auto;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
-  transition:transform .25s var(--ease),color .15s ease}
-/* The shelf of a family's folded levels: a dashed tray under its cards, a
-   chip a level in the level's colour, each opening its level as a card. */
-.ct-fold{position:absolute;left:0;top:0;margin-top:-21px;display:flex;flex-wrap:wrap;align-items:center;align-content:center;gap:6px;
-  padding:6px 10px 6px 14px;border-radius:14px;border:1px dashed color-mix(in srgb, var(--line-hot) 85%, transparent);
-  background:color-mix(in srgb, var(--surface-2) 45%, transparent);transition:height .34s var(--ease),width .34s var(--ease)}
-html.still .ct-fold{transition:none}
-.ct-fl{display:inline-flex;align-items:center;gap:5px;margin-right:4px;white-space:nowrap;
-  font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.ct-fl svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6}
-.ct-fl svg rect{fill:currentColor;stroke:none}
-.ct-fc{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 9px;border-radius:999px;white-space:nowrap;
-  font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);
-  background:var(--surface);border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.06);
-  transition:border-color .14s ease,translate .14s var(--ease),box-shadow .14s ease}
-.ct-fc i{width:9px;height:9px;border-radius:3px;background:var(--lvc)}
-.ct-fc b{font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
-.ct-fc em{display:inline-flex;align-items:center;gap:2px;font-style:normal;color:var(--acc)}
-.ct-fc em svg{width:10px;height:10px}
-@media (hover:hover){.ct-fc:hover{border-color:var(--lvc);translate:0 -1px;
-  box-shadow:0 5px 12px -6px color-mix(in srgb, var(--lvc) 60%, transparent)}}
-.ct-fc:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.ct-l.grp.fold{stroke-dasharray:3 5}
-/* a group's tiles, a size down, each carrying on its foot what else goes
-   into it — which a branch carries on its link */
-.ct-n.ct-cell{width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:16px}
-.ct-n.ct-cell:focus-visible{border-radius:16px}
-.ct-n.ct-cell .ct-g{font-size:26px}
-.ct-n.ct-cell .ct-e{max-width:84px;margin-top:13px;font-size:10.5px}
-.ct-n.ct-cell .ct-lv{min-width:19px;height:18px;padding:0 5px;font-size:9.5px;top:-7px;right:-8px}
-.ct-n.ct-cell .ct-st{width:18px;height:18px;top:-7px;left:-7px}
-.ct-plate{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:1px;
-  height:18px;padding:0 6px 0 5px;border-radius:9px;background:var(--surface);border:1px solid var(--line);
-  font-size:11px;line-height:1;color:var(--ink-soft);white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.08);pointer-events:none}
-.ct-plate i{font-style:normal;font-size:9.5px;color:var(--muted);margin-right:1px}
-.ct-plate b{font-weight:500}
-.ct-n.lock .ct-plate{background:var(--surface-2)}
-/* drawn back to take a whole family in, the tiles keep only what still reads */
-.ctree.far .ct-p,.ctree.far .ct-plate{opacity:0}
-.ct-none{position:absolute;left:0;top:0;width:250px;padding:13px 15px;border:1.5px dashed var(--line-hot);border-radius:14px;
-  font-size:12.5px;line-height:1.5;color:var(--muted);background:var(--surface)}
-.ct-none p{margin:0}
-.ct-none b{font-size:16px;color:var(--ink);font-weight:500}
-.ct-none .ghost{margin-top:9px;padding:7px 12px;font-size:12px}
-.ct-none .ct-none-sub{margin-top:4px;font-size:11.5px}
-
-/* The header over the canvas: the way back and the root on the left, the
-   tools on the right, and between them each tier's name over its band, kept
-   there as the tree pans under it. */
-.ct-head{position:absolute;z-index:4;left:0;right:0;top:0;height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:0 8px 0 9px;background:color-mix(in srgb, var(--surface) 94%, transparent);border-bottom:1px solid var(--line);
-  border-radius:var(--r) var(--r) 0 0;cursor:auto;box-shadow:0 8px 18px -16px rgba(0,0,0,.5);
-  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.ct-tiers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.ct-tiers span{position:absolute;left:0;top:50%;white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--muted);transition:color .2s ease}
-.ct-tiers span::after{content:"";position:absolute;left:50%;top:calc(100% + 9px);width:1px;height:10px;background:var(--line-hot);
-  transition:background-color .2s ease,height .2s var(--ease)}
-/* the tier of the tile under the pointer, or picked */
-.ct-tiers span.on{color:var(--acc)}
-.ct-tiers span.on::after{background:var(--acc);height:14px}
-.ct-title{position:relative;z-index:1;display:flex;align-items:center;gap:3px;min-width:0;max-width:58%;height:42px;
-  padding:0 14px 0 2px;background:transparent}
-.ct-back{flex:none;width:32px;height:32px;margin-right:4px;border-radius:9px;display:grid;place-items:center;
-  color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);transition:color .14s ease,border-color .14s ease}
-@media (hover:hover){.ct-back:hover{color:var(--acc);border-color:var(--acc)}}
-.ct-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.ct-crumb{flex:none;font-size:16px;line-height:1;padding:6px 7px;border-radius:8px;color:var(--ink-soft)}
-@media (hover:hover){.ct-crumb:hover{background:var(--surface-2);color:var(--ink)}}
-.ct-title > i{font-style:normal;color:var(--muted);font-size:13px;flex:none}
-.ct-title-g{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:11px;margin-left:3px;
-  font-size:23px;font-weight:600;line-height:1;color:var(--on-acc);background:var(--acc);
-  box-shadow:0 3px 10px -3px color-mix(in srgb, var(--acc) 70%, transparent)}
-.ct-title-t{display:flex;flex-direction:column;justify-content:center;min-width:0;margin-left:10px;line-height:1.25}
-.ct-title-t b{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ct-title-t b .py{font-weight:400;font-size:12.5px;margin-left:3px}
-.ct-title-t small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ct-zoom{position:relative;z-index:1;flex:none;display:flex;gap:6px}
-.ct-tool{display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line)}
-.ct-btn{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);
-  transition:background-color .14s ease,color .14s ease}
-@media (hover:hover){.ct-btn:hover{background:var(--surface);color:var(--ink)}}
-.ct-btn[aria-pressed="true"]{background:var(--surface);color:var(--acc);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.ct-btn:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-.ct-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:1279px){.ct-ibtn{display:none}}
-
-/* What stays put in the corners: the map of the whole tree with the key
-   under it, and the name of a tile under the pointer. */
-.ct-hud{position:absolute;z-index:3;display:flex;align-items:center;gap:4px}
-.ct-map{right:12px;bottom:12px;flex-direction:column;align-items:stretch;gap:8px;padding:8px;border-radius:12px;
-  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);cursor:auto}
-.ct-mapc{display:block;width:210px;height:112px;border-radius:8px;background:var(--surface-2);cursor:crosshair;touch-action:none}
-.ct-map.whole .ct-mapc{display:none}
-.ct-key{display:flex;flex-direction:column;gap:7px;padding:0 2px 1px}
-.ct-key-lv{display:flex;gap:3px}
-.ct-key-lv span{flex:1;min-width:20px;height:16px;border-radius:5px;text-align:center;font:700 9px/16px var(--font-ui);
-  background:var(--lvc);color:var(--lvc-on)}
-.ct-key-st{display:grid;grid-template-columns:auto auto;gap:5px 14px;font-size:10.5px;color:var(--muted)}
-.ct-key-st span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.ct-key-st i{width:12px;height:12px;border-radius:4px;border:1.5px solid var(--line-hot);background:var(--surface)}
-.ct-key-st i.met{border-color:var(--acc)}
-.ct-key-st i.mastered{border-color:var(--acc);background:var(--acc-wash);box-shadow:0 0 0 2px color-mix(in srgb, var(--acc) 28%, transparent)}
-.ct-key-st i.lock{border-color:var(--line);background:var(--surface-2)}
-.ct-key-st i.comp{border-style:dashed;border-radius:50%;background:var(--surface-2)}
-/* a narrower canvas keeps its room for the tree: the map smaller, the key gone */
-@container (max-width:860px){
-  .ct-key{display:none}
-  .ct-mapc{width:150px;height:84px}
-  .ct-map{padding:6px;right:10px;bottom:10px}
-  .ct-map.whole{display:none}
-}
-
-.ct-tip{position:absolute;z-index:5;left:0;top:0;pointer-events:none;display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 7px;
-  max-width:300px;padding:7px 11px;border-radius:10px;background:var(--surface-3);border:1px solid var(--line-hot);
-  box-shadow:var(--shadow);font-size:12px;color:var(--ink-soft)}
-.ct-tip[hidden]{display:none}
-.ct-tip b{font-size:17px;color:var(--ink);font-weight:500}
-.ct-tip > span:last-of-type{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
-.ct-tip small{flex-basis:100%;font-size:12px;color:var(--muted);letter-spacing:.06em}
-
 /* The panel: the character picked, large, its strokes ready to play beside
    its reading, level and standing; its meaning and the numbers; how it is
    built, each part marked as the one that gives the meaning or the sound;
@@ -1655,9 +1332,6 @@ html.still .ct-fold{transition:none}
 .ct-insp[hidden]{display:none}
 @keyframes ct-insp{from{opacity:0;transform:translateX(10px)}}
 html.still .ct-insp{animation:none}
-@media (min-width:1280px){
-  .ct-stage.dock .ct-insp{position:relative;z-index:auto;top:auto;right:auto;bottom:auto;width:auto;animation:none;box-shadow:var(--shadow)}
-}
 .ct-i-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:15px 16px 14px;scrollbar-width:thin}
 .ct-i-kicker{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;
   padding-right:28px}
@@ -1737,32 +1411,17 @@ html.still .ct-insp{animation:none}
 @media (hover:hover){.ct-insp .ct-x:hover{background:var(--surface-2);color:var(--ink)}}
 .ct-insp .ct-x svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 
-/* The tree as the whole window: the stage over everything but the grain,
-   with a margin of the page's ground round it. */
-body.ct-max{overflow:hidden}
-body.ct-max .ct-stage{position:fixed;inset:12px;z-index:60;height:auto}
-body.ct-max #v-chars::before{content:"";position:fixed;inset:0;z-index:59;background:var(--void)}
-
-@media (max-width:899px){
-  .ct-map{display:none}
-}
 @media (max-width:699px){
   /* the canvas runs to the foot of the screen, which the page's usual
      bottom margin would push a scroll's worth below it */
   .wrap:has(#v-chars:not(.hidden) #ctstage:not(.hidden)){padding-bottom:12px}
   .cview button{padding:0 12px}
   .cview span{display:none}
-  .ct-tiers{display:none}
-  .ct-title{max-width:calc(100% - 120px)}
-  .ct-tool[aria-label="Levels"]{display:none}
-  .ct-tool[aria-label="Zoom"] [data-ct="in"],.ct-tool[aria-label="Zoom"] [data-ct="out"]{display:none}
   .ct-insp{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:54%}
   .ct-i-glyph{width:76px;height:76px}
   .ct-i-glyph > .hz{font-size:42px}
   .ct-i-read{font-size:19px}
   .ct-i-scroll{padding:13px 14px 12px}
-  body.ct-max .ct-stage{inset:0}
-  body.ct-max .ctree{border-radius:0}
 }
 
 /* ---------- stroke-order box ---------- */
@@ -2382,39 +2041,6 @@ body.immersive .wrap{padding:8px 10px 10px;--wrap-y:18px;gap:9px}
 .rdtools .row p{margin:2px 0 0;font-size:11px;color:var(--muted);line-height:1.4}
 .rdtools .row b{font-size:12.5px}
 .rdtools .seg{margin:6px 0 4px}
-/* Translation: a line on the connection and where passages go, then the
-   device's translators — one per row, the chosen one marked, each with
-   where it stands and the one thing to do about it — all as wide as the
-   switch above them. */
-.rd-net{max-width:520px;margin:6px 0 0;font-size:11px;line-height:1.4;color:var(--muted)}
-.rd-net.off{color:var(--acc)}
-.rd-mt{max-width:520px;margin-top:9px}
-.rd-mt[hidden]{display:none}
-.rd-mt > .lbl{display:block;margin-bottom:5px}
-.rd-mt-list{border:1px solid var(--line);border-radius:10px;background:var(--surface-2);overflow:hidden}
-.rd-mt-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 10px;padding:8px 10px}
-.rd-mt-row + .rd-mt-row{border-top:1px solid var(--line)}
-.rd-mt-pick{display:flex;align-items:center;gap:9px;min-width:0;padding:0;border:0;background:none;
-  color:inherit;font:inherit;text-align:left;cursor:pointer}
-.rd-mt-dot{flex:none;display:grid;place-items:center;width:14px;height:14px;border-radius:50%;
-  border:1.5px solid var(--line-hot)}
-.rd-mt-pick[aria-pressed="true"] .rd-mt-dot{border-color:var(--acc)}
-.rd-mt-pick[aria-pressed="true"] .rd-mt-dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc)}
-.rd-mt-txt{display:flex;flex-direction:column;min-width:0}
-.rd-mt-txt b{font-size:12.5px;font-weight:600}
-.rd-mt-txt small{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rd-mt-st{max-width:190px;font-size:11px;line-height:1.35;color:var(--muted);text-align:right}
-.rd-mt-st b{color:var(--ink);font-weight:600}
-.rd-mt-row .ghost{flex:none}
-.rd-mt-bar{grid-column:1 / -1;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
-.rd-mt-bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s linear}
-/* a phone: the state goes under the name, the button stays at the end */
-@media (max-width:640px){
-  .rd-mt-row{grid-template-columns:minmax(0,1fr) auto}
-  .rd-mt-st{grid-column:1;grid-row:2;max-width:none;padding-left:23px;text-align:left}
-  .rd-mt-row .ghost{grid-column:2;grid-row:1 / span 2}
-}
-
 .rd-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .rd-foot button{flex:0 1 auto}
 .rd-foot #rd-analyse{flex:1 1 auto;text-align:center}
@@ -3760,8 +3386,6 @@ button.rx-tab:focus-visible{outline:2px solid var(--acc);outline-offset:-6px;bor
   #v-chars .ptools-end{flex:1 1 100%;justify-content:space-between;margin-left:0}
   #v-chars .ptools-end > .pseg > .lbl{display:none}
 }
-/* the tree's tiles in a level's card leave the level to the card's name */
-.ct-n.ct-cell .ct-lv{display:none}
 
 /* --- the grid, and beside it the character picked --- */
 .cstage{display:block;min-width:0}
@@ -4020,7 +3644,7 @@ body[data-view="settings"] #main{overflow-y:auto;overscroll-behavior:contain;pad
 .app-header .navrow{gap:6px}
 .app-header .navrow > button{min-height:40px;padding:9px 14px}
 .app-header .railcard{margin:0;align-self:center}
-body.immersive .app-header,body.ct-max .app-header{display:none}
+body.immersive .app-header{display:none}
 @media(max-width:1200px){
  .app-header{gap:18px}
  .app-header .mast h1{font-size:17px}
@@ -4053,9 +3677,7 @@ body.immersive .app-header,body.ct-max .app-header{display:none}
 .ct-adventure-tools{width:min(700px,calc(100% - 24px));pointer-events:none}
 .ct-adventure-tools > button{pointer-events:auto}
 #v-chars{position:relative}
-#v-chars:not(.treeview) #quest-open{display:none}
 #v-chars:not(.treeview) #clist{padding-bottom:64px;scroll-padding-bottom:64px}
-body.ct-max .ct-adventure-tools{position:fixed;z-index:61;left:24px;bottom:24px}
 .grid-level{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:600}
 .grid-level select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px}
 @media(max-width:699px){
@@ -4077,8 +3699,6 @@ body.ct-max .ct-adventure-tools{position:fixed;z-index:61;left:24px;bottom:24px}
 /* A compact quest launcher keeps the tree canvas available for exploration. */
 .ct-adventure-tools{position:absolute;z-index:5;left:12px;bottom:12px;display:flex;gap:8px;max-width:calc(100% - 24px)}
 .ct-adventure-tools > button{min-height:40px;padding:10px 14px;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font-weight:600}
-#quest-open{border:1px solid var(--acc)}
-#ct-plane .quest-badge{position:absolute;z-index:2;left:-5px;top:-7px;color:var(--acc);background:var(--surface);border:1px solid var(--acc);border-radius:50%;width:18px;height:18px;line-height:18px;font-size:12px;text-align:center;pointer-events:none}
 .quest-parts span{display:inline-block;padding:5px 9px;border:1px solid var(--line);border-radius:6px;margin:4px}
 #quest{width:min(580px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);overflow:auto}
 #quest::backdrop{background:#0009}
@@ -4109,14 +3729,6 @@ body.ct-max .ct-adventure-tools{position:fixed;z-index:61;left:24px;bottom:24px}
 .learning-prompt{padding:12px;background:var(--surface-2);border-radius:8px}
 .dictionary-note{margin:14px 0}
 .ct-static-glyph{display:grid;place-items:center;width:104px;height:104px;font-size:72px;line-height:1;color:var(--acc)}
-/* Keep the map readable without continual decorative movement. */
-.ct-n:not(.root){border-radius:12px;background:var(--surface);box-shadow:0 2px 5px #0001}
-.ct-n .ct-p{font-style:normal;font-size:12px;line-height:1.4;margin-top:4px;color:var(--ink-soft)}
-.ct-n.ct-cell .ct-p{font-size:11px;margin-top:3px}
-.ct-n.lock .ct-g{opacity:1}
-.ct-n .ct-e{font-size:12px;line-height:1.4;margin-top:8px}
-.ct-n.root::after{animation:none}
-@media(hover:hover){.ct-n:not(.root):hover{translate:0 0;box-shadow:0 0 0 2px var(--acc-wash)}}
 #ct-insp .ct-i-acts .btn{flex:1;justify-content:center}
 .quest-route{padding-top:16px;margin-top:20px;border-top:1px solid var(--line);text-align:left}
 .quest-route > b{font-size:12px}
@@ -4205,4 +3817,396 @@ body.ct-max .ct-adventure-tools{position:fixed;z-index:61;left:24px;bottom:24px}
  #cgrid .cell{min-height:108px;padding:12px 8px;contain-intrinsic-size:auto 108px}
  #cgrid .cell .ch{font-size:calc(28px * var(--fs))}
  .type-preview{padding:16px}
+}
+
+/* ================================================================
+   The character map (tree.js): from a radical to the characters built
+   on it, to the words they write — left to right on a canvas the
+   camera pans and zooms, played as an RPG skill tree. The boxes' sizes
+   here are the layout's (MM_WIDE and MM_NARROW in tree.js).
+   ================================================================ */
+.ct-stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:12px;
+  min-height:0;--lvc:var(--line-hot)}
+@media (min-width:1100px){
+  .ct-stage{grid-template-columns:minmax(0,1fr) 340px}
+  .ct-stage .ct-insp{position:relative;z-index:auto;top:auto;right:auto;bottom:auto;left:auto;width:auto;animation:none;box-shadow:var(--shadow)}
+}
+@media (min-width:700px) and (max-width:1099px){
+  .ct-stage .ct-insp{top:78px;right:12px;bottom:12px;z-index:8}
+}
+.sk{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* --- the HUD: the way back and the core; progress; the scholar; the view --- */
+.sk-hud{flex:none;display:flex;align-items:center;flex-wrap:wrap;gap:10px 22px;min-height:66px;padding:10px 12px 10px 14px;
+  border-bottom:1px solid var(--line);background:color-mix(in srgb, var(--surface-2) 55%, var(--surface))}
+.sk-trail{flex:1 1 220px;min-width:0;display:flex;align-items:center;gap:6px}
+.sk-back{flex:none;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface);color:var(--ink-soft)}
+.sk-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.sk-crumb{flex:none;height:32px;padding:0 6px;border:0;border-radius:8px;background:none;font-size:16px;line-height:1;color:var(--muted)}
+@media (hover:hover){.sk-back:hover,.sk-crumb:hover{color:var(--ink);background:var(--surface-2)}}
+.sk-trail > i{font-style:normal;color:var(--muted)}
+.sk-title-g{flex:none;display:grid;place-items:center;width:42px;height:42px;margin-left:2px;border-radius:12px;font-size:25px;font-weight:500;
+  line-height:1;color:var(--on-acc);background:var(--acc);box-shadow:0 0 0 3px var(--acc-wash)}
+.sk-title-t{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px;margin-left:4px}
+.sk-title-t small{font:800 9.5px/1 var(--font-ui);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.sk-title-t b{font-size:15.5px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-title-t .py{font-size:13px;font-weight:400;color:var(--muted)}
+.sk-fam{flex:0 1 200px;min-width:150px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.sk-fam-t{display:flex;align-items:baseline;gap:4px;font-size:12px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
+.sk-fam-t b{font-size:15px;color:var(--ink)}
+.sk-fam-t small{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--acc)}
+.sk-fam-t small svg{width:12px;height:12px;fill:currentColor}
+.sk-bar{position:relative;display:block;height:6px;border-radius:3px;background:color-mix(in srgb, var(--line) 85%, transparent);overflow:hidden}
+.sk-bar i{display:block;height:100%;border-radius:inherit;background:var(--acc);transition:width .6s var(--ease)}
+.sk-me{flex:0 1 214px;min-width:170px;display:flex;align-items:center;gap:11px}
+.sk-rank{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;font:800 16px/1 var(--font-ui);
+  color:var(--on-acc);background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--acc) 65%, #fff), var(--acc));
+  box-shadow:0 0 0 3px var(--acc-wash)}
+.sk-me-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.sk-me-t b{font-size:13px;font-weight:700;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-me-t small{font-size:11px;line-height:1.1;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-tools{flex:none;display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.sk-tool{width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background:none;color:var(--ink-soft)}
+@media (hover:hover){.sk-tool:hover{background:var(--surface-2);color:var(--ink)}}
+.sk-tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sk-xp{flex:none;display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font:800 11px/1 var(--font-ui);
+  color:var(--on-acc);background:var(--acc);white-space:nowrap}
+
+/* --- the canvas --- */
+.mm{position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+  background-color:var(--surface);
+  background-image:radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--line-hot) 70%, transparent) 1px, transparent 1.4px);
+  background-size:24px 24px;contain:layout paint}
+.mm.grabbing{cursor:grabbing}
+.mm:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.mm-plane{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.mm-links{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+.mm-link{fill:none;stroke:color-mix(in srgb, var(--ink) 26%, var(--surface));stroke-width:2;stroke-linecap:round}
+.mm-link.locked{stroke:color-mix(in srgb, var(--ink) 20%, var(--surface));stroke-dasharray:1 6}
+.mm-link.w{stroke:color-mix(in srgb, var(--acc) 50%, var(--surface))}
+.mm-link.m{stroke:var(--acc);stroke-width:1.6;stroke-dasharray:6 6;opacity:.55}
+.mm-link.p{stroke-dasharray:5 6}
+.mm-link.hot{stroke:var(--acc);stroke-width:3;opacity:1}
+.mm-dot{fill:var(--surface);stroke:color-mix(in srgb, var(--ink) 32%, transparent);stroke-width:1.5}
+.mm-dot.hot{fill:var(--acc);stroke:var(--acc)}
+.mm-pill rect{fill:var(--surface);stroke:var(--line-hot);stroke-width:1}
+.mm-pill text{fill:var(--ink-soft);font-family:var(--font-zh);font-size:13px;font-weight:600;text-anchor:middle}
+.mm-pill.hot rect{fill:var(--acc-wash);stroke:var(--acc)}
+.mm-pill.hot text{fill:var(--ink)}
+.mm-cols,.mm-boxes{position:absolute;left:0;top:0}
+.mm-cols{pointer-events:none}
+.mm-col{position:absolute;left:0;top:0;display:flex;align-items:center;gap:8px;white-space:nowrap;
+  font:800 10.5px/1 var(--font-ui);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.mm-col::before{content:"";width:14px;height:2px;border-radius:1px;background:var(--acc)}
+.mm-box{position:absolute;left:0;top:0;transition:opacity .22s ease}
+.mm-box.gone{opacity:0;pointer-events:none}
+
+/* --- a character as a card: the core, a tier's character, a part --- */
+.mm-card{position:relative;display:flex;align-items:center;gap:12px;width:100%;height:100%;padding:8px 20px 8px 9px;
+  border:1.5px solid color-mix(in srgb, var(--lvc) 45%, var(--line));border-radius:16px;background:var(--surface);
+  color:var(--ink);font:inherit;text-align:left;cursor:pointer;
+  box-shadow:0 1px 2px #0003,0 8px 18px -12px #000b;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+@media (hover:hover){.mm-card:hover{transform:translateY(-1px);border-color:var(--lvc)}}
+.mm-card:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.mm-gem{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:46px;
+  border-radius:12px;background:var(--surface-2);border:2px solid color-mix(in srgb, var(--lvc) 55%, var(--line));
+  box-shadow:inset 0 -3px 0 color-mix(in srgb, var(--lvc) 45%, transparent);transition:transform .16s var(--ease)}
+.mm-gem .hz{font-size:25px;line-height:1;font-weight:500;color:var(--ink)}
+.mm-gem .py{font-style:normal}
+.mm-txt{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.mm-l1{display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1}
+.mm-l1 .py{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-l2{font-size:12px;line-height:1.25;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-stars{flex:none;display:inline-flex;gap:1px;line-height:0}
+.mm-stars svg{width:10px;height:10px;fill:color-mix(in srgb, var(--line-hot) 85%, transparent)}
+.mm-stars i.on svg{fill:var(--acc)}
+
+/* the core: larger, ringed with how much of the map is learned */
+.mm-root .mm-card{gap:16px;padding:12px 18px 12px 14px;border:2px solid var(--acc);border-radius:24px;
+  background:radial-gradient(130% 150% at 0% 50%, var(--acc-wash), var(--surface) 62%);
+  box-shadow:0 0 0 4px var(--acc-wash),0 14px 32px -18px #000d}
+.mm-root .mm-gem{width:72px;height:72px;border-radius:50%;border-width:2.5px}
+.mm-root .mm-gem .hz{font-size:38px}
+.mm-root.part .mm-gem{border-style:dashed;border-color:var(--line-hot)}
+.mm-ring{position:absolute;inset:-9px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(var(--acc) calc(var(--p) * 1%), color-mix(in srgb, var(--line) 85%, transparent) 0);
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px))}
+.mm-kick{font:800 9.5px/1 var(--font-ui);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.mm-name{font-size:17px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-sub{display:flex;align-items:center;gap:8px;font-size:12.5px;line-height:1;color:var(--muted)}
+.mm-sub i{font-style:normal}
+.mm-sub .py{font-size:14px;color:var(--ink-soft)}
+
+/* what the core is built from */
+.mm-part .mm-card{gap:10px;padding:6px 12px 6px 7px;border-style:dashed;border-color:var(--line-hot);border-radius:14px;
+  background:color-mix(in srgb, var(--surface-2) 45%, var(--surface));box-shadow:none}
+.mm-part .mm-gem{width:40px;height:40px;border-radius:10px;border:1.5px dashed var(--line-hot);box-shadow:none}
+.mm-part .mm-gem .hz{font-size:22px}
+.mm-part .mm-name{font-size:13px;font-weight:650}
+.mm-part small{font-size:11px;line-height:1.1;color:var(--muted)}
+
+/* the knob that opens a character on the map */
+.mm-knob{position:absolute;z-index:2;top:50%;right:-13px;min-width:26px;height:26px;padding:0 7px;transform:translateY(-50%);
+  display:grid;place-items:center;border-radius:13px;border:1.5px solid var(--line-hot);background:var(--surface);color:var(--ink-soft);
+  font:800 11px/1 var(--font-ui);box-shadow:0 2px 6px -2px #0008;cursor:pointer;transition:background .15s,color .15s,border-color .15s,opacity .15s}
+@media (hover:hover){.mm-knob:hover{border-color:var(--acc);color:var(--acc)}}
+.mm-knob[aria-expanded="true"]{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+
+/* --- a level group: a big family's characters of one HSK level --- */
+.mm-cluster{border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb, var(--surface-2) 38%, var(--surface));
+  box-shadow:0 1px 2px #0002,0 12px 26px -20px #000d}
+.mm-chead{display:flex;align-items:center;gap:10px;width:100%;height:46px;padding:0 14px 0 16px;border:0;border-bottom:1px solid var(--line);
+  border-radius:18px 18px 0 0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.mm-cluster.shut .mm-chead{border-bottom:0;border-radius:18px}
+@media (hover:hover){.mm-chead:hover{background:color-mix(in srgb, var(--lvc) 8%, transparent)}}
+.mm-cdot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--lvc);box-shadow:0 0 0 3px color-mix(in srgb, var(--lvc) 22%, transparent)}
+.mm-chead b{font-size:13.5px;font-weight:800;line-height:1}
+.mm-ctag{font-size:11.5px;line-height:1;color:var(--muted)}
+.mm-cn{margin-left:auto;font:700 12.5px/1 var(--font-ui);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.mm-cn small{font-size:12px;font-weight:600;color:var(--muted)}
+.mm-chev{flex:none;width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  transform:rotate(90deg);transition:transform .2s var(--ease)}
+.mm-cluster.shut .mm-chev{transform:none}
+.mm-tiles{display:grid;grid-auto-rows:100px;justify-content:center;padding:0 12px}
+.mm-tw{position:relative;display:flex;justify-content:center;padding-top:10px}
+.mm-tile{display:flex;flex-direction:column;align-items:center;gap:5px;width:74px;padding:0;border:0;border-radius:12px;
+  background:none;color:inherit;font:inherit;cursor:pointer}
+.mm-tile:focus-visible{outline:none}
+.mm-tile:focus-visible .mm-gem{outline:2px solid var(--acc);outline-offset:3px}
+.mm-tile .mm-gem{width:52px;height:52px;border-radius:14px}
+.mm-tile .mm-gem .hz{font-size:24px}
+.mm-tile .mm-gem .py{margin-top:2px;font-size:9.5px;line-height:1;color:var(--muted)}
+.mm-tile .mm-l2{max-width:72px;font-size:11px;color:var(--ink-soft);text-align:center}
+@media (hover:hover){.mm-tile:hover .mm-gem{transform:translateY(-2px)}}
+.mm-tknob{top:6px;right:0;transform:none;min-width:22px;height:22px;padding:0 5px;font-size:10px;opacity:0}
+.mm-tknob.has{opacity:1;background:var(--acc-wash);border-color:color-mix(in srgb, var(--acc) 60%, var(--line));color:var(--acc)}
+.mm-tknob[aria-expanded="true"]{opacity:1}
+.mm-tw:hover .mm-tknob,.mm-tw:focus-within .mm-tknob,.mm-tile.sel + .mm-tknob{opacity:1}
+
+/* --- the words a character writes --- */
+.mm-words{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:var(--surface);
+  box-shadow:0 1px 2px #0002,0 12px 26px -20px #000d}
+.mm-whead{display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb, var(--acc) 7%, var(--surface))}
+.mm-wkick{font:800 10px/1 var(--font-ui);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.mm-whead .hz{font-size:18px;font-weight:600;line-height:1}
+.mm-wn{margin-left:auto;font-size:11.5px;line-height:1;color:var(--muted);white-space:nowrap}
+.mm-wrows{display:flex;flex-direction:column}
+.mm-word{display:grid;grid-template-columns:20px minmax(0,1fr) auto;grid-template-rows:auto auto;align-content:center;align-items:center;
+  column-gap:10px;row-gap:3px;width:100%;height:52px;padding:0 12px 0 11px;border:0;
+  border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.mm-word:last-child{border-bottom:0}
+@media (hover:hover){.mm-word:hover{background:color-mix(in srgb, var(--ink) 5%, transparent)}}
+.mm-word:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.mm-word.sel{background:var(--acc-wash);box-shadow:inset 3px 0 0 var(--acc)}
+.mm-wmark{grid-row:1 / 3;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-hot);color:var(--muted)}
+.mm-wmark svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.mm-wmark .star{fill:currentColor;stroke:none}
+.mm-wl1{display:flex;align-items:baseline;gap:7px;min-width:0;line-height:1.1}
+.mm-wl1 .hz{font-size:17px;font-weight:600;white-space:nowrap}
+.mm-wl1 .py{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-wl2{grid-column:2;font-size:11.5px;line-height:1.15;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-wlv{grid-column:3;grid-row:1 / 3;padding:3px 7px;border-radius:999px;font:700 10px/1 var(--font-ui);color:var(--lvc);
+  border:1px solid color-mix(in srgb, var(--lvc) 50%, transparent);background:color-mix(in srgb, var(--lvc) 12%, transparent)}
+.mm-word.ready .mm-wmark{border-color:var(--acc);background:var(--acc-wash)}
+.mm-word.known .mm-wmark{border-color:var(--hsk-1);color:var(--hsk-1)}
+.mm-word.mastered .mm-wmark{border-color:var(--acc);background:var(--acc);color:var(--on-acc)}
+.mm-word.locked .mm-wmark{border-style:dashed}
+.mm-word.locked .mm-wl1 .hz{color:var(--ink-soft)}
+.mm-wmore{display:block;width:100%;height:38px;border:0;border-top:1px solid var(--line);background:none;color:var(--acc);
+  font:700 12px/1 var(--font-ui);cursor:pointer}
+@media (hover:hover){.mm-wmore:hover{background:var(--acc-wash)}}
+
+/* --- states: locked, ready, learned, mastered; the next quest --- */
+:is(.mm-box,.mm-tile).locked .mm-gem{border-style:dashed;border-color:var(--line-hot);box-shadow:none;
+  background:repeating-linear-gradient(135deg, var(--surface) 0 5px, color-mix(in srgb, var(--surface-2) 75%, var(--surface)) 5px 10px)}
+:is(.mm-box,.mm-tile).locked .mm-gem .hz{opacity:.45}
+.mm-box.locked .mm-card{border-style:dashed;border-color:var(--line-hot)}
+:is(.mm-box,.mm-tile).locked .mm-l2{color:var(--muted)}
+:is(.mm-box,.mm-tile).locked .mm-stars{opacity:.45}
+.mm-lock{position:absolute;right:-6px;bottom:-6px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;
+  background:var(--surface);border:1px solid var(--line-hot);color:var(--muted)}
+.mm-lock svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+:is(.mm-box,.mm-tile).ready .mm-gem{border-color:var(--lvc);
+  box-shadow:inset 0 -3px 0 var(--lvc),0 0 0 3px color-mix(in srgb, var(--lvc) 16%, transparent)}
+:is(.mm-box,.mm-tile).learned .mm-gem{border-color:var(--lvc);background:color-mix(in srgb, var(--lvc) 28%, var(--surface));box-shadow:inset 0 -3px 0 var(--lvc)}
+.mm-box.learned:not(.mm-root) .mm-card{border-color:color-mix(in srgb, var(--lvc) 70%, var(--line))}
+:is(.mm-box,.mm-tile).mastered .mm-gem{border-color:var(--acc);
+  background:linear-gradient(160deg, color-mix(in srgb, var(--acc) 34%, var(--surface)), color-mix(in srgb, var(--lvc) 22%, var(--surface)));
+  box-shadow:inset 0 -3px 0 var(--acc),0 0 14px -3px color-mix(in srgb, var(--acc) 70%, transparent)}
+.mm-bang{position:absolute;z-index:1;top:-9px;right:-9px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  font:900 12px/1 var(--font-ui);color:var(--on-acc);background:var(--acc);box-shadow:0 2px 8px -2px #000a;animation:mm-bob 1.6s ease-in-out infinite}
+.mm-root .mm-bang{top:-3px;right:-3px}
+.mm-gem:has(.mm-bang){animation:mm-call 2.2s ease-in-out infinite}
+@keyframes mm-bob{50%{transform:translateY(-3px)}}
+@keyframes mm-call{
+  0%,100%{box-shadow:inset 0 -3px 0 var(--lvc),0 0 0 3px color-mix(in srgb, var(--acc) 34%, transparent)}
+  50%{box-shadow:inset 0 -3px 0 var(--lvc),0 0 0 8px color-mix(in srgb, var(--acc) 6%, transparent)}}
+
+/* picked, under the pointer, on the way to the core, built on what is picked */
+.mm-card.sel{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-wash),0 0 0 1.5px var(--acc),0 12px 28px -16px #000d}
+.mm-card.lit{border-color:color-mix(in srgb, var(--acc) 70%, var(--line))}
+.mm-card.kin{outline:2px dashed color-mix(in srgb, var(--acc) 75%, transparent);outline-offset:4px}
+.mm-tile.sel .mm-gem{outline:2.5px solid var(--acc);outline-offset:3px}
+.mm-tile.hov .mm-gem{outline:2px solid color-mix(in srgb, var(--acc) 50%, transparent);outline-offset:3px}
+.mm-tile.kin .mm-gem{outline:2px dashed color-mix(in srgb, var(--acc) 75%, transparent);outline-offset:3px}
+.mm-word.kin{background:color-mix(in srgb, var(--acc) 8%, transparent)}
+
+/* just opened, just learned */
+:is(.mm-card,.mm-tile).opened-now .mm-gem{animation:mm-open .9s var(--ease) both}
+:is(.mm-card,.mm-tile).learned-now .mm-gem{animation:mm-learn 1s var(--ease) both}
+@keyframes mm-open{
+  0%{transform:scale(.6);opacity:.3;filter:blur(2px)}
+  60%{transform:scale(1.12);opacity:1;filter:none;box-shadow:0 0 0 10px color-mix(in srgb, var(--acc) 25%, transparent)}
+  100%{transform:none}}
+@keyframes mm-learn{0%{transform:none}35%{transform:scale(1.18) rotate(-4deg)}70%{transform:scale(.96)}100%{transform:none}}
+html.still .mm-bang,html.still .mm-gem{animation:none !important}
+@media (prefers-reduced-motion:reduce){.mm-bang,.mm-gem{animation:none !important}}
+
+/* --- over the canvas: the next quest, and the small map --- */
+.mm-hud{position:absolute;z-index:6;cursor:default}
+.sk-quest{top:12px;left:12px;display:flex;align-items:center;gap:14px;max-width:calc(100% - 24px);padding:8px 8px 8px 8px;
+  border:1px solid color-mix(in srgb, var(--acc) 55%, var(--line));border-radius:16px;
+  background:color-mix(in srgb, var(--surface) 93%, transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:0 12px 30px -18px #000d}
+.sk-q-main{min-width:0;display:flex;align-items:center;gap:12px}
+.sk-q-glyph{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;font-size:25px;line-height:1;
+  border:2px solid var(--lvc);background:var(--surface-2);color:var(--ink);box-shadow:inset 0 -3px 0 var(--lvc)}
+.sk-q-text{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.sk-q-text small{font:800 9.5px/1 var(--font-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.sk-q-text b{font-size:14px;font-weight:650;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-q-text b .hz{font-size:16px}
+.sk-q-text .py{font-weight:400;color:var(--ink-soft)}
+.sk-q-en{font-weight:400;color:var(--muted)}
+.sk-q-go{flex:none;min-height:38px;padding:0 18px}
+.sk-q-go[hidden]{display:none}
+.sk-q-done{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:var(--on-acc);background:var(--acc)}
+.sk-q-done svg{width:22px;height:22px;fill:currentColor}
+.mm-map{right:12px;bottom:12px;width:188px;height:120px;border:1px solid var(--line);border-radius:12px;cursor:crosshair;
+  background:color-mix(in srgb, var(--surface) 92%, transparent);box-shadow:0 10px 24px -16px #000d}
+.mm-map.idle{opacity:0;pointer-events:none}
+.mm-map{transition:opacity .2s ease}
+@media (max-width:899px){.mm-map{display:none}}
+
+/* the controls that float at the foot of the Characters tab: one height */
+.ct-adventure-tools{align-items:center}
+#character-controls #radical-picker,#character-controls #cview{height:40px;min-height:40px;box-sizing:border-box}
+#character-controls #cview button{min-height:0;height:32px}
+
+/* --- the panel's game: where the reader stands, what it needs --- */
+.sk-i-st{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 2px}
+.sk-badge{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:999px;font-size:10px;font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line-hot);color:var(--muted);background:var(--surface-2)}
+.sk-badge svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+.sk-badge.ready,.sk-badge.next{border-color:var(--acc);color:var(--acc);background:var(--acc-wash)}
+.sk-badge.learned{border-color:var(--hsk-1);color:var(--hsk-1)}
+.sk-badge.mastered{border-color:var(--acc);color:var(--on-acc);background:var(--acc)}
+.sk-i-st .mm-stars svg{width:14px;height:14px}
+.sk-i-req{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;border:1px dashed var(--line-hot);
+  border-radius:10px;background:var(--surface-2)}
+.sk-i-reqg{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:10px;font-size:24px;line-height:1;
+  border:2px solid var(--acc);background:var(--surface);color:var(--ink)}
+.sk-i-req p{margin:0;font-size:12px;line-height:1.5;color:var(--ink-soft)}
+.sk-i-req .hz{font-size:15px}
+.mm-i-recipe{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13px;color:var(--ink-soft)}
+.mm-i-recipe b{font-size:22px;font-weight:500;color:var(--ink)}
+.mm-i-recipe span{padding:2px 9px;border:1px solid var(--line-hot);border-radius:999px;font-family:var(--font-zh);font-size:14px}
+.mm-i-recipe i{font-style:normal;color:var(--acc);font-weight:700}
+.mm-i-word{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px}
+.mm-i-word .hz{font-size:42px;line-height:1.15;font-weight:500}
+.mm-i-word .py{font-size:18px;color:var(--ink-soft)}
+.mm-i-chars{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.mm-i-char{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 7px;border:1px solid var(--line);border-radius:11px;
+  background:var(--surface-2);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.mm-i-char.done{border-color:color-mix(in srgb, var(--acc) 55%, var(--line))}
+.mm-i-char > b{font-size:22px;font-weight:500;line-height:1}
+.mm-i-char span{display:flex;flex-direction:column;gap:2px}
+.mm-i-char em{font-style:normal;font-size:11.5px;color:var(--ink-soft)}
+.mm-i-char small{font-size:10.5px;color:var(--muted)}
+.ct-i-acts .btn small{margin-left:4px;font-weight:800;opacity:.85}
+.quest-unlocked{color:var(--acc) !important;font-weight:600}
+.quest-unlocked .hz{font-size:20px;letter-spacing:.08em}
+
+@media (max-width:699px){
+  .sk-hud{gap:8px 14px;min-height:0;padding:9px 10px}
+  .sk-rank{width:30px;height:30px;font-size:14px}
+  .sk-tools [data-ct="in"],.sk-tools [data-ct="out"]{display:none}
+  .sk-quest{top:8px;left:8px;right:8px;gap:10px}
+  .sk-q-glyph{width:38px;height:38px;font-size:22px}
+  .sk-q-text b{font-size:13px}
+  .sk-q-main .sk-xp{display:none}
+  .sk-q-go{min-height:34px;padding:0 14px}
+  .mm-root .mm-gem{width:62px;height:62px}
+  .mm-root .mm-gem .hz{font-size:32px}
+  .ct-stage .ct-insp{z-index:8}
+}
+
+/* --- the grid's toolbar: sort and level side by side in one bar, the
+   same bar as the map's header, and the count at its end --- */
+#cgridbar.gbar{container:gbar / inline-size;position:relative;z-index:6;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:10px 28px;
+  margin:0;padding:10px 16px;border:1px solid var(--line);border-radius:var(--r);
+  background:color-mix(in srgb, var(--surface-2) 55%, var(--surface));box-shadow:var(--shadow)}
+#cgridbar.gbar #csort,#cgridbar.gbar #glevel{flex:none;margin:0;gap:10px}
+#cgridbar.gbar .segtrack{padding:3px;gap:2px}
+#cgridbar.gbar .segtrack > button{min-height:34px;padding:0 14px}
+#cgridbar.gbar #glevel .segtrack > button{min-width:38px;padding:0 9px}
+/* the level's select stays only as the state the grid reads; the switch replaces it */
+#cgridbar .grid-level[hidden]{display:none}
+.gbar-n{margin-left:auto;font-size:12px;font-weight:600;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:699px){
+  #cgridbar.gbar{gap:8px 14px;padding:9px 10px}
+  #cgridbar.gbar #glevel{max-width:100%;overflow-x:auto;scrollbar-width:none}
+  #cgridbar.gbar #glevel .segtrack > button{min-width:32px;padding:0 6px}
+  .gbar-n{display:none}
+}
+
+/* --- the map's Find box, in its header --- */
+.sk-find{flex:0 1 230px;min-width:150px;display:flex;align-items:center;gap:8px;height:36px;padding:0 11px;
+  border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--muted);transition:border-color .15s ease,box-shadow .15s ease}
+.sk-find:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-wash);color:var(--acc)}
+.sk-find svg{flex:none;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.sk-find input{flex:1;min-width:0;height:100%;padding:0;border:0;background:none;color:var(--ink);font:500 13px/1 var(--font-ui);outline:none}
+.sk-find input::placeholder{color:var(--muted)}
+.sk-find input::-webkit-search-cancel-button{display:none}
+
+/* --- a word with the character it is listed under picked out: 你 + 好 --- */
+.mm-wl1 .hz .mm-own{font-style:normal;color:var(--acc)}
+.mm-word.daily .mm-wl1 .hz{letter-spacing:.01em}
+.mm-wlv.daily{border-style:dashed;color:var(--ink-soft);background:none;border-color:color-mix(in srgb, var(--lvc) 55%, var(--line))}
+.mm-wmore small{font-weight:600;color:var(--muted)}
+
+/* --- a radical's characters filed under it but drawn with other parts --- */
+.mm-cluster.filed{border-style:dashed;background:color-mix(in srgb, var(--surface-2) 25%, var(--surface))}
+.mm-cluster.filed .mm-cdot{background:var(--muted);box-shadow:none}
+.mm-cluster.filed .mm-chead b .hz{font-size:15px}
+
+/* --- the map's header as a grid that follows the map's own width: one row
+   where everything fits, two where it does not, three on a phone — never a
+   control left alone on a line of its own --- */
+.sk{container:map / inline-size}
+.sk-hud{display:grid;align-items:center;gap:10px 18px;
+  grid-template-columns:minmax(0,1fr) minmax(150px,210px) minmax(140px,180px) minmax(160px,200px) auto;
+  grid-template-areas:"trail find fam me tools"}
+.sk-trail{grid-area:trail} .sk-find{grid-area:find;min-width:0} .sk-fam{grid-area:fam;min-width:0} .sk-me{grid-area:me;min-width:0} .sk-tools{grid-area:tools;justify-self:end}
+@container map (max-width:1000px){
+  .sk-hud{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;grid-template-areas:"trail find tools" "fam me me"}
+}
+@container map (max-width:560px){
+  .sk-hud{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;grid-template-areas:"trail trail tools" "find find find" "fam me me";gap:8px 12px}
+}
+
+/* On a phone the sort fits the bar: "Radical number" says "Radical", and
+   the switches tighten, so no choice runs off the bar's edge. */
+@media (max-width:699px){
+  #cgridbar.gbar #csort{max-width:100%}
+  #cgridbar.gbar #csort .nm-tail{display:none}
+  #cgridbar.gbar #csort .segtrack > button{padding:0 10px;font-size:12px}
+}
+/* the count only where it fits on the bar's one line, never a row to itself */
+@container gbar (max-width:1000px){
+  .gbar-n{display:none}
 }

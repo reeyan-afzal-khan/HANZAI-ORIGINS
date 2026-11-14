@@ -4,15 +4,8 @@
 # There is no Jekyll step. The app is plain static files, and Jekyll would only
 # copy them (and, run over the repository root, it turned README.md into the
 # home page). The build is Node with no npm install, since the scripts it runs
-# use only Node's own modules:
-#   1. The offline translator ("Compact" in the reader) is not in the repository.
-#      tools/build-translation.mjs fetches it from its pinned sources, checks
-#      each file against its SHA-256 and packs it into release/web/data/mt/. The
-#      downloads are cached between runs. Both steps are skipped while
-#      src/data/translation/files.json is absent: the site is then built without
-#      Compact, which the reader shows as not in this copy of the app.
-#   2. tools/build.mjs: stamp release/web/ in place, with the service
-#      worker stamped (see tools/build.mjs).
+# use only Node's own modules: tools/build.mjs stamps release/web/ in place,
+# with the service worker stamped (see tools/build.mjs).
 name: Deploy HANZAI-ORIGINS to GitHub Pages
 
 on:
@@ -48,17 +41,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Cache the offline translator
-        if: hashFiles('src/data/translation/files.json') != ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            src/data/translation/runtime
-            src/data/translation/opus-mt-zh-en
-          key: translation-${{ hashFiles('src/data/translation/files.json') }}
-      - name: Install the offline translator
-        if: hashFiles('src/data/translation/files.json') != ''
-        run: node tools/build-translation.mjs
       - name: Build the site
         run: node tools/build.mjs
       - name: Upload artifact

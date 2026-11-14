@@ -4,15 +4,45 @@ An offline app for learning to read and write Chinese characters. Start with **C
 
 Progress stays on your device. Settings includes reading preferences, themes and Chinese fonts.
 
-## Character adventures
+## The character map
 
-Use **Radicals** to explore character families across all levels. Select a
-node and choose **Learn** for a short study, recognition and guided-writing quest.
-The family path suggests unfinished characters, including component characters.
+**Characters → Tree** draws a family as a map, left to right, and plays it as a
+role-playing game's skill tree. Pick a radical from **Radicals** (or a character
+from any entry) and the map shows:
 
-First recognition earns 10 XP and first writing completion earns 20 XP per
-character; every 150 XP raises the scholar level. Repeating practice is free and
-mistakes have no penalty. A star marks a completed writing quest, not mastery.
+- **Built from**: the parts of the core, where it has any (木 is 十 and 八).
+- **Core**: the radical or character itself.
+- **Tier I**: every character built on it, with its recipe on the link
+  (氵 `+每` → 海): a card each for a small family, a group per HSK level for a
+  big one.
+- **Further tiers and words**: open a character (its `+N` knob, Space, or
+  **Expand on map**) to see what is built on it in turn, and the words it writes.
+  A word that uses two characters on the map, such as 海洋 from 海 and 洋, is
+  linked from both, so separate paths meet in the vocabulary they make.
+- **Words**: each character's list holds its HSK words and the common everyday
+  words the official list leaves out, such as 你好 from 你 and 好, marked
+  **Everyday**. A list shows its first six; **Show more** pages through the rest.
+- **Also filed under**: every other character the radical index files under the
+  radical, so a radical's map always shows all of its characters.
+
+- Every character is a skill: locked, ready, learned (★★) or mastered (★★★).
+  One star comes from recognising it in a quest or meeting it in your deck, two
+  from finishing its writing quest, three from mastering its card.
+- A character opens once the one it is built on is learned: learn 木 and its
+  first tier opens. A component with no entry of its own (氵, 扌) holds nothing
+  back. A word is ready once all its characters are learned. **Train anyway**
+  practises a locked character early.
+- **Next quest**, over the map, always names what to learn next. A quest is a
+  short study, recognition and guided-writing round. First recognition earns
+  10 XP and first writing completion 20 XP per character; every 150 XP raises
+  your scholar level (Novice, Apprentice, Initiate, Scribe…).
+
+Type in **Find** over the map to jump to a character, a word (你好), toneless
+pinyin (nihao) or a radical (竹). Drag to pan, scroll or pinch to zoom, and use
+the small map in the corner for big families. Keys: arrows move, **Space** opens a character on the map, **Enter**
+opens its entry, **Q** starts its quest, **G** makes it the core, **+ −** zoom,
+**0** fits the map, **Backspace** goes back.
+
 Quest results belong to the active local profile. No account or server is required.
 
 Explanations use the bundled dictionary and decomposition data. Sound resemblance
@@ -32,7 +62,7 @@ npm run build:pages    # release/web/ for GitHub Pages
 
 Edit the site in `release/web/` or open `release/web/index.html` directly. Run `npm run build` before publishing to refresh the offline cache and asset URLs in place. Generated app data is committed, so a normal web build does not require downloading or rebuilding the source data.
 
-The web app ships a Rust WebAssembly engine for the reader, character tree and parts of the interface. After editing files in `src/engine/`, run `rustup target add wasm32-unknown-unknown` and `npm run build:rust`. The generated engine is bundled as a local script so it also loads offline. Run `node tools/check-rust.mjs` in a full Git checkout to compare its output and book-analysis time with the pre-migration version.
+The web app ships a Rust WebAssembly engine for the reader (word segmentation, annotated markup, text import and book analysis), the character tree, the character map (each character's word list and the map's layout) and the EPUB fallback decompressor. The page shell stays plain HTML in `release/web/index.html`, so the browser can draw it without waiting for the engine, and small pieces of markup such as the character grid are built in JavaScript, where crossing into WebAssembly would cost more than it saves. After editing files in `src/engine/`, run `rustup target add wasm32-unknown-unknown` and `npm run build:rust`. The generated engine is bundled as a local script so it also loads offline. Run `node tools/check-rust.mjs` in a full Git checkout to compare its output and book-analysis time with the pre-migration version, and the character map's word lists and layout with a plain JavaScript version.
 
 ## Project layout
 
@@ -41,7 +71,7 @@ release/
   web/          Editable web app used by the browser, GitHub Pages and Capacitor
   android/      Android project and Gradle wrapper
 src/
-  engine/       Rust WebAssembly engine and interface templates
+  engine/       Rust WebAssembly engine
   data/         Source dictionaries, HSK lists and example sentences
   themes/       Source palettes, textures and logo
 tools/          Build scripts, development server and verification tools
@@ -73,7 +103,6 @@ npm run strokes       # offline stroke-order data
 npm run themes
 npm run icons
 npm run fonts         # Python, fonttools and brotli required
-npm run translation   # optional offline reader translator
 ```
 
 The Pages workflow builds and publishes `release/web/` on pushes to `main`. Each build stamps the page, scripts and service worker together to keep cached versions consistent.
@@ -90,6 +119,7 @@ reloads. With Playwright configured as for `check-ui.cjs`, build Pages and run
 
 - HSK lists: [ivankra/hsk30](https://github.com/ivankra/hsk30), MIT.
 - Glosses: CC-CEDICT via [complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary), CC BY-SA 4.0.
+- Everyday words: [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cedict), CC BY-SA 4.0, ranked by [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (OpenSubtitles 2018), CC BY-SA 4.0.
 - Stroke order: [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data).
 - Character breakdowns: [Make Me A Hanzi](https://github.com/skishore/makemeahanzi), LGPL / Arphic.
 - Frequency and radicals: [hanziDB](https://github.com/ruddfawcett/hanziDB.csv).

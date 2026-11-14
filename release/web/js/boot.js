@@ -25,7 +25,6 @@ function show(view){
      card is still there when you come back — but its word card is not. */
   if(view !== "talk" && typeof closeTalkGloss === "function") closeTalkGloss();
   /* The character tree filling the window belongs to its tab. */
-  if(view !== "chars") document.body.classList.remove("ct-max");
   const changed = S.view !== view;
   S.view = view; save();
   document.body.dataset.view = view;
@@ -386,6 +385,14 @@ $("#grid-level").onchange = () => {
   C.limit = 300;
   paintChars();
 };
+/* the grid's level, from the switch beside the sort */
+$("#glevel").onclick = e => {
+  const b = e.target.closest("button[data-glv]");
+  if(!b) return;
+  $("#grid-level").value = b.dataset.glv;
+  C.limit = 300;
+  paintChars();
+};
 $("#csort").onclick = e => {
   const b = e.target.closest("button[data-s]");
   if(!b) return;
@@ -463,15 +470,6 @@ $("#sw-turn").onclick = () => {
   if(S.readTurn !== "none") S.readTurnStyle = S.readTurn;
   save(); paintReaderControls();
 };
-/* Where passages are translated, and the device's translators: a press on
-   one picks it; its button downloads, removes, or tries again. */
-$("#rd-trsvc").onclick = e => {
-  const b = e.target.closest("button[data-svc]");
-  if(!b) return;
-  S.readTranslator = b.dataset.svc; save();
-  paintReaderControls();
-};
-$("#rd-mt-list").addEventListener("click", e => safely("set up offline translation", () => mtListClick(e)));
 /* The reading settings: a menu dropped from its button over the page. It
    closes from the button again, from Escape, or from a press anywhere outside
    it, so a reader who has set the type can go straight back to the page
@@ -810,7 +808,7 @@ $("#rc-who").onclick = showProfiles;
 const HELP = [
   ["Anywhere", [["1 – 6", "Jump to a section"], ["?", "This list"], ["Esc", "Close a dialog"]]],
   ["The character grid", [["← → ↑ ↓", "Move across the grid, beside the character open"], ["Enter", "Open its full entry"]]],
-  ["The character tree", [["← → ↑ ↓", "Walk the tree: along a branch, back to the root, between siblings"], ["Enter", "Open the entry of the tile picked"], ["Space", "Open or fold its branch"], ["G", "Grow a tree from the tile picked"], ["Backspace", "Back to the root before"], ["+ −", "Zoom in and out"], ["0", "Fit the whole tree"], ["F", "Fill the window with the tree, and back"], ["Esc", "Put the tile down"]]],
+  ["The character map", [["← → ↑ ↓", "Move between characters and words"], ["Space", "Open or fold the character picked on the map"], ["Q", "Begin the quest of the character picked, or the next quest"], ["Enter", "Open the entry of what is picked"], ["G", "Make the character picked the core"], ["+ −", "Zoom in and out"], ["0", "Fit the whole map"], ["Backspace", "Back to the core before"], ["Esc", "Put it down"]]],
   ["Reading",   [["← →", "Previous and next page"], ["F", "Full screen, and back"], ["Esc", "Close the gloss, clear a selected passage, or leave full screen"]]],
 ];
 
@@ -865,7 +863,7 @@ document.addEventListener("keydown", e => {
     if(/^Arrow(Up|Down|Left|Right)$/.test(e.key)){ e.preventDefault(); cMove(e.key); return; }
     if(e.key === "Enter" && !e.target.closest("button, a")){ e.preventDefault(); safely("open that entry", () => openChar(C.sel)); return; }
   }
-  /* The character tree: the arrows walk it, + − and 0 zoom (tree.js). */
+  /* The character map: the arrows walk it, + − and 0 zoom (tree.js). */
   if(treeKey(e)) return;
   const n = +e.key;
   if(n >= 1 && n <= VIEWS.length){ e.preventDefault(); show(VIEWS[n - 1]); }

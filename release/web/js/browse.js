@@ -306,7 +306,7 @@ const SORTS = {
   frequency: {nm: "Frequency", long: "Most frequent first",
               cmp: (a,b) => (a.rank || Infinity) - (b.rank || Infinity) || byReading(a,b),
               sec: c => c.rank ? BANDS.find(([n]) => c.rank <= n)[1] : "Unranked"},
-  radical: {nm: "Radical number", long: "Dictionary radical number, lowest first",
+  radical: {nm: "Radical", tail: " number", long: "Dictionary radical number, lowest first",
             cmp: (a,b) => (a.radn || Infinity) - (b.radn || Infinity) || byReading(a,b),
             sec: c => c.radn ? `Radical ${c.radn}` : "Radical unknown"},
 };
@@ -315,7 +315,7 @@ async function renderChars(){
   C.level = S.level;
   $$("#cview button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cv === S.charView)));
   paintSwitches("#csort", `<span class="lbl">Sort</span><span class="segtrack">${Object.entries(SORTS).map(([k, v]) =>
-    `<button class="fchip" data-s="${k}" aria-pressed="${C.sort === k}" title="${esc(v.long)}">${esc(v.nm)}</button>`).join("")}</span>`);
+    `<button class="fchip" data-s="${k}" aria-pressed="${C.sort === k}" title="${esc(v.long)}">${v.tail ? `<span>${esc(v.nm)}<span class="nm-tail">${esc(v.tail)}</span></span>` : esc(v.nm)}</button>`).join("")}</span>`);
   if(!C.all) C.all = await getChars();
   await rxLoad();
   /* what you have met, for the header's count and the grid's marks; the
@@ -338,6 +338,10 @@ function paintChars(){
   const level = $("#grid-level").value;
   const base = level === "all" ? C.all : C.all.filter(c => c.lv === level);
   const list = base.slice().sort(SORTS[C.sort].cmp);
+  /* the level switch beside the sort, and how many characters it shows */
+  paintSwitches("#glevel", `<span class="lbl">HSK</span><span class="segtrack">${[["all", "All"], ...LEVELS.map(lv => [lv, levelLabel(lv)])].map(([v, n]) =>
+    `<button class="fchip" data-glv="${v}" data-lv="${v}" aria-pressed="${v === level}" title="${v === "all" ? "Every level" : `HSK ${n}`}">${n}</button>`).join("")}</span>`);
+  $("#gcount").textContent = `${num(list.length)} character${list.length === 1 ? "" : "s"}`;
   const sec = SORTS[C.sort].sec;
   const total = new Map();
   for(const c of list){ const k = sec(c); total.set(k, (total.get(k) || 0) + 1); }
@@ -346,7 +350,8 @@ function paintChars(){
   C.shown = shown.map(c => c.h);
   /* On a wide screen something is always open beside the grid: the
      character picked, while it is in the grid, or else the first. */
-  if(cWide() && shown.length && !C.shown.includes(C.sel)) C.sel = shown[0].h;
+  const wide = cWide();
+  if(wide && shown.length && !C.shown.includes(C.sel)) C.sel = shown[0].h;
   let last = null, html = "";
   for(const c of shown){
     const k = sec(c);
@@ -354,7 +359,7 @@ function paintChars(){
       html += `<div class="csec"><b>${esc(k)}</b><i aria-hidden="true"></i><small>${num(total.get(k))}</small></div>`;
       last = k;
     }
-    html += cCellHTML(c);
+    html += cCellHTML(c, wide);
   }
   $("#cgrid").innerHTML = shown.length ? html
     : `<div class="empty" style="grid-column:1/-1">None here yet.</div>`;
@@ -368,12 +373,16 @@ function paintChars(){
 
 /* A cell: the character, its reading and the first of its senses; a tick
    once it is met, a star once mastered; in frequency order, its rank. */
-function cCellHTML(c){
-  const k = ctKnown(c.h);
-  const mark = k === 2 ? CT_STAR : k ? CT_TICK : "";
-  copyReaderText([c.h, c.p, c.en.slice(0, 2).join("; "), ctShort(c.en[0]), mark].join("\0"));
-  const size = webEngine.grid_cell(Number(c.lv), k, cWide() && C.sel === c.h, c.rank || 0, C.sort === "frequency");
-  return engineText(webEngine.html_ptr(), size);
+/* Built here rather than in the Wasm engine: a cell is a few short strings,
+   and copying them in and the markup back out cost more than writing it. The
+   grid passes `wide` once for all its cells, since each matchMedia call is a
+   style query. */
+function cCellHTML(c, wide = cWide()){
+  const k = ctKnown(c.h), rank = c.rank || 0, h = esc(c.h), p = esc(c.p);
+  return `<button class="cell v${c.lv}${k === 2 ? " mastered" : k === 1 ? " met" : ""}${wide && C.sel === c.h ? " on" : ""}" data-csel="${h}" title="${h} ${p} — ${esc(c.en.slice(0, 2).join("; "))}${rank > 0 ? ` · frequency #${rank}` : ""}">`
+    + (C.sort === "frequency" && rank > 0 ? `<span class="cr">#${rank}</span>` : "")
+    + (k > 0 ? `<span class="cst">${k === 2 ? CT_STAR : CT_TICK}</span>` : "")
+    + `<span class="ch">${h}</span><span class="cp">${p}</span><span class="ce">${esc(ctShort(c.en[0]))}</span></button>`;
 }
 
 /* A cell picked. On a wide screen it opens beside the grid, and picked a

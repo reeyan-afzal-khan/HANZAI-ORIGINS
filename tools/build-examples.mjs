@@ -1,9 +1,9 @@
 /* build-examples.mjs — example sentences for the words of the syllabus.
  *
- *   release/web/data/grammar.js + release/web/data/vocab/*.js
+ *   src/data/hskker.db (the grammar points) + release/web/data/vocab/*.js
  *     -> release/web/data/examples/<level>.js   HSKDATA("examples/1", {"爱": [[zh, pinyin, en, source], …], …})
  *
- * The word card in the reader and the Talk tab shows how a word is used, and
+ * The word card in the reader shows how a word is used, and
  * the app holds a corpus of translated sentences for it: the examples
  * written for the grammar points. This picks up to three sentences for each
  * of the 11,092 words that one of them uses, preferring a sentence of a
@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { openDb, rows } from "./lib/db.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = join(ROOT, "release", "web", "data");
@@ -34,7 +35,11 @@ function jsonp(file){
 
 const words = [];
 for(const f of readdirSync(join(DATA, "vocab"))) words.push(...jsonp(join(DATA, "vocab", f)));
-const grammar = jsonp(join(DATA, "grammar.js"));
+/* The grammar points' example sentences, from the store (npm run db): the
+   app does not ship the grammar points themselves, only these sentences. */
+const db = openDb();
+const grammar = rows(db, "SELECT id, examples FROM grammar ORDER BY ord");
+db.close();
 
 /* Every word, by its simplified form; the longest word is the window. */
 const byWord = new Map();

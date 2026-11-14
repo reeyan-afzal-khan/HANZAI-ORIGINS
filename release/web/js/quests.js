@@ -2,16 +2,9 @@
    XP records practice milestones, not mastery or a spaced-repetition grade. */
 let questRun = null;
 let questSaving = false;
-let questEarned = new Set();
-function questMarkNode(el,h){
-  const existing=el.querySelector('.quest-badge');
-  if(!questEarned.has(h)){ existing?.remove(); return; }
-  if(existing) return;
-  const badge=document.createElement('span');
-  badge.className='quest-badge'; badge.textContent='✦';
-  badge.title='Writing quest completed'; badge.setAttribute('aria-label','Writing quest completed');
-  el.appendChild(badge);
-}
+/* What the quests have earned, for the skill tree (tree.js): the XP, the
+   scholar level, and which characters have been recognised and written. */
+let questInfo = {xp: 0, rank: 1, recognised: new Set(), written: new Set()};
 async function questRecords(){
   return (await dbAll("results")).filter(r => r.kind === "character-quest");
 }
@@ -20,12 +13,15 @@ function questStats(records){
   const xp = [...unique.values()].reduce((n,r) => n + (r.skill === "write" ? 20 : 10), 0);
   return {xp, rank: Math.floor(xp / 150) + 1, unique};
 }
-async function questRefresh(){
+/* @param paint  draw the tree again with what has changed (the tree asks
+   first and draws once itself) */
+async function questRefresh(paint = true){
   const {xp,rank,unique} = questStats(await questRecords());
-  questEarned = new Set([...unique.values()].filter(r=>r.skill==="write").map(r=>r.char));
-  for(const el of document.querySelectorAll("#ct-plane [data-k]")) questMarkNode(el,el.dataset.k);
-  $("#quest-open").textContent = `Start quest · Lv ${rank} · ${xp} XP`;
-  if(CT.tree) ctPaintInsp();
+  const done = [...unique.values()];
+  questInfo = {xp, rank,
+    recognised: new Set(done.filter(r => r.skill === "recognize").map(r => r.char)),
+    written: new Set(done.filter(r => r.skill === "write").map(r => r.char))};
+  if(paint && CT.tree) ctRefresh();
 }
 async function questStart(target){
   const all = await getChars(), stats = questStats(await questRecords());
@@ -34,9 +30,13 @@ async function questStart(target){
   const pool = family.length ? family : all.filter(c => c.lv <= Number(C.level));
   pool.sort((a,b) => Number(stats.unique.has(`${a.h}:write`)) - Number(stats.unique.has(`${b.h}:write`)) || a.lv - b.lv);
   const selected = pool.find(c => c.h === CT.sel && !stats.unique.has(`${c.h}:write`));
-  const c = (typeof target === "string" && all.find(c=>c.h===target)) || selected || pool.find(c => !stats.unique.has(`${c.h}:write`)) || pool[0];
+  /* asked for by name; or else the tree's next quest, then the skill picked */
+  const next = CT.tree && typeof ctNextQuest === "function" ? ctNextQuest() : "";
+  const c = (typeof target === "string" && all.find(c=>c.h===target)) || (next && all.find(c => c.h === next))
+    || selected || pool.find(c => !stats.unique.has(`${c.h}:write`)) || pool[0];
   if(!c) return;
-  questRun = {c, all, pool, stats, initialRank:stats.rank, stage:"study", token:{}};
+  /* the tree as it stood, so what the quest opens is shown opening once it closes */
+  questRun = {c, all, pool, stats, initialRank:stats.rank, stage:"study", token:{}, seen: CT.seen};
   questRender();
   if(!$("#quest").open) $("#quest").showModal();
 }
@@ -93,7 +93,8 @@ function questRender(){
     $("#quest-practise").onclick=()=>writer.quiz();
   } else if(q.stage === "done"){
     const remaining=q.pool.filter(x=>!q.stats.unique.has(`${x.h}:write`)).length;
-    task.innerHTML=`<div class="quest-glyph hz">${esc(c.h)}</div><h3>${q.gained ? "+20 XP · Skill earned" : "Practice complete"}</h3>${rank>q.initialRank ? `<p class="quest-levelup">Level up! You are now a level ${rank} scholar.</p>` : ""}<p>You recognised ${esc(c.h)} and completed its strokes.</p><p>${q.mistakes ? `${q.mistakes} stroke corrections — keep practising to build fluency.` : "No stroke corrections this time. Nicely done."}</p><p>${remaining ? `${remaining} writing quests left in this family and its parts.` : "Family complete! Revisit these characters to keep them fresh, or explore another tree."}</p><button class="btn" id="quest-next">${remaining ? "Next character quest" : "Choose a radical"}</button><button class="ghost" id="quest-return">Back to tree</button>`;
+    const opened = q.gained && CT.tree && CT.tree.branches.get(c.h) ? CT.tree.branches.get(c.h).filter(h => ctState(h) === "ready") : [];
+    task.innerHTML=`<div class="quest-glyph hz">${esc(c.h)}</div><h3>${q.gained ? "+20 XP · Skill learned" : "Practice complete"}</h3>${rank>q.initialRank ? `<p class="quest-levelup">Level up! You are now a level ${rank} ${esc(ctTitle(rank).toLowerCase())}.</p>` : ""}${opened.length ? `<p class="quest-unlocked">Unlocked ${opened.length} new character${opened.length === 1 ? "" : "s"}: <span class="hz">${esc(opened.slice(0, 10).join(" "))}</span>${opened.length > 10 ? " …" : ""}</p>` : ""}<p>You recognised ${esc(c.h)} and completed its strokes.</p><p>${q.mistakes ? `${q.mistakes} stroke corrections — keep practising to build fluency.` : "No stroke corrections this time. Nicely done."}</p><p>${remaining ? `${remaining} writing quests left in this family and its parts.` : "Family complete! Revisit these characters to keep them fresh, or explore another tree."}</p><button class="btn" id="quest-next">${remaining ? "Next character quest" : "Choose a radical"}</button><button class="ghost" id="quest-return">Back to tree</button>`;
     $("#quest-next").onclick=remaining ? questStart : ()=>{$("#quest").close();if(S.charIdxCollapsed) $("#radical-picker").click();};
     $("#quest-return").onclick=()=>$("#quest").close();
   }
@@ -111,7 +112,12 @@ async function questAward(skill,q){
     q.stats=questStats(records); await questRefresh(); return !existing;
   } finally {questSaving=false;}
 }
-$("#quest-open").onclick=questStart;
+$("#quest-open").onclick=()=>questStart($("#quest-open").dataset.arg || undefined);
 $("#quest-close").onclick=()=>$("#quest").close();
-$("#quest").addEventListener("close",()=>{questRun=null;});
+/* Back on the tree, what the quest opened opens in front of the reader. */
+$("#quest").addEventListener("close",()=>{
+  const q = questRun;
+  questRun=null;
+  if(q && q.seen && CT.tree && CT.seen !== q.seen){ CT.seen = q.seen; ctRefresh(); }
+});
 $("#quest").addEventListener("keydown",e=>e.stopPropagation());

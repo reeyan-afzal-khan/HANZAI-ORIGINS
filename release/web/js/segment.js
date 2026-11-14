@@ -44,11 +44,15 @@ async function lexicon(){
 
   webEngine.reset_dictionary();
   readerWords.length = 1;
+  const words = [];
   for(const [w, entry] of LEX){
-    copyReaderText(w);
-    webEngine.add_word(readerWords.length);
+    words.push(w);
     readerWords.push({t:"w", w, lv:entry.lv, id:entry.id, p:entry.p, en:entry.en, f:entry.f});
   }
+  /* The dictionary goes over in one call, NUL-separated. The engine numbers
+     the words from 1 in that order, which is their place in readerWords. */
+  copyReaderText(words.join("\0"));
+  webEngine.add_words();
 
   CHARLEX = new Map();
   SYLLABLES = new Set();
@@ -60,7 +64,9 @@ async function lexicon(){
     }
   }
 
-  for(const syllable of SYLLABLES){ copyReaderText(syllable); webEngine.add_syllable(); }
+  copyReaderText([...SYLLABLES].join("\0"));
+  webEngine.add_syllables();
+  RUBY.clear();
   return LEX;
 }
 
@@ -115,7 +121,12 @@ function readerMatches(text){
 }
 
 function readerToken(id){
-  if(id > 0) return {...readerWords[id]};
+  /* A fresh token each time, since callers keep them; spelled out, which
+     V8 builds markedly faster than a spread copy. */
+  if(id > 0){
+    const r = readerWords[id];
+    return {t:"w", w:r.w, lv:r.lv, id:r.id, p:r.p, en:r.en, f:r.f};
+  }
   const w = String.fromCharCode(-id - 1);
   const c = CHARLEX.get(w);
   return {t:"c", w, lv:c ? c.lv : null, p:c ? c.p : "", en:c ? c.en : []};
@@ -237,7 +248,20 @@ function syllablesOf(reading){
    and one reading over the whole word where they cannot. A word's own reading
    is preferred to its characters' dictionary readings because it is the one in
    context — 得 is "de" in 觉得 and "dé" on its own, and only the word knows. */
+const RUBY = new Map();
 function rubyHTML(tok){
+  /* A book uses the same few thousand words over and over, and a word's
+     ruby cannot change once the lexicon is in, so each is worked out once.
+     Nothing is kept before then, while the seams cannot yet be found. */
+  const key = tok.w + "\0" + tok.p;
+  let html = RUBY.get(key);
+  if(html === undefined){
+    html = rubyMarkup(tok);
+    if(SYLLABLES) RUBY.set(key, html);
+  }
+  return html;
+}
+function rubyMarkup(tok){
   const chars = [...tok.w];
   if(chars.length === 1) return `<ruby>${esc(tok.w)}<rt>${esc(tok.p)}</rt></ruby>`;
 
@@ -273,29 +297,41 @@ function familiarityOf(tok, fam){
 // same units used by browser selection ranges and saved reading positions.
 function annotateHTML(tokens, opts){
   const {mode = "level", fam = null, ruby = false, dim = false, tag = "button"} = opts || {};
-  const bodies = tokens.map(tok => ruby && tok.t !== "x" && tok.p ? rubyHTML(tok) : tok.w);
-  const size = bodies.reduce((n, text) => n + text.length + 5, 0);
+  const n = tokens.length, ranked = !!fam && (mode === "fam" || dim);
+  /* Ruby markup is made before anything is packed: splitting a reading
+     calls the engine too, which would overwrite its input. */
+  const bodies = ruby ? tokens.map(tok => tok.t !== "x" && tok.p ? rubyHTML(tok) : tok.w) : null;
+  let size = 5 * n;
+  for(let i = 0; i < n; i++) size += (bodies ? bodies[i] : tokens[i].w).length;
   const ptr = webEngine.input(size);
   const input = new Uint16Array(webEngine.memory.buffer, ptr, size);
   let at = 0;
-  tokens.forEach((tok, i) => {
-    const body = bodies[i];
-    input[at++] = tok.t === "x" ? 0 : ruby && tok.p ? 2 : 1;
-    input[at++] = Number(tok.lv) || 0;
-    input[at++] = fam && (mode === "fam" || dim) ? familiarityOf(tok, fam) : 0;
-    input[at++] = body.length & 65535;
-    input[at++] = body.length >>> 16;
-    for(let k = 0; k < body.length; k++) input[at++] = body.charCodeAt(k);
-  });
+  for(let i = 0; i < n; i++){
+    const tok = tokens[i], body = bodies ? bodies[i] : tok.w, len = body.length, word = tok.t !== "x";
+    input[at] = word ? ruby && tok.p ? 2 : 1 : 0;
+    input[at + 1] = Number(tok.lv) || 0;
+    input[at + 2] = word && ranked ? familiarityOf(tok, fam) : 0;
+    input[at + 3] = len & 65535;
+    input[at + 4] = len >>> 16;
+    at += 5;
+    for(let k = 0; k < len; k++) input[at++] = body.charCodeAt(k);
+  }
   const length = webEngine.annotate(mode === "level" ? 1 : mode === "fam" ? 2 : 0, tag === "span", dim && !!fam);
   return engineUnits(webEngine.annotation_ptr(), length);
 }
 
+/* The engine's UTF-16 output as a string. The browser's own decoder does this
+   an order of magnitude faster than building the string in script. It is set
+   to keep a leading U+FEFF and to fail on a lone surrogate, which it would
+   otherwise replace; that rare text is copied unit by unit instead, so the
+   result is always exactly what the engine wrote. */
+const engineUTF16 = new TextDecoder("utf-16le", {fatal: true, ignoreBOM: true});
 function engineUnits(ptr, length){
   const units = new Uint16Array(webEngine.memory.buffer, ptr, length);
-  let html = "";
-  for(let i = 0; i < length; i += 8192) html += String.fromCharCode(...units.subarray(i, i + 8192));
-  return html;
+  try{ return engineUTF16.decode(units); }catch(_){}
+  let text = "";
+  for(let i = 0; i < length; i += 8192) text += String.fromCharCode.apply(null, units.subarray(i, i + 8192));
+  return text;
 }
 
 /* ---------------- coverage ---------------- */

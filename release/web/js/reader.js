@@ -2152,13 +2152,6 @@ function paintReaderControls(){
   $("#sw-scrub").setAttribute("aria-pressed", String(S.readScrub !== false));
   const scrub = $(".rd-scrub");
   if(scrub) scrub.hidden = S.readScrub === false;
-  /* Where passages are translated, the connection line, and the device's
-     translators — shown wherever the device may be asked to translate. */
-  const svc = translator();
-  $$("#rd-trsvc button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.svc === svc)));
-  $("#rd-mt").hidden = svc === "google";
-  mtNetPaint();
-  if(svc !== "google") mtPaint();
   /* Pinyin has two controls — the button in the bar and the switch in the
      settings panel — because it is the one people reach for mid-page. They are
      one setting, so both are painted from it rather than from each other. */
@@ -3389,9 +3382,8 @@ function placeSelectionCard(){
   placePopover(card, {isConnected: true, getBoundingClientRect: () => room}, {glide: true});
 }
 
-/* The languages a passage can be turned into online — the ones Google
-   Translate takes by these codes. English first, since the app is in
-   English; on the device, English is the one there is. */
+/* The languages a passage can be turned into — the ones Google Translate
+   takes by these codes. English first, since the app is in English. */
 const TRANSLATE_TO = [
   ["en", "English"], ["ur", "Urdu"], ["hi", "Hindi"], ["ar", "Arabic"], ["es", "Spanish"],
   ["fr", "French"], ["de", "German"], ["pt", "Portuguese"], ["ru", "Russian"], ["it", "Italian"],
@@ -3400,10 +3392,6 @@ const TRANSLATE_TO = [
   ["pl", "Polish"], ["uk", "Ukrainian"], ["sv", "Swedish"], ["el", "Greek"], ["he", "Hebrew"],
 ];
 const langName = code => (TRANSLATE_TO.find(([c]) => c === code) || TRANSLATE_TO[0])[1];
-/* where passages are translated: "auto" (online with a connection, on the
-   device without), "google", or "offline" — see runTranslation */
-const translator = () => ["google", "offline"].includes(S.readTranslator) ? S.readTranslator : "auto";
-const translatorName = () => "Google Translate";
 
 function openSelectionCard(){
   const card = $("#rd-sel"), body = $("#rd-sel-body");
@@ -3459,14 +3447,12 @@ function openSelectionCard(){
     <div class="sl-out hidden" data-selout>
       <div class="sl-out-h">
         <span class="lbl">Into</span>
-        ${translator() === "offline" && MT_ENGINES[deviceEngine()].langs.length === 1 ? `<span class="sl-lang-one">English</span>` : `
         <select class="sl-lang" data-sellang aria-label="Translate into">
           ${TRANSLATE_TO.map(([c, n]) => `<option value="${c}" ${c === to ? "selected" : ""}>${n}</option>`).join("")}
-        </select>`}
+        </select>
       </div>
       <p class="sl-tr" data-seltr></p>
-      <div class="sl-src"><span data-selsrc>${translator() === "offline" || (translator() === "auto" && navigator.onLine === false)
-        ? `On this device · ${esc(MT_ENGINES[deviceEngine()].title)}` : translatorName()}</span></div>
+      <div class="sl-src"><span>Google Translate</span></div>
     </div>`;
   body.scrollTop = 0;
   card.classList.add("on");
@@ -3507,10 +3493,7 @@ function bindSelectionCard(){
       copyText(SEL.text).then(ok => toast(ok ? "Copied" : "Could not copy"));
       return;
     }
-    if(t.closest("[data-seltranslate]")){ runTranslation(); return; }
-    /* the offline model, fetched from the card, and the passage translated
-       once it is in */
-    if(t.closest("[data-selmt]")){ runTranslation({fetch: true}); return; }
+    if(t.closest("[data-seltranslate], [data-selretry]")){ runTranslation(); return; }
   });
   card.addEventListener("change", e => {
     const sel = e.target.closest("[data-sellang]");
@@ -3534,28 +3517,19 @@ async function copyText(text){
   }catch(_){ return false; }
 }
 
-/* Translating the passage, on the button only. Where it goes is the
-   reader's choice (S.readTranslator):
-     "auto"    — Google Translate while there is a connection, and the
-                 device's own translator when there is none, or when Google
-                 cannot be reached; the default.
-     "google"  — always online, falling back to the device only if Google
-                 cannot be reached.
-     "offline" — always on the device; nothing leaves it.
-   Online is the one thing in the reader that talks to a server; the answer
-   is shown with its source's name on it. Answers are kept for the session,
-   so re-reading a passage does not ask twice. */
+/* Translating the passage, on the button only, by Google Translate: the one
+   thing in the reader that talks to a server, so nothing leaves the device
+   until the button is pressed, and the answer carries its source's name.
+   Answers are kept for the session, so re-reading a passage does not ask
+   twice. */
 let translateSeq = 0;
 const translateCache = new Map();
-async function runTranslation(opts = {}){
+async function runTranslation(){
   const card = $("#rd-sel");
   if(!card || !SEL.text) return;
   const out = card.querySelector("[data-selout]"), tr = card.querySelector("[data-seltr]");
-  const btn = card.querySelector("[data-seltranslate]"), src = card.querySelector("[data-selsrc]");
-  /* the card's language, or English where it offers none (on this device) */
-  const pickLang = card.querySelector("[data-sellang]");
-  const to = pickLang ? pickLang.value || "en" : "en";
-  const text = SEL.text, mode = translator();
+  const btn = card.querySelector("[data-seltranslate]"), pickLang = card.querySelector("[data-sellang]");
+  const to = (pickLang && pickLang.value) || "en", text = SEL.text;
   const seq = ++translateSeq;
   const live = () => seq === translateSeq && SEL.text === text;
   const show = (cls, html, dir = "ltr") => {
@@ -3563,84 +3537,18 @@ async function runTranslation(opts = {}){
     tr.className = `sl-tr ${cls}`.trim(); tr.innerHTML = html; tr.dir = dir;
     placeSelectionCard();
   };
-  const result = s => esc(s).replace(/\n/g, "<br>");
-  const rtl = code => /^(ar|ur|fa|he)$/.test(code) ? "rtl" : "ltr";
-  /* On the device: the translator chosen for it — or, when the device is
-     only standing in for Google, whichever one it has ready. What is not
-     here yet — the browser's English, Compact in the Android app — is
-     fetched only when asked, from the card. */
-  const onDevice = async (why, standIn) => {
-    const id = standIn ? await mtReadyEngine(to) : deviceEngine();
-    if(!id){
-      /* nothing translated it: say only why Google was not used */
-      if(src) src.textContent = "On this device";
-      show("err", `${esc(why.split(" — ")[0])}. ${mtNative()
-        ? `To translate without a connection, install ${esc(MT_ENGINES.opus.title)} under Translation in the reading settings — ${MT_SIZE}, once.`
-        : "No translator on this device is ready — see Translation in the reading settings."}`);
-      return;
-    }
-    const eng = MT_ENGINES[id];
-    /* the device translates into English; another language is Google's */
-    const into = eng.langs.includes(to) ? to : "en";
-    if(src) src.textContent = `On this device · ${eng.title}${eng.by ? ` · ${eng.by}` : ""}`;
-    const notes = [why, into === to ? "" : "In English — on this device, passages are translated into English"].filter(Boolean);
-    const lead = notes.length ? `<span class="sl-note">${esc(notes.join(". "))}.</span>` : "";
-    const key = JSON.stringify(["device", id, into, text]);
-    if(translateCache.has(key)){ show("", lead + result(translateCache.get(key)), rtl(into)); return; }
-    const ready = await mtEngineReady(id, into);
-    if(!ready && id !== "browser"){
-      /* Compact: installed on request in the Android app, carried by other copies */
-      if((await mtState()) === "missing"){
-        show("err", `${lead}${esc(eng.title)} is not in this copy of the app. Choose ${esc(MT_ENGINES.browser.title)} under
-          Translation in the reading settings, or use a build made after <code>npm run translation</code>.`);
-        return;
-      }
-      if(!opts.fetch){
-        show("err", `${lead}${esc(eng.title)} is not installed on this device yet — ${MT_SIZE}, once.
-          <button class="linky" data-selmt>Install it</button>`);
-        return;
-      }
-      if(navigator.onLine === false){ show("err", `${lead}Installing ${esc(eng.title)} needs a connection — ${MT_SIZE}, once.`); return; }
-      show("wait", `${lead}Installing ${esc(eng.title)}…`);
-      await mtInstall(p => show("wait", `${lead}Installing ${esc(eng.title)}… ${p}%`));
-    }
-    if(!ready && id === "browser" && !opts.fetch){
-      show("err", `${lead}${esc(langName(into))} is not downloaded for ${esc(eng.title)} yet — the browser fetches it once,
-        a few megabytes. <button class="linky" data-selmt>Download it</button>`);
-      return;
-    }
-    let done;
-    if(id === "browser"){
-      show("wait", `${lead}${ready ? "Translating on this device…" : "Downloading the language…"}`);
-      done = await btText(text, into, p => show("wait", `${lead}Downloading the language… ${p}%`));
-    }else{
-      show("wait", `${lead}Opening ${esc(eng.title)}…`);
-      await mtLoad(id, MT.loading ? null : p => show("wait", `${lead}Opening ${esc(eng.title)}… ${p}%`));
-      done = await mtText(text, id, into, (sofar, n, total) =>
-        show("", `${lead}${result(sofar)} <span class="sl-more">${n} of ${total}…</span>`, rtl(into)));
-    }
-    translateCache.set(key, done);
-    show("", lead + result(done), rtl(into));
-  };
   out.classList.remove("hidden");
+  if(navigator.onLine === false){
+    show("err", `No connection — Google Translate needs one. <button class="linky" data-selretry>Try again</button>`);
+    return;
+  }
   if(btn) btn.disabled = true;
+  show("wait", `Translating into ${esc(langName(to))}…`);
   try{
-    if(mode === "offline"){ await onDevice("", false); return; }
-    if(mode === "auto" && navigator.onLine === false){ await onDevice("No connection — translated on this device", true); return; }
-    if(src) src.textContent = translatorName("google");
-    show("wait", `Translating into ${esc(langName(to))}…`);
-    try{
-      const done = await translateText(text, to, mode === "auto" ? 7000 : 12000);
-      show("", result(done), rtl(to));
-    }catch(err){
-      if(!live()) return;
-      /* Google out of reach: the device stands in, if it has a translator */
-      await onDevice(navigator.onLine === false ? "No connection — translated on this device"
-        : "Google Translate could not be reached — translated on this device", true);
-    }
-  }catch(err){
-    show("err", `Translation on this device did not work: ${esc(err.message || err)}.
-      <button class="linky" data-selmt>Try again</button>`);
+    const done = await translateText(text, to);
+    show("", esc(done).replace(/\n/g, "<br>"), /^(ar|ur|fa|he)$/.test(to) ? "rtl" : "ltr");
+  }catch(_){
+    show("err", `Google Translate could not be reached. <button class="linky" data-selretry>Try again</button>`);
   }finally{
     if(live() && btn) btn.disabled = false;
     if(live()) placeSelectionCard();
@@ -3648,542 +3556,24 @@ async function runTranslation(opts = {}){
 }
 
 async function translateText(text, to, ms = 12000){
-  const key = JSON.stringify(["google", to, text]);
+  const key = JSON.stringify([to, text]);
   if(translateCache.has(key)) return translateCache.get(key);
   const result = await googleText(text, to, ms);
   translateCache.set(key, result);
   return result;
 }
 
-/* ---- on this device ----
- * Into English, by one of two translators, as the reader picks
- * (S.readOfflineModel; empty means the best this device has):
- *
- *   browser  The browser's own, where it has one — Chrome and Edge on a
- *            computer (the Translator API). The most accurate by a distance
- *            in testing, and near-instant; the browser downloads its
- *            Chinese–English pair itself, a few megabytes, and keeps it.
- *   opus     Compact: OPUS-MT zho-eng (University of Helsinki, CC BY 4.0) on
- *            Transformers.js and ONNX Runtime Web (Apache 2.0, MIT). Quick,
- *            and good on ordinary prose. Its files live in data/translation/
- *            (listed in its files.json). The copies that carry it — the app
- *            opened from this folder, the web build — load them from
- *            app/data/mt/ (tools/build-translation.mjs). The Android app
- *            does not carry its 135 MB: the reader installs it there on
- *            request, into the app's own storage on the device
- *            (OfflineTranslatorPlugin), and it is read back from there.
- *
- * Larger models were tried and none did better in English: NLLB-200 (900 MB,
- * offered in 1.26.26 for other languages, since removed — the reader works in
- * English) invented sentences, a 1.5-billion-parameter chat model does not
- * fit the browser's 32-bit WebAssembly memory, and the half-billion one
- * wandered off into answering instead of translating.
- *
- * Compact has to run wherever the app does, and that includes a page opened
- * straight from disk (file://), where the browser will not fetch a file,
- * start a worker from one or load a module from one — only a plain script.
- * So its files ship as scripts (base64, a few megabytes a piece), the page
- * loads them and puts them back together (mtShipped), and the worker is
- * started from its own source (mtWorkerMain), takes the files as Blobs,
- * makes its own blob URLs of the runtime, and serves the model to
- * Transformers.js from memory. It is not let near the network. It is put
- * away after some minutes unused — a loaded model is hundreds of megabytes
- * of memory — and opened again from the app's files in a few seconds. */
-const MT = {worker: null, workerId: "", seq: 0, calls: new Map(), memo: new Map(),
-            loading: null, index: null, list: null, base: "", installing: null, percent: 0, error: "",
-            painted: 0, cleared: false};
-const MT_HOME = "data/mt/";
-const MT_SIZE = "about 135 MB";
-/* the Android app's installer (native.js), where there is one */
-const mtNative = () => (window.hskkerNative && window.hskkerNative.translator) || null;
-const browserName = () => /\bEdg\//.test(navigator.userAgent) ? "Edge" : /\bChrome\//.test(navigator.userAgent) ? "Chrome" : "this browser";
-const MT_ENGINES = {
-  browser: {id: "browser", title: `Built into ${browserName()}`, by: "", note: "Best quality · instant", langs: ["en"]},
-  opus: {id: "opus", title: "Compact", by: "OPUS-MT, University of Helsinki", note: "Works offline · about 135 MB",
-         langs: ["en"], model: "Xenova/opus-mt-zh-en", opts: () => ({max_new_tokens: 512})},
-};
-const MT_MODELS = ["opus"];
-
-/* The translator for the device: the reader's pick, or the best there is. */
-function deviceEngine(){
-  const pick = S.readOfflineModel;
-  if(pick === "browser" && btHas()) return "browser";
-  if(MT_MODELS.includes(pick)) return pick;
-  return btHas() ? "browser" : "opus";
-}
-/* Ready to translate into `to` without a connection? */
-async function mtEngineReady(id, to){
-  if(id === "browser") return (await btState(MT_ENGINES.browser.langs.includes(to) ? to : "en")) === "available";
-  return mtHave(id);
-}
-/* Standing in for Google: the reader's pick if it is ready, else whichever is. */
-async function mtReadyEngine(to){
-  const order = [deviceEngine(), "browser", ...MT_MODELS].filter((x, i, a) => a.indexOf(x) === i);
-  for(const id of order){
-    if(id === "browser" && !btHas()) continue;
-    if(await mtEngineReady(id, MT_ENGINES[id].langs.includes(to) ? to : "en")) return id;
-  }
-  return "";
-}
-
-/* ---- the browser's own translator ----
- * Chrome and Edge on a computer: Translator.create for a language pair,
- * which the browser downloads once (asking for a tap on the way — a press
- * of Translate or Download is one) and keeps. It answers in milliseconds.
- * It leaves Chinese commas and stops in an English sentence now and then;
- * they are made English. */
-const BT = {made: new Map(), state: new Map()};
-const btHas = () => !!(self.Translator && typeof self.Translator.create === "function");
-async function btState(to){
-  if(!btHas()) return "unavailable";
+/* Earlier versions could also translate on the device and kept its files
+   here: an IndexedDB database of their own (1.26.25–1.26.27) and the model
+   runtime's cache. That is gone, so the space it held is given back, once a
+   session, after the page has settled. */
+setTimeout(async () => {
   try{
-    const a = await Promise.race([self.Translator.availability({sourceLanguage: "zh", targetLanguage: to}),
-      new Promise(r => setTimeout(() => r("unavailable"), 4000))]);
-    BT.state.set(to, a);
-    return a;
-  }catch(_){ return "unavailable"; }
-}
-async function btTranslator(to, onPercent){
-  if(BT.made.has(to)) return BT.made.get(to);
-  const made = self.Translator.create({sourceLanguage: "zh", targetLanguage: to,
-    monitor(m){ m.addEventListener("downloadprogress", e => { if(onPercent) onPercent(Math.min(99, Math.floor(e.loaded * 100))); }); }});
-  BT.made.set(to, made);
-  try{ const t = await made; BT.state.set(to, "available"); return t; }
-  catch(err){ BT.made.delete(to); throw err; }
-}
-async function btText(text, to, onPercent){
-  const t = await btTranslator(to, onPercent);
-  const out = [];
-  for(const para of text.split("\n")){
-    if(!para.trim()) continue;
-    let s = String(await t.translate(para.trim()));
-    if(!/^(ja|ko)$/.test(to)){
-      s = s.replace(/\s*，\s*/g, ", ").replace(/\s*、\s*/g, ", ").replace(/\s*；\s*/g, "; ").replace(/\s*：\s*/g, ": ")
-           .replace(/\s*。\s*/g, ". ").replace(/\s*！\s*/g, "! ").replace(/\s*？\s*/g, "? ")
-           .replace(/\s+([,.;:!?])/g, "$1").replace(/\s{2,}/g, " ").trim();
-    }
-    out.push(s);
-  }
-  return out.join("\n");
-}
-
-/* ---- Compact, as shipped ----
- * app/data/mt/index.js names the files and their pieces; each piece is a
- * script that calls HSKKER_MT(file, piece, base64). Loaded one after the
- * other — never two scripts of a few megabytes parsing at once — decoded,
- * and put back together as Blobs, each checked against its size. */
-function mtScript(src){
-  return new Promise((resolve, reject) => {
-    const tag = document.createElement("script");
-    tag.src = src;
-    tag.onload = () => { tag.remove(); resolve(); };
-    tag.onerror = () => { tag.remove(); reject(new Error(`${src} is missing`)); };
-    document.head.appendChild(tag);
-  });
-}
-/* the index, or null where this copy of the app was built without Compact */
-function mtIndex(){
-  if(!MT.index) MT.index = mtScript(MT_HOME + "index.js").then(() => self.HSKKER_MT_INDEX || null, () => null);
-  return MT.index;
-}
-/* ---- Compact, installed (the Android app) ----
- * The list of its files (app/data/translation-files.js, which the APK does
- * carry) goes to the app's installer, which fetches them into the app's own
- * storage and says how far it has got; they are read back through the
- * bridge's file address. Nothing is installed until the reader asks. */
-function mtList(){
-  if(!MT.list) MT.list = mtScript("data/translation-files.js").then(() => self.HSKKER_MT_FILES || null, () => null);
-  return MT.list;
-}
-/* Compact here: "ready", "absent" (the Android app, not installed yet),
-   "installing", or "missing" (a copy built without it) */
-async function mtState(){
-  const nat = mtNative();
-  if(!nat) return (await mtIndex()) ? "ready" : "missing";
-  if(MT.installing) return "installing";
-  const list = await mtList();
-  if(!list) return "missing";
-  try{
-    const st = await nat.status(list.files);
-    MT.base = st.base;
-    return st.installed ? "ready" : "absent";
-  }catch(_){ return "absent"; }
-}
-async function mtHave(id){ return id === "opus" && (await mtState()) === "ready"; }
-/* Installs Compact — once; asking while it installs joins that. */
-function mtInstall(onPercent){
-  if(MT.installing){
-    if(onPercent) MT.onPercent = onPercent;
-    return MT.installing;
-  }
-  const nat = mtNative();
-  if(!nat) return Promise.reject(new Error("Compact comes with this copy of the app, or not at all"));
-  MT.percent = 0; MT.error = ""; MT.onPercent = onPercent;
-  /* asked to be kept by the system, not cleared to make room */
-  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  /* settled inside, so that whoever awaits it finds it over, not still installing */
-  MT.installing = (async () => {
-    try{
-      const list = await mtList();
-      if(!list) throw new Error("this copy of the app has no list of Compact's files");
-      const res = await nat.install(list.files, (done, total) => {
-        MT.percent = Math.min(99, Math.floor(done / total * 100));
-        if(MT.onPercent) MT.onPercent(MT.percent);
-        mtPaint();
-      });
-      MT.base = res.base;
-    }catch(err){
-      MT.error = err.message || String(err);
-      throw err;
-    }finally{
-      MT.installing = null; MT.onPercent = null;
-      mtPaint(true);
-    }
-  })();
-  mtPaint(true);
-  return MT.installing;
-}
-/* Compact gone from the app's storage, and from memory. */
-async function mtRemove(){
-  mtStop();
-  for(const k of [...MT.memo.keys()]) if(k.startsWith("opus:")) MT.memo.delete(k);
-  for(const k of [...translateCache.keys()]) if(k.startsWith('["device","opus"')) translateCache.delete(k);
-  await mtNative().remove();
-  MT.base = ""; MT.error = "";
-  mtPaint(true);
-}
-/* Compact's files as Blobs, from wherever this copy keeps them. */
-async function mtGather(onPercent){
-  const nat = mtNative();
-  if(!nat) return mtShipped(onPercent);
-  const list = await mtList();
-  if((await mtState()) !== "ready") throw new Error("Compact is not installed");
-  const total = list.files.reduce((n, f) => n + f.bytes, 0), blobs = {};
-  let done = 0;
-  for(const f of list.files){
-    const res = await fetch(nat.url(MT.base, f.path));
-    if(!res.ok) throw new Error(`${f.path} could not be read (${res.status})`);
-    const blob = await res.blob();
-    if(blob.size !== f.bytes) throw new Error(`${f.path} is damaged — remove Compact and install it again`);
-    blobs[f.name] = blob;
-    done += f.bytes;
-    if(onPercent) onPercent(Math.min(99, Math.floor(done / total * 100)));
-  }
-  return blobs;
-}
-/* Base64 to bytes: the browser's own decoder where it has one; where not
-   (an Android WebView before Chrome 140, say), as a data: address fetched —
-   the browser decodes that natively too, several times quicker than
-   decoding a few megabytes a character at a time in script. */
-const mtBase64 = typeof Uint8Array.fromBase64 === "function" ? async s => Uint8Array.fromBase64(s)
-  : async s => {
-    try{ return new Uint8Array(await (await fetch("data:application/octet-stream;base64," + s)).arrayBuffer()); }
-    catch(_){
-      const bin = atob(s), out = new Uint8Array(bin.length);
-      for(let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out;
-    }
-  };
-/* One piece's base64. Where the page may fetch its own files — a server —
-   it is read as text, a few pieces at a time, and the
-   base64 taken out of it: no script to parse. A page opened from disk may
-   not fetch, so there the piece runs as the script it is. */
-async function mtPiece(file, i, k, viaFetch){
-  if(viaFetch){
-    const res = await fetch(MT_HOME + file);
-    if(!res.ok) throw new Error(`${file} did not load (${res.status})`);
-    const text = await res.text(), a = text.indexOf('"') + 1, b = text.lastIndexOf('"');
-    if(!(a > 0 && b > a)) throw new Error(`${file} is damaged`);
-    return text.slice(a, b);
-  }
-  let got = null;
-  self.HSKKER_MT = (fi, fk, data) => { if(fi === i && fk === k) got = data; };
-  try{ await mtScript(MT_HOME + file); }finally{ delete self.HSKKER_MT; }
-  if(got == null) throw new Error(`${file} did not load`);
-  return got;
-}
-async function mtShipped(onPercent){
-  const index = await mtIndex();
-  if(!index) throw new Error("Compact is not in this copy of the app");
-  const total = index.files.reduce((n, f) => n + f.bytes, 0);
-  const parts = index.files.map(() => []);
-  const jobs = index.files.flatMap((f, i) => f.chunks.map((file, k) => ({file, i, k})));
-  let done = 0, next = 0;
-  /* fetched where the page may (asked once, of the index), three at a time;
-     otherwise as scripts, one at a time, so two never share the hand-off */
-  let viaFetch = false;
-  if(location.protocol !== "file:"){
-    try{ viaFetch = (await fetch(MT_HOME + "index.js")).ok; }catch(_){}
-  }
-  const lanes = viaFetch ? 3 : 1;
-  await Promise.all(Array.from({length: lanes}, async () => {
-    while(next < jobs.length){
-      const {file, i, k} = jobs[next++];
-      parts[i][k] = await mtBase64(await mtPiece(file, i, k, viaFetch));
-      done += parts[i][k].length;
-      if(onPercent) onPercent(Math.min(99, Math.floor(done / total * 100)));
-    }
-  }));
-  const blobs = {};
-  index.files.forEach((f, i) => {
-    blobs[f.name] = new Blob(parts[i]);
-    parts[i] = null;
-    if(blobs[f.name].size !== f.bytes) throw new Error(`${f.name} is damaged in this copy of the app`);
-  });
-  return blobs;
-}
-
-/* ---- the worker ----
- * Its own source, started from a blob: self-contained, since it is turned
- * into text. It takes the runtime and the model from the page as Blobs, and
- * answers "load" and "translate". */
-function mtWorkerMain(){
-  let mt = null;
-  self.onmessage = async e => {
-    const m = e.data || {};
-    try{
-      if(m.type === "load"){
-        /* only what the page handed over: no network at all */
-        const net = self.fetch;
-        self.fetch = (u, o) => {
-          const s = String((u && u.url) || u);
-          return s.startsWith("blob:") ? net(u, o) : Promise.reject(new Error("the offline translator has no network: " + s));
-        };
-        const blobURL = (text, type) => URL.createObjectURL(new Blob([text], {type}));
-        const T = await import(blobURL(await m.runtime.lib.text(), "text/javascript"));
-        /* The runtime's loader works out an address for its .wasm from its
-           own, even when it is handed the .wasm itself; a blob: address is
-           no base for that, so it is given one that is, never fetched. */
-        const glue = (await m.runtime.glue.text()).split("import.meta.url").join(JSON.stringify("https://hskker.invalid/ort/"));
-        const files = m.files;
-        T.env.allowLocalModels = false;
-        T.env.useBrowserCache = false;
-        T.env.useCustomCache = true;
-        T.env.customCache = {
-          match: async key => {
-            const k = String((key && key.url) || key);
-            const name = Object.keys(files).find(f => k.endsWith("/" + f));
-            return name ? new Response(files[name], {headers: {"content-length": String(files[name].size)}}) : undefined;
-          },
-          put: async () => {},
-        };
-        const wasm = T.env.backends.onnx.wasm;
-        wasm.numThreads = 1;
-        wasm.wasmBinary = await m.runtime.wasm.arrayBuffer();
-        wasm.wasmPaths = {mjs: blobURL(glue, "text/javascript")};
-        mt = await T.pipeline("translation", m.model, {dtype: "q8", device: "wasm"});
-        postMessage({id: m.id, ok: true});
-      }else if(m.type === "translate"){
-        const out = await mt(m.text, m.opts);
-        postMessage({id: m.id, ok: true, text: (out && out[0] && out[0].translation_text) || ""});
-      }
-    }catch(err){
-      postMessage({id: m.id, ok: false, error: String((err && err.message) || err)});
-    }
-  };
-}
-function mtWorker(){
-  if(MT.worker) return MT.worker;
-  const src = URL.createObjectURL(new Blob([`(${mtWorkerMain})()`], {type: "text/javascript"}));
-  const w = MT.worker = new Worker(src);
-  w.onmessage = e => {
-    const m = e.data || {};
-    const call = MT.calls.get(m.id);
-    if(!call) return;
-    MT.calls.delete(m.id);
-    if(m.ok) call.resolve(m.text); else call.reject(new Error(m.error));
-  };
-  /* a worker that cannot start, or dies — out of memory, say — fails
-     whatever was asked of it */
-  w.onerror = e => {
-    e.preventDefault();
-    const err = new Error(e.message || "the translator stopped");
-    MT.calls.forEach(c => c.reject(err)); MT.calls.clear();
-    mtStop();
-  };
-  return w;
-}
-function mtStop(){
-  clearTimeout(MT.idle);
-  if(MT.worker){ MT.worker.terminate(); MT.worker = null; }
-  /* whatever was still waiting on it is told, rather than left waiting */
-  const gone = new Error("the translator was put away");
-  MT.calls.forEach(c => c.reject(gone)); MT.calls.clear();
-  MT.workerId = ""; MT.loading = null;
-}
-function mtCall(type, data){
-  clearTimeout(MT.idle);
-  return new Promise((resolve, reject) => {
-    const id = ++MT.seq;
-    MT.calls.set(id, {resolve, reject});
-    mtWorker().postMessage({id, type, ...data});
-  }).finally(() => {
-    clearTimeout(MT.idle);
-    MT.idle = setTimeout(() => { if(!MT.calls.size) mtStop(); }, 4 * 60 * 1000);
-  });
-}
-
-/* Compact, ready in the worker: its files read out of the app and handed
-   over. Asking while it is opening joins that. */
-function mtLoad(id, onPercent){
-  if(MT.loading && MT.workerId === id) return MT.loading;
-  mtStop();
-  MT.workerId = id;
-  const run = (async () => {
-    try{
-      const all = await mtGather(onPercent), runtime = {}, files = {};
-      for(const [name, blob] of Object.entries(all)) (["lib", "glue", "wasm"].includes(name) ? runtime : files)[name] = blob;
-      await mtCall("load", {model: MT_ENGINES[id].model, runtime, files});
-    }catch(err){
-      if(MT.loading === run) mtStop();
-      throw err;
-    }
-  })();
-  MT.loading = run;
-  return run;
-}
-
-/* A passage, a sentence at a time, in order, each told as it comes; the
-   paragraphs kept. A sentence already translated this session is not asked
-   again. */
-async function mtText(text, id, to, onStep){
-  const paras = text.split("\n").map(mtSentences).filter(p => p.length);
-  const total = paras.reduce((n, p) => n + p.length, 0);
-  const outs = paras.map(() => []);
-  const sofar = () => outs.map(o => o.join(" ")).filter(Boolean).join("\n");
-  const opts = MT_ENGINES[id].opts(to);
-  let n = 0;
-  for(let i = 0; i < paras.length; i++){
-    for(const s of paras[i]){
-      const memo = `${id}:${to}:${s}`;
-      let t = MT.memo.get(memo);
-      if(t == null){
-        /* what has nothing to translate — a stray quotation mark — stays as it is */
-        t = /[\p{L}\p{N}]/u.test(s) ? String(await mtCall("translate", {text: s, opts})).trim() : s;
-        MT.memo.set(memo, t);
-      }
-      outs[i].push(t);
-      if(++n < total && onStep) onStep(sofar(), n, total);
-    }
-  }
-  return sofar();
-}
-/* A paragraph's sentences. One longer than the model reads well is cut at
-   its commas. */
-function mtSentences(para){
-  const out = [];
-  for(const raw of para.split(/(?<=[。！？；…!?])/)){
-    const s = raw.trim();
-    if(!s) continue;
-    if(s.length <= 160){ out.push(s); continue; }
-    let cur = "";
-    for(const part of s.split(/(?<=[，、：,])/)){
-      if(cur && cur.length + part.length > 160){ out.push(cur); cur = ""; }
-      cur += part;
-    }
-    if(cur) out.push(cur);
-  }
-  return out;
-}
-
-/* 1.26.25–1.26.27 downloaded Compact (and 1.26.26 a 900 MB multilingual
-   model) into an IndexedDB database of their own. Compact now comes with the
-   copies that carry it and is installed into the Android app's own storage,
-   so that copy goes, once, and its space with it. */
-async function mtClearOld(){
-  if(MT.cleared) return;
-  MT.cleared = true;
-  try{
-    if(indexedDB.databases && !(await indexedDB.databases()).some(d => d.name === "hskker-mt")) return;
-    await new Promise(resolve => { const q = indexedDB.deleteDatabase("hskker-mt"); q.onsuccess = q.onerror = q.onblocked = () => resolve(); });
+    if(!indexedDB.databases || (await indexedDB.databases()).some(d => d.name === "hskker-mt"))
+      await new Promise(done => { const q = indexedDB.deleteDatabase("hskker-mt"); q.onsuccess = q.onerror = q.onblocked = () => done(); });
     if(self.caches) await caches.delete("transformers-cache");
   }catch(_){}
-}
-
-/* ---- in the reading settings ----
- * Under the three-way switch, a line on the connection and where a passage
- * would go now, and the translators for the device: each with what it is,
- * whether it is ready, and the one thing to do about it — the browser's
- * English to fetch; in the Android app, Compact to install or remove. A
- * press on a translator picks it. */
-async function mtNetPaint(){
-  const line = $("#rd-net");
-  if(!line) return;
-  const mode = translator(), online = navigator.onLine !== false;
-  const eng = MT_ENGINES[deviceEngine()];
-  line.textContent = mode === "google" ? (online ? "Connected — passages go to Google Translate." : "No connection — Online cannot translate until there is one.")
-    : mode === "offline" ? `Passages stay on this device — ${eng.title}.`
-    : online ? `Connected — passages go to Google Translate; with no connection, to ${eng.title} on this device.`
-    : `No connection — passages are translated on this device, by ${eng.title}.`;
-  line.classList.toggle("off", !online);
-}
-/* The list sits in the reader, where any change is a layout of the whole
-   section, and an install reports several times a second — so while one
-   runs it is repainted at most a few times a second. */
-async function mtPaint(now){
-  const box = $("#rd-mt"), list = $("#rd-mt-list");
-  if(!box || box.hidden || !list) return;
-  const t = performance.now();
-  if(!now && MT.installing && t - MT.painted < 250) return;
-  MT.painted = t;
-  mtClearOld();
-  const pick = deviceEngine();
-  const ids = (btHas() ? ["browser"] : []).concat(MT_MODELS);
-  const btNow = btHas() ? (BT.state.get("en") || await btState("en")) : "unavailable";
-  const compact = await mtState(), installable = !!mtNative();
-  const row = id => {
-    const e = MT_ENGINES[id];
-    let status, act = "", bar = "";
-    if(id === "browser"){
-      status = btNow === "available" ? "<b>Ready</b>" : btNow === "unavailable" ? "Not available here" : "English not downloaded yet";
-      if(btNow === "downloadable" || btNow === "downloading") act = `<button class="ghost sm" data-mtact="browser">Download</button>`;
-    }else{
-      status = compact === "ready" ? "<b>Ready</b>"
-        : compact === "installing" ? `Installing… <b>${MT.percent}%</b>`
-        : compact === "missing" ? "Not in this copy of the app"
-        : MT.error ? `Stopped: ${esc(MT.error)}. What arrived is kept.` : "Not installed";
-      if(installable && compact === "ready") act = `<button class="ghost sm" data-mtact="remove">Remove</button>`;
-      if(installable && compact === "absent") act = `<button class="ghost sm" data-mtact="install">${MT.error ? "Try again" : "Install"}</button>`;
-      if(compact === "installing") bar = `<div class="rd-mt-bar"><i style="width:${MT.percent}%"></i></div>`;
-    }
-    return `<div class="rd-mt-row" data-mt="${id}">
-      <button class="rd-mt-pick" data-mtpick="${id}" aria-pressed="${id === pick}">
-        <span class="rd-mt-dot" aria-hidden="true"></span>
-        <span class="rd-mt-txt"><b>${esc(e.title)}</b><small>${esc(id === "opus" && !installable ? "Comes with this copy · works offline" : e.note)}</small></span>
-      </button>
-      <span class="rd-mt-st">${status}</span>${act}${bar}
-    </div>`;
-  };
-  list.innerHTML = ids.map(row).join("");
-  mtNetPaint();
-}
-/* the list's presses: pick a translator; fetch the browser's English;
-   install or remove Compact */
-async function mtListClick(e){
-  const pick = e.target.closest("[data-mtpick]"), act = e.target.closest("[data-mtact]");
-  if(act && act.dataset.mtact === "browser"){
-    act.disabled = true; act.textContent = "Downloading…";
-    try{ await btTranslator("en", p => { act.textContent = `Downloading… ${p}%`; }); }
-    catch(err){ toast(`${browserName()} could not fetch its English: ${err.message || err}`); }
-    mtPaint(true);
-    return;
-  }
-  if(act && act.dataset.mtact === "install"){
-    if(navigator.onLine === false){ toast(`Installing Compact needs a connection — ${MT_SIZE}, once`); return; }
-    await mtInstall().catch(() => {});
-    return;
-  }
-  if(act && act.dataset.mtact === "remove"){
-    if(confirm(`Remove Compact (${MT_SIZE}) from this device? Translating with no connection will need it installed again.`)) await mtRemove();
-    return;
-  }
-  if(pick){
-    S.readOfflineModel = pick.dataset.mtpick; save();
-    mtPaint(true);
-  }
-}
-addEventListener("online", mtNetPaint);
-addEventListener("offline", mtNetPaint);
+}, 8000);
 
 /* ---- Google Translate ----
  * Long passages go in pieces, cut at sentence ends, so no request grows past

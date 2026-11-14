@@ -15,7 +15,7 @@ const APP_VERSION = "1.28.0";
 /* Which build of it: a hash of everything shipped, stamped by tools/build.mjs
    into this, index.html and sw.js alike — the page checks it is running its
    own build's code (index.html, heal). A working copy says __BUILD__. */
-const APP_BUILD = "e90550a12277";
+const APP_BUILD = "9bbedb8562ee";
 const BUILT = !APP_BUILD.startsWith("__");
 
 /* The themes. Each lives as a JSON file in themes/skins/ and reaches the page
@@ -83,11 +83,8 @@ let S = {
   readSpread:"one",
   /* Which turn to go back to when the animation is switched back on. */
   readTurnStyle:"curl",
-  /* The language a selected passage is translated into; where: "auto"
-     (Google with a connection, the device without), "google" or "offline";
-     and which of the device's translators, "" being the best it has
-     ("browser" or "opus" — reader.js MT; both translate into English). */
-  readTranslateTo:"en", readTranslator:"auto", readOfflineModel:"",
+  /* The language Google Translate turns a selected passage into. */
+  readTranslateTo:"en",
   /* The track under the page, shown or not. */
   readScrub:true,
   /* Full screen while a book is open: the rail and the masthead go, the
@@ -119,7 +116,6 @@ let S = {
      locked, or "level", only up to yours. */
   charView:"tree", treeRoot:"",
   /* The panel beside the tree on a wide screen: shown, or put away. */
-  treeInsp:true,
   /* The tab's radical index (radicals.js): the radical whose characters it
      shows, "" for the radicals; and whether it shows every row or a few. */
   charRad:"", charIdxTall:false, charIdxCollapsed:true,
@@ -138,14 +134,9 @@ S.charIdxCollapsed = true;
 /* 1.26.23 translated through Baidu with an app ID and key of the reader's
    own. That is gone; so is anything typed for it, rather than left in the
    record and in every backup made from it. */
-/* Before 1.26.26 there was no automatic choice, and Online was the default:
-   a record still on it moves to Automatic, once, which goes online exactly
-   as before while there is a connection. One that chose the device keeps it. */
-if(!S.readTranslatorV){
-  if(S.readTranslator !== "offline") S.readTranslator = "auto";
-  S.readTranslatorV = 2;
-}
-if(!["auto", "google", "offline"].includes(S.readTranslator)) S.readTranslator = "auto";
+/* Passages are translated by Google Translate alone now; the choice of
+   where, and of an on-device translator, goes from the record. */
+delete S.readTranslator; delete S.readTranslatorV; delete S.readOfflineModel;
 if("baiduAppId" in S || "baiduKey" in S){
   delete S.baiduAppId; delete S.baiduKey;
   try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){}

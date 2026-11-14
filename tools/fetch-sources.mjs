@@ -20,6 +20,7 @@ const GLOSSES = 'https://raw.githubusercontent.com/drkameleon/complete-hsk-vocab
 const CEDICT = 'https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz'
 const HANZIDB = 'https://raw.githubusercontent.com/ruddfawcett/hanziDB.csv/master/data/hanziDB.csv'
 const MAKEMEAHANZI = 'https://raw.githubusercontent.com/skishore/makemeahanzi/master/dictionary.txt'
+const FREQUENCY = 'https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/zh_cn/zh_cn_50k.txt'
 
 async function download(url, dest) {
   const res = await fetch(url)
@@ -81,5 +82,11 @@ await download(MAKEMEAHANZI, `${CACHE}/dictionary.txt`)
 // The two sources are 3 MB together and stay in the cache; only the
 // reduction is committed.
 execFileSync('node', ['tools/build-charextra.mjs'], { stdio: 'inherit' })
+
+console.log('\nEveryday words beyond the HSK list')
+// Word frequencies from film and TV subtitles; with CC-CEDICT above, they pick
+// the common words the HSK list leaves out (你好, 生日快乐).
+await download(FREQUENCY, `${CACHE}/zh_cn_50k.txt`)
+execFileSync('node', ['tools/build-extrawords.mjs'], { stdio: 'inherit' })
 
 console.log('\nSources refreshed. Run `npm run data` to rebuild.')

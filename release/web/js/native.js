@@ -82,25 +82,5 @@
     follow();
   }
 
-  /* The reader's offline translator, installed on request into the app's own
-     storage (see OfflineTranslatorPlugin.java) rather than carried in the
-     APK. The page passes the list of files and reads them back through the
-     bridge's file address. */
-  const OT = typeof cap.registerPlugin === "function" ? cap.registerPlugin("OfflineTranslator") : PL.OfflineTranslator;
-  if(OT && typeof cap.convertFileSrc === "function"){
-    window.hskkerNative = Object.assign(window.hskkerNative || {}, {
-      translator: {
-        status: files => OT.status({files}),
-        install: async (files, onProgress) => {
-          const handle = await OT.addListener("progress", e => { if(onProgress) onProgress(e.done, e.total); });
-          try{ return await OT.install({files}); }
-          finally{ handle.remove(); }
-        },
-        remove: () => OT.remove(),
-        url: (base, path) => cap.convertFileSrc(`${base}/${path}`),
-      },
-    });
-  }
-
   if(PL.SplashScreen && PL.SplashScreen.hide) PL.SplashScreen.hide().catch(()=>{});
 })();

@@ -8,7 +8,7 @@ import { deflateRawSync, constants } from "node:zlib";
 
 const before = "b123daedd69ce3513429850301035063a5334137";
 const data = {};
-for (const file of ["search.js", "chars.js", ...readdirSync("release/web/data/examples").map(f => "examples/" + f)]) {
+for (const file of ["search.js", "extra.js", "chars.js", ...readdirSync("release/web/data/examples").map(f => "examples/" + f)]) {
   runInContext(readFileSync("release/web/data/" + file, "utf8"), createContext({HSKDATA:(k,v) => { data[k] = v; }}));
 }
 function load(old) {
@@ -101,6 +101,51 @@ for(let i = 0; i < 5; i++){
     runs[index].push(performance.now()-start);
   }
 }
-console.log("Token, annotation, text import, coverage and character-tree parity passed.");
+// The character map's engine (map.rs) against plain JavaScript: each
+// character's words, and where the boxes of a big map go.
+const tree = readFileSync("release/web/js/tree.js", "utf8").replaceAll("\r\n", "\n");
+runInContext(tree.slice(tree.indexOf("function ctWordsIndex"), tree.indexOf("const ctEveryday")), next);
+next.rows = data.search.concat(data.extra);
+next.ctWordsIndex(next.rows);
+const byChar = new Map();
+next.rows.forEach((r, i) => {
+  if (r[1].length < 2) return;
+  for (const ch of new Set(r[1])) (byChar.get(ch) || byChar.set(ch, []).get(ch)).push(i);
+});
+const freq = r => Math.min(r[5] ?? 1e9, 0x7fffffff);
+for (const [ch, ids] of byChar) {
+  ids.sort((a, b) => (+next.rows[a][4] || 0) - (+next.rows[b][4] || 0) || freq(next.rows[a]) - freq(next.rows[b]) || a - b);
+  equal(next.ctWordsOf(ch).map(r => r[0]), ids.map(i => next.rows[i][0]));
+}
+equal(next.ctWordsOf("\u0001"), []);
+const boxes = 900, parent = [-1], wide = [244], high = [104];
+for (let i = 1; i < boxes; i++) {
+  parent.push(Math.floor((i - 1) / (i < 40 ? 6 : 3)));
+  wide.push(i % 7 ? 184 : 272);
+  high.push(i % 7 ? 64 : 46 + 34 * (1 + i % 11) + 12);
+}
+const kids = parent.map(() => []), depth = parent.map(() => 0);
+for (let i = 1; i < boxes; i++) { kids[parent[i]].push(i); depth[i] = depth[parent[i]] + 1; }
+const colW = [], colX = [0];
+for (let i = 0; i < boxes; i++) colW[depth[i]] = Math.max(colW[depth[i]] || 0, wide[i]);
+for (let d = 1; d < colW.length; d++) colX[d] = colX[d - 1] + colW[d - 1] + 132;
+const sub = [], kidsH = [], top = parent.map(() => 0), expected = [];
+for (let i = boxes - 1; i >= 0; i--) {
+  kidsH[i] = kids[i].reduce((n, k, j) => n + sub[k] + (j ? 18 : 0), 0);
+  sub[i] = Math.max(high[i], kidsH[i]);
+}
+for (let i = 0; i < boxes; i++) {
+  const kidsTop = top[i] + (sub[i] - kidsH[i]) / 2;
+  const y = kids[i].length && kidsH[i] > Math.max(high[i], 560) ? kidsTop : top[i] + (sub[i] - high[i]) / 2;
+  let at = kidsTop;
+  for (const k of kids[i]) { top[k] = at; at += sub[k] + 18; }
+  expected.push(Math.round(colX[depth[i]]), Math.round(y));
+}
+const engine = runInContext("webEngine", next), ptr = engine.input(boxes * 3);
+const packed = new Uint16Array(engine.memory.buffer, ptr, boxes * 3);
+for (let i = 0; i < boxes; i++) packed.set([parent[i] + 1, wide[i], high[i]], 3 * i);
+const len = engine.map_layout(132, 18, 560);
+equal(Array.from(new Int32Array(engine.memory.buffer, engine.output(), len)), expected);
+console.log("Token, annotation, text import, coverage, character-tree and character-map parity passed.");
 console.log("Book analysis on", blocks.join("").length, "UTF-16 units. Median of five warm runs (ms):",
             "JavaScript", median(runs[0]).toFixed(1), "Rust-backed", median(runs[1]).toFixed(1));

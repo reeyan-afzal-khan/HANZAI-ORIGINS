@@ -34,11 +34,3 @@ src/data/hskker.db-journal
 # repository: what is built from them is.
 src/data/**/*.pdf
 src/data/**/*.docx
-
-# The offline translator: about 135 MB as published (src/data/translation/) and
-# 180 MB as the scripts the app loads (release/web/data/mt/). `npm run translation`
-# fetches the first, checks it and makes the second; see
-# src/data/translation/README.md.
-src/data/translation/runtime/
-src/data/translation/opus-mt-zh-en/
-release/web/data/mt/
