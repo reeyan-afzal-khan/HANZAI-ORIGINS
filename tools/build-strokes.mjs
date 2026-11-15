@@ -8,12 +8,14 @@
  * This used to write one .js file per character: 4,147 of them, two thirds of
  * every file in the repository, and 21 MB on disk for 12.5 MB of data — 4,000
  * files that small waste most of a cluster each. The data now lives in the
- * strokes table and is exported in 64 buckets, around 200 KB apiece.
+ * strokes table and is exported in 256 buckets, around 48 KB apiece (20 KB
+ * compressed) — small enough that a character tapped for the first time is
+ * drawn after one short download.
  *
  * Bucketed rather than concatenated because the app still has to load stroke
- * data on demand — 12.5 MB in one file would be parsed in full the first time
+ * data on demand — 12 MB in one file would be parsed in full the first time
  * anybody practised a single character. Which bucket a character is in is its
- * codepoint modulo 64, so the app can work it out without consulting an index.
+ * codepoint modulo 256, so the app can work it out without consulting an index.
  *
  * Still self-registering .js rather than .json, for the same reason as the
  * syllabus: fetch is blocked on file://, and a <script> tag is not.
@@ -63,10 +65,10 @@ batch(db, () => {
         missing.push(ch)
         continue
       }
-      /* The payload is already JSON and goes through verbatim — stored as text
-         and handed to the app unparsed, exactly as the old per-character files
-         did. Nothing in the pipeline needs to look inside it. */
-      add({ hanzi: ch, shard: shardOf(ch), data: readFileSync(src, 'utf8').trim() })
+      /* The payload is already JSON; it is stored compact (the source spaces
+         its arrays out), and handed to the app as it is. The SVG paths inside
+         keep their spaces: hanzi-writer's fallback renderer splits on them. */
+      add({ hanzi: ch, shard: shardOf(ch), data: JSON.stringify(JSON.parse(readFileSync(src, 'utf8'))) })
     }
   }
 })
@@ -92,9 +94,9 @@ for (let n = 0; n < STROKE_SHARDS; n++) {
 }
 
 /* The manifest lists every character that has data, as one string. It is read
-   before any shard is, so a character outside the set — anything the syllabus
-   does not cover — goes straight to the CDN instead of pulling 330 KB to
-   discover it is not in there. */
+   before any shard is (the app fetches it while idle), so a character outside
+   the set — anything the syllabus does not cover — goes straight to the CDN
+   instead of pulling a shard to discover it is not in there. */
 const have = rows(db, 'SELECT hanzi FROM strokes ORDER BY hanzi').map((r) => r.hanzi)
 writeFileSync(`${OUT}/manifest.js`,
   `HSKSTROKE.manifest(${JSON.stringify({

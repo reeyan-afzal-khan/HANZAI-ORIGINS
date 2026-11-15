@@ -24,6 +24,11 @@ from any entry) and the map shows:
   **Everyday**. A list shows its first six; **Show more** pages through the rest.
 - **Also filed under**: every other character the radical index files under the
   radical, so a radical's map always shows all of its characters.
+- **Word maps**: search a word (你好), or pick one in a list and press **Map this
+  word** (or **G**), and the map shows how it is built: each character's parts,
+  each character, then the word and the longer words it appears in. The panel
+  explains it character by character: what each part brings (meaning or sound),
+  how the parts sit, and the dictionary's account of the character.
 
 - Every character is a skill: locked, ready, learned (★★) or mastered (★★★).
   One star comes from recognising it in a quest or meeting it in your deck, two
@@ -37,9 +42,10 @@ from any entry) and the map shows:
   10 XP and first writing completion 20 XP per character; every 150 XP raises
   your scholar level (Novice, Apprentice, Initiate, Scribe…).
 
-Type in **Find** over the map to jump to a character, a word (你好), toneless
+Press the search icon over the map (or **/**) to jump to a character, a word (你好), toneless
 pinyin (nihao) or a radical (竹). Drag to pan, scroll or pinch to zoom, and use
-the small map in the corner for big families. Keys: arrows move, **Space** opens a character on the map, **Enter**
+the small map in the bottom-left corner for big families (tap it to enlarge it,
+then tap or drag on it to move there). Keys: arrows move, **Space** opens a character on the map, **Enter**
 opens its entry, **Q** starts its quest, **G** makes it the core, **+ −** zoom,
 **0** fits the map, **Backspace** goes back.
 

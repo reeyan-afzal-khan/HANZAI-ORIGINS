@@ -18,11 +18,15 @@
  * inside the APK — and falls back to a CDN only when that has not been
  * generated, or for a character the syllabus does not cover.
  *
- * The 4,146 characters are bucketed into 64 shard files rather than one file
- * each. Which shard holds a character is its codepoint modulo 64, so no index
- * has to be consulted to know what to ask for; the manifest is only read to
- * find out whether a character is in the set at all, so a miss can skip
- * straight to the CDN instead of pulling 200 KB to discover it is not there.
+ * The 4,146 characters are bucketed into 256 shard files rather than one file
+ * each: about 16 characters and 20 KB compressed a file, so a character drawn
+ * for the first time waits for one short download. Which shard holds a
+ * character is its codepoint modulo the count, so no index has to be consulted
+ * to know what to ask for; the manifest is only read to find out whether a
+ * character is in the set at all, so a miss can skip straight to the CDN. The
+ * manifest is fetched while the app is idle (warmStrokeIndex), and a word's
+ * shards as soon as a finger lands on it (warmStrokes), so by the time the tap
+ * opens the card its strokes are usually on their way or already here.
  *
  * Still script tags rather than fetch, for the same reason as the syllabus
  * data: a script tag loads from file://, fetch does not. */
@@ -116,11 +120,27 @@ function loadStrokeData(char){
     if(!HSKSTROKE.have || !HSKSTROKE.have.has(char)) return strokesFromCdn(char);
 
     const n = char.codePointAt(0) % HSKSTROKE.shards;
-    await loadStrokeFile(n, `${STROKE_LOCAL}/${String(n).padStart(2, "0")}.js`);
+    /* named as tools/lib/db.mjs shardName names them */
+    await loadStrokeFile(n, `${STROKE_LOCAL}/${String(n).padStart(3, "0")}.js`);
     return HSKSTROKE.data.get(char) ?? strokesFromCdn(char);
   })();
   strokeCache.set(char, hit);
   return hit;
+}
+
+/* The index of which characters have strokes, fetched once the app is idle,
+   so a first tap waits for its own strokes and nothing before them. */
+function warmStrokeIndex(){
+  if(HSKSTROKE.have || shardLoads.has("manifest")) return;
+  const go = () => loadStrokeFile("manifest", `${STROKE_LOCAL}/manifest.js`);
+  if(typeof requestIdleCallback === "function") requestIdleCallback(go, {timeout: 4000});
+  else setTimeout(go, 1500);
+}
+
+/* The strokes of a word's characters, asked for ahead of time — when a
+   finger lands on the word, before the tap that opens it has finished. */
+function warmStrokes(text){
+  for(const ch of new Set(String(text || ""))) if(/\p{Script=Han}/u.test(ch)) loadStrokeData(ch);
 }
 
 /* The rice-grid a character is practised on: centre lines and diagonals, so
@@ -162,17 +182,34 @@ function mountWriter(hostId, char, opts = {}){
   host.innerHTML = "";
   const size = opts.size || host.parentElement.offsetWidth || 240;
   let mistakes = 0;
+  const demo = opts.mode === "demo", autoplay = demo && opts.autoplay !== false;
+  /* The character as type, faint, while its strokes are on the way: the box
+     is never empty, and the strokes are drawn over it as soon as they come. */
+  const box = host.parentElement;
+  box.querySelector(":scope > .stroke-wait")?.remove();
+  /* only over a box the writer is laid over (a stroke box, a panel's glyph),
+     never pushed into the flow beside it */
+  if(getComputedStyle(box).position !== "static") host.insertAdjacentHTML("beforebegin",
+    `<span class="stroke-wait hz" aria-hidden="true" style="font-size:${Math.round(size * .72)}px">${esc(char)}</span>`);
+  const waiting = () => box.querySelector(":scope > .stroke-wait")?.remove();
 
   const writer = HanziWriter.create(host, char, {
     width: size, height: size, padding: 8,
-    showCharacter: opts.mode === "demo" && !opts.hidden,
+    /* A demo that plays at once starts from the outline, not the whole
+       character shown and faded away again. */
+    showCharacter: demo && !opts.hidden && !autoplay,
     showOutline: opts.outline !== false,
     drawingWidth: 22,
     strokeAnimationSpeed: 1.1,
     delayBetweenStrokes: 180,
+    /* hanzi-writer begins every animation by fading the character out over
+       this long, even one that is not showing: 400 ms of an empty box before
+       the first stroke. A demo clears at once and starts drawing. */
+    ...(demo ? {strokeFadeDuration: 0} : {}),
     ...penColours(),
     charDataLoader: (c, onLoad, onError) => {
       loadStrokeData(c).then(data => {
+        waiting();
         if(data) onLoad(data);
         else{
           host.insertAdjacentHTML("afterend",
@@ -191,7 +228,7 @@ function mountWriter(hostId, char, opts = {}){
     });
   };
 
-  if(opts.mode === "demo"){ if(opts.autoplay !== false) writer.animateCharacter(); }
+  if(demo){ if(autoplay) writer.animateCharacter(); }
   else quiz();
 
   return {
@@ -321,7 +358,8 @@ async function renderChars(){
   /* what you have met, for the header's count and the grid's marks; the
      graph, for what the panel says each part does */
   if(!CT.g) CT.g = ctGraph(C.all);
-  await ctLoadKnown();
+  /* the XP and level for the scholar at the start of the strip, in either view */
+  await Promise.all([ctLoadKnown(), typeof questRefresh === "function" ? questRefresh(false) : null]);
   paintChars();
   if(S.charView === "tree") await renderCharTree();
 }
@@ -332,15 +370,20 @@ function paintChars(){
   $("#cstage").classList.toggle("hidden", tree);
   $("#ctstage").classList.toggle("hidden", !tree);
   $("#cgridbar").classList.toggle("hidden", tree);
+  /* Radicals goes with the tree: leaving it, its index closes too */
+  if(!tree && !S.charIdxCollapsed){ S.charIdxCollapsed = true; save(); }
+  /* the room the pinned Radicals and Grid / Tree take, before anything is drawn */
+  if(typeof fitCharControls === "function") fitCharControls();
   paintIndex();
   if(tree) return;
 
   const level = $("#grid-level").value;
   const base = level === "all" ? C.all : C.all.filter(c => c.lv === level);
   const list = base.slice().sort(SORTS[C.sort].cmp);
-  /* the level switch beside the sort, and how many characters it shows */
-  paintSwitches("#glevel", `<span class="lbl">HSK</span><span class="segtrack">${[["all", "All"], ...LEVELS.map(lv => [lv, levelLabel(lv)])].map(([v, n]) =>
-    `<button class="fchip" data-glv="${v}" data-lv="${v}" aria-pressed="${v === level}" title="${v === "all" ? "Every level" : `HSK ${n}`}">${n}</button>`).join("")}</span>`);
+  /* the level menu wears the level's colour; the count says what it holds */
+  $("#cgridbar .gsel").dataset.lv = level;
+  /* the scholar's ring: how much of what the grid shows is learned */
+  if(typeof ctPaintGridMe === "function") ctPaintGridMe(base, level);
   $("#gcount").textContent = `${num(list.length)} character${list.length === 1 ? "" : "s"}`;
   const sec = SORTS[C.sort].sec;
   const total = new Map();
@@ -740,7 +783,8 @@ async function openWriting(word, opts = {}){
   if(!dlg.open) dlg.showModal();
   $("#writing-body").scrollTop = 0;
 
-  const writers = chars.map((c, i) => mountWriter(`wr-host-${i}`, c, {mode: "demo", size, autoplay: false, hidden: i > 0}));
+  /* every one from its outline: each is drawn in its turn, the first at once */
+  const writers = chars.map((c, i) => mountWriter(`wr-host-${i}`, c, {mode: "demo", size, autoplay: false, hidden: true}));
   /* One after another, the way the word is written. A character with no
      stroke data simply passes the turn. */
   const play = i => {

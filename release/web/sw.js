@@ -22,7 +22,7 @@
  * those are cache-first and filled on demand rather than up front: precaching
  * 12.5 MB of stroke data on install would make the first launch unusable.
  */
-const CACHE = "hskker-9bbedb8562ee";
+const CACHE = "hskker-d12cbfd4213b";
 /* tools/build.mjs replaces __BUILD__ with a hash of everything it ships.
    Running from app/ directly, that substitution has not happened — so the
    cache name would be the same string for every edit, and the worker would

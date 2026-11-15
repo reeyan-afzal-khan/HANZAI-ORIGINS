@@ -377,19 +377,22 @@ $("#help").addEventListener("click", e => { if(e.target === $("#help")) closeDia
 
 /* ---------------- browsers ---------------- */
 $("#cmore").onclick = () => { C.limit += 300; paintChars(); };
+/* The room Radicals and Grid / Tree take, kept free at the start of both
+   strips they sit over — measured, so it is right in any font and language. */
+function fitCharControls(){
+  const w = Math.ceil($("#character-controls").getBoundingClientRect().width);
+  if(w) $("#v-chars").style.setProperty("--ctl-w", `${w}px`);
+}
+if(window.ResizeObserver) new ResizeObserver(fitCharControls).observe($("#character-controls"));
+/* the scholar's ring, tapped: how many of the characters in view are learned */
+$("#sk-me").addEventListener("click", e => {
+  if(e.target.closest(".sk-ring") && CT.meLine) toast(CT.meLine);
+});
 $("#cview").onclick = e => {
   const b = e.target.closest("button[data-cv]");
   if(b && b.dataset.cv !== S.charView) setCharView(b.dataset.cv);
 };
 $("#grid-level").onchange = () => {
-  C.limit = 300;
-  paintChars();
-};
-/* the grid's level, from the switch beside the sort */
-$("#glevel").onclick = e => {
-  const b = e.target.closest("button[data-glv]");
-  if(!b) return;
-  $("#grid-level").value = b.dataset.glv;
   C.limit = 300;
   paintChars();
 };
@@ -540,6 +543,14 @@ $("#rd-mark").onclick = e => {
 /* A tap anywhere in the prose is a tap on a word — the buttons are inside the
    paragraph, so this is one listener for a chapter rather than thousands. A
    tap opens the writing card; the gloss is what resting on the word gives. */
+/* The word's strokes are asked for the moment a finger or button goes down,
+   so they load while the tap is still being made. */
+$("#rd-prose").addEventListener("pointerdown", e => {
+  const tk = e.isPrimary && e.target.closest(".rdw[data-i]");
+  const blk = tk && tk.closest(".blk[data-b]");
+  const tok = blk && R.tokens[+blk.dataset.b] && R.tokens[+blk.dataset.b][+tk.dataset.i];
+  if(tok && tok.t !== "x") warmStrokes(tok.w);
+}, {passive: true});
 $("#rd-prose").addEventListener("click", e => {
   const tk = e.target.closest(".rdw[data-i]");
   if(!tk) return;
@@ -902,6 +913,8 @@ safely("load your record", renderRail);
 const hashView = (location.hash || "").slice(1);
 show(VIEWS.includes(hashView) ? hashView : S.view);
 booted = true;
+/* which characters have stroke data, fetched once nothing else is loading */
+warmStrokeIndex();
 
 /* The service worker is for the web build. Inside the Android shell every
    file is already on the device, so a worker there only copies 40 MB of

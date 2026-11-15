@@ -24,8 +24,10 @@ import { dirname } from 'node:path'
 
 export { DB_PATH } from './paths.mjs'
 import { DB_PATH } from './paths.mjs'
-/** How many files the 12.5 MB of stroke data is bucketed into. */
-export const STROKE_SHARDS = 64
+/** How many files the 12 MB of stroke data is bucketed into: about 16
+ * characters and 20 KB compressed a file, so the first time a character is
+ * drawn it waits for one small download rather than 80 KB of its neighbours. */
+export const STROKE_SHARDS = 256
 
 /**
  * Which shard a character's stroke data lives in. Derived from the codepoint so
@@ -33,8 +35,9 @@ export const STROKE_SHARDS = 64
  * which file to ask for, which keeps the runtime a single script tag.
  */
 export const shardOf = (char) => char.codePointAt(0) % STROKE_SHARDS
-/** Shard file names are zero-padded so a directory listing sorts correctly. */
-export const shardName = (n) => String(n).padStart(2, '0')
+/** Shard file names are zero-padded so a directory listing sorts correctly
+ * (release/web/js/browse.js builds the same names). */
+export const shardName = (n) => String(n).padStart(3, '0')
 
 /* Columns holding a JSON array or object are named here rather than guessed at,
    so a plain string that happens to look like JSON is never silently parsed. */

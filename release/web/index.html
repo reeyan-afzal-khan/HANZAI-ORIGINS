@@ -18,7 +18,7 @@
 <link rel="icon" href="./icons/icon-192.png?v=logo1" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=logo1" sizes="180x180">
 <title>HANZAI-ORIGINS</title>
-<link rel="stylesheet" href="./styles.css?v=9bbedb8562ee">
+<link rel="stylesheet" href="./styles.css?v=d12cbfd4213b">
 <!-- The web faces are wanted, not needed: every stack falls through to a
      face the device has. So the request must never hold the page — on a
      phone with a slow or absent connection a blocking stylesheet from
@@ -31,8 +31,8 @@
 <!-- The palettes and the background textures, compiled from themes/ by
      `npm run themes`. Loaded before the stamp below so it can tell a theme
      that still exists from one that has been retired. -->
-<link rel="stylesheet" href="./themes/skins.css?v=9bbedb8562ee">
-<script src="./themes/themes.js?v=9bbedb8562ee"></script>
+<link rel="stylesheet" href="./themes/skins.css?v=d12cbfd4213b">
+<script src="./themes/themes.js?v=d12cbfd4213b"></script>
 
 <script>
 /* Stamp the saved theme and texture before first paint, so a light palette
@@ -101,7 +101,7 @@ window.boom = function(what, detail){
    server and the scripts from its cache, and the new page ran on the old
    build's code, which stopped at the first thing it looked for that the page
    no longer had. */
-var PAGE_BUILD = "9bbedb8562ee";
+var PAGE_BUILD = "d12cbfd4213b";
 /* Updates must not depend on boot.js reaching its final line. A broken old
    app still needs to install the worker that repairs it. */
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
@@ -206,21 +206,46 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 
   <!-- ============ CHARACTERS ============ -->
   <section id="v-chars" class="hidden">
+    <!-- Radicals and Grid / Tree: one element, pinned to the top left of the
+         tab, over the room kept free for it at the start of the strip below
+         (the grid's toolbar or the map's header), so it never moves when the
+         view changes. Its radical index drops down from it. -->
+    <div class="ct-adventure-tools">
+      <div id="character-controls">
+    <!-- the scholar: the level in a ring of what is learned, the XP and the
+         bar to the next level (tree.js ctPaintMe) -->
+    <div class="sk-me" id="sk-me"></div>
+    <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
+      <button data-cv="grid" aria-pressed="false" aria-label="Grid" title="Character grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
+      <button data-cv="tree" aria-pressed="true" aria-label="Tree" title="Character tree"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="3" width="5" height="5" rx="1.4"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="16" width="5" height="5" rx="1.4"/><path d="M7.5 12h9M10.5 12c0-4.5 2-6.5 6-6.5M10.5 12c0 4.5 2 6.5 6 6.5"/></svg><span>Tree</span></button>
+    </div>
+    <!-- Radicals belongs to the tree: it unfolds out of the switch when the
+         tree is showing and folds away with the grid. -->
+    <span class="rx-slot"><span class="rx-clip">
+      <button class="rx-toggle" id="radical-picker" aria-controls="cidx" aria-expanded="false">Radicals</button>
+    </span></span>
+    <section class="cidx" id="cidx" aria-label="Radical index">
+    <div class="cidx-head" id="cidx-head"></div>
+    <div class="cidx-keys" id="cidx-keys"></div>
+    </section>
+      </div>
+    </div>
     <!-- The page's name, what it holds, and how far into the level you are. -->
     <!-- Under that, for the grid: which characters, by how far you are with
          each, and in what order. (The tree's own switch, how far it grows,
          is in the row above.) -->
     <div class="psub gbar" id="cgridbar">
+      <span class="gbar-ctl" aria-hidden="true"></span>
       <div class="filters pseg" id="csort" role="group" aria-label="Sort characters"></div>
-      <div class="lvseg" id="glevel" role="group" aria-label="Show the characters of one level"></div>
+      <label class="grid-level"><span class="lbl">HSK</span>
+        <span class="gsel" data-lv="all"><select id="grid-level" aria-label="Show the characters of one HSK level">
+          <option value="all">All levels</option>
+          <option value="1">HSK 1</option><option value="2">HSK 2</option>
+          <option value="3">HSK 3</option><option value="4">HSK 4</option>
+          <option value="5">HSK 5</option><option value="6">HSK 6</option>
+          <option value="7">HSK 7&#8211;9</option>
+        </select></span></label>
       <span class="gbar-n" id="gcount" aria-live="polite"></span>
-      <label class="grid-level" hidden>HSK <select id="grid-level" tabindex="-1">
-        <option value="all">All levels</option>
-        <option value="1">HSK 1</option><option value="2">HSK 2</option>
-        <option value="3">HSK 3</option><option value="4">HSK 4</option>
-        <option value="5">HSK 5</option><option value="6">HSK 6</option>
-        <option value="7">HSK 7&#8211;9</option>
-      </select></label>
     </div>
     <!-- The grid, and beside it on a wide screen the character picked. -->
     <div class="cstage" id="cstage">
@@ -239,13 +264,17 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
     <div class="ct-stage hidden" id="ctstage">
       <div class="sk" id="ct-main">
         <header class="sk-hud" id="ct-head">
+          <span class="sk-ctl" aria-hidden="true"></span>
           <nav class="sk-trail" id="ct-title" aria-label="The core of this map, and the cores walked through"></nav>
+          <!-- The search, folded to its icon: pressed (or "/"), it opens over the
+               header to its left and folds away again once it is done with, so it
+               takes no room from the core's name and meaning. -->
           <form class="sk-find" id="sk-find" role="search" autocomplete="off">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-            <input id="sk-find-q" type="search" enterkeyhint="search" placeholder="Find 你好, 海, nihao…" aria-label="Find a character or word on the map" spellcheck="false">
+            <span class="sk-find-box">
+              <button class="sk-find-btn" id="sk-find-open" type="button" aria-label="Search the map" aria-expanded="false" aria-controls="sk-find-q" title="Search a word or character (/)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/></svg></button>
+              <input id="sk-find-q" type="search" enterkeyhint="search" tabindex="-1" placeholder="Search a word or character" aria-label="Search a Chinese character, word, pinyin or radical" spellcheck="false">
+            </span>
           </form>
-          <div class="sk-fam" id="sk-fam"></div>
-          <div class="sk-me" id="sk-me"></div>
           <div class="sk-tools" role="group" aria-label="View">
             <button class="sk-tool" type="button" data-ct="out" aria-label="Zoom out" title="Zoom out (−)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
             <button class="sk-tool" type="button" data-ct="in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
@@ -268,19 +297,6 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
       </div>
       <aside class="ct-insp" id="ct-insp" aria-label="What is picked" hidden></aside>
     </div>
-      <div class="ct-adventure-tools">
-        <div id="character-controls">
-      <button class="rx-toggle" id="radical-picker" aria-controls="cidx" aria-expanded="false">Radicals</button>
-      <div class="seg cview" id="cview" role="group" aria-label="Show the characters as">
-        <button data-cv="grid" aria-pressed="false" aria-label="Grid" title="Character grid"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg><span>Grid</span></button>
-        <button data-cv="tree" aria-pressed="true" aria-label="Tree" title="Character tree"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="3" width="5" height="5" rx="1.4"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.4"/><rect x="16.5" y="16" width="5" height="5" rx="1.4"/><path d="M7.5 12h9M10.5 12c0-4.5 2-6.5 6-6.5M10.5 12c0 4.5 2 6.5 6 6.5"/></svg><span>Tree</span></button>
-      </div>
-    <section class="cidx" id="cidx" aria-label="Radical index">
-      <div class="cidx-head" id="cidx-head"></div>
-      <div class="cidx-keys" id="cidx-keys"></div>
-    </section>
-        </div>
-      </div>
   </section>
 
   <!-- ============ READ ============ -->
@@ -544,24 +560,24 @@ try{ if(window.__tex){ var _t = document.getElementById("tex"), _s = document.do
 <dialog id="quest" aria-labelledby="quest-title"><div class="quest-shell"><header><div><span class="lbl">Character adventure</span><h2 id="quest-title">Your next quest</h2></div><button class="ghost" id="quest-close" aria-label="Close quest">Close</button></header><div id="quest-body"></div></div></dialog>
 <!-- The consent check, before a conversation goes past sensitivity 3. -->
 
-<script src="./js/web-engine.js?v=9bbedb8562ee"></script>
-<script src="./vendor/hanzi-writer.min.js?v=9bbedb8562ee"></script>
-<script src="./js/profile.js?v=9bbedb8562ee"></script>
-<script src="./js/core.js?v=9bbedb8562ee"></script>
-<script src="./js/store.js?v=9bbedb8562ee"></script>
-<script src="./js/study.js?v=9bbedb8562ee"></script>
-<script src="./js/browse.js?v=9bbedb8562ee"></script>
-<script src="./js/tree.js?v=9bbedb8562ee"></script>
-<script src="./js/learning.js?v=9bbedb8562ee"></script>
-<script src="./js/quests.js?v=9bbedb8562ee"></script>
-<script src="./js/radicals.js?v=9bbedb8562ee"></script>
-<script src="./js/navigation.js?v=9bbedb8562ee"></script>
-<script src="./js/epub.js?v=9bbedb8562ee"></script>
-<script src="./js/segment.js?v=9bbedb8562ee"></script>
-<script src="./js/reader.js?v=9bbedb8562ee"></script>
-<script src="./js/settings.js?v=9bbedb8562ee"></script>
-<script src="./js/boot.js?v=9bbedb8562ee"></script>
-<script src="./js/native.js?v=9bbedb8562ee"></script>
+<script src="./js/web-engine.js?v=d12cbfd4213b"></script>
+<script src="./vendor/hanzi-writer.min.js?v=d12cbfd4213b"></script>
+<script src="./js/profile.js?v=d12cbfd4213b"></script>
+<script src="./js/core.js?v=d12cbfd4213b"></script>
+<script src="./js/store.js?v=d12cbfd4213b"></script>
+<script src="./js/study.js?v=d12cbfd4213b"></script>
+<script src="./js/browse.js?v=d12cbfd4213b"></script>
+<script src="./js/tree.js?v=d12cbfd4213b"></script>
+<script src="./js/learning.js?v=d12cbfd4213b"></script>
+<script src="./js/quests.js?v=d12cbfd4213b"></script>
+<script src="./js/radicals.js?v=d12cbfd4213b"></script>
+<script src="./js/navigation.js?v=d12cbfd4213b"></script>
+<script src="./js/epub.js?v=d12cbfd4213b"></script>
+<script src="./js/segment.js?v=d12cbfd4213b"></script>
+<script src="./js/reader.js?v=d12cbfd4213b"></script>
+<script src="./js/settings.js?v=d12cbfd4213b"></script>
+<script src="./js/boot.js?v=d12cbfd4213b"></script>
+<script src="./js/native.js?v=d12cbfd4213b"></script>
 <script>
 /* Everything above has run. Scripts from another build that happened not to
    throw are still the wrong scripts for this page (see heal, in <head>). */

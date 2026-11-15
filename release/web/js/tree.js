@@ -17,6 +17,10 @@
  *                that start apart meet in the words they make: the map ends
  *                as a mind map of how the family hangs together.
  *
+ * A word can be the core too (你好, searched for or picked from a list): the
+ * map then shows how it is built, left to right — each character's parts,
+ * each character, the word — and after it the longer words it is written in.
+ *
  * It is played as a role-playing game's skill tree. Each character is a
  * skill — locked, ready, learned or mastered — and opens once the character
  * it is built on is learned (a component with no entry of its own holds
@@ -44,6 +48,7 @@ const CT_STAR = `<svg viewBox="0 0 12 12" aria-hidden="true"><path class="star" 
 const CT = {
   g: null,               // the graph: by, kids, gloss, form, alias
   root: "",              // the core the map grows from
+  word: "",              // where the core is a word: its id, and the map shows how it is built
   trail: [],             // the cores walked through to get here
   tree: null,            // what grows from the core: branches, parent, under, tall, size
   makes: null,           // what the core is made of
@@ -58,6 +63,7 @@ const CT = {
   lay: null,             // the last layout: boxes, links, columns, extent
   recs: new Map(),       // box key -> its element and where it is drawn now
   cam: {x: 0, y: 0, k: 1},
+  held: false,           // whether the camera was last held back at the map's edge
   touched: false,        // moved by hand since the map last placed itself
   deck: new Map(),       // character -> its own card's rank (1 in the deck, 2 mastered)
   met: new Map(),        // character -> the best rank of a deck word written with it
@@ -167,6 +173,44 @@ function ctMakings(root){
     }
     tier = next;
   }
+  return out;
+}
+
+/* ---------------- a word as the core ---------------- */
+
+/* A word's row by how it is written — the syllabus's before the everyday. */
+function ctWordRow(s){
+  if(!CT.wordRows || [...String(s || "")].length < 2) return null;
+  if(!CT.wordBySimp) CT.wordBySimp = new Map(CT.wordRows.map(r => [r[1], r]).reverse());
+  return CT.wordBySimp.get(s) || null;
+}
+/* A word as a map: its characters hang from it, each once (谢谢 is 谢
+   twice), so they are what the map counts, quests through and rings; none
+   is locked — a word is learned a character at a time, in any order. */
+function ctWordTree(r){
+  const chars = [...new Set(r[1])].filter(ch => CT.g.by.has(ch));
+  return {root: r[1], branches: new Map([[r[1], chars]]), parent: new Map(chars.map(ch => [ch, r[1]])),
+    under: new Map([[r[1], chars.length]]), tall: new Map(), size: chars.length};
+}
+/* What each of its characters is made of, a step down. */
+function ctWordMakes(r){
+  const out = new Map();
+  for(const ch of new Set(r[1])){
+    const c = CT.g.by.get(ch);
+    const parts = c ? c.comp.map(p => p.c).filter(p => p !== ch) : [];
+    if(parts.length) out.set(ch, parts);
+  }
+  return out;
+}
+/* The longer words a word is written in — 学生 in 大学生 — each once, the
+   lower level and then the commoner first. */
+function ctWordsWith(s){
+  if(!CT.withCache) CT.withCache = new Map();
+  if(CT.withCache.has(s)) return CT.withCache.get(s);
+  const seen = new Set(), out = [];
+  for(const r of CT.wordRows || []) if(r[1] !== s && r[1].includes(s) && !seen.has(r[1])){ seen.add(r[1]); out.push(r); }
+  out.sort((a, b) => (+a[4] || 0) - (+b[4] || 0) || (a[5] ?? 1e9) - (b[5] ?? 1e9));
+  CT.withCache.set(s, out);
   return out;
 }
 
@@ -418,10 +462,10 @@ async function renderCharTree(){
   sizeCharTree();
   const want = CT.next || CT.root || S.treeRoot || "永", asked = !!CT.next;
   CT.next = "";
-  const root = CT.g.by.has(want) || CT.g.kids.has(want) ? want : "口";
+  const root = CT.g.by.has(want) || CT.g.kids.has(want) || ctWordRow(want) ? want : "口";
   if(root !== CT.root){ ctStart(root, {trail: asked}); return; }
   /* the same core at another level: grown again, its order follows the level */
-  CT.tree = ctGrow(CT.root);
+  CT.tree = CT.word ? ctWordTree(CT.wordById.get(CT.word)) : ctGrow(CT.root);
   CT.depth = ctDepths();
   if(CT.sel && !ctPlaced(CT.sel) && !CT.sel.startsWith("w:")) CT.sel = "";
   ctRefresh();
@@ -438,25 +482,51 @@ function ctRefresh(ms){
   ctPaintInsp();
 }
 
-/* The HUD: the way back and the core; the family's progress; the scholar. */
+/* The HUD: the way back and the core; the scholar, ringed by how much of
+   this map is learned. */
+const ctLearnedLine = p => `${num(p.learned)} of ${num(p.total)} character${p.total === 1 ? "" : "s"} on this map learned · ${num(p.stars)} star${p.stars === 1 ? "" : "s"}`;
 function ctPaintHead(){
   const title = $("#ct-title");
   if(!title || !CT.tree) return;
   const a = ctAbout(CT.root), back = CT.trail.length ? CT.trail[CT.trail.length - 1] : "";
+  const wr = CT.word ? CT.wordById.get(CT.word) : null;
   title.innerHTML = (back ? `<button class="sk-back" type="button" data-ct="back" data-arg="${CT.trail.length - 1}" title="Back to ${esc(back)} (Backspace)"
         aria-label="Back to ${esc(back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>` : "")
-    + CT.trail.slice(-3).map((h, i, list) =>
-      `<button class="sk-crumb hz" type="button" data-ct="back" data-arg="${CT.trail.length - list.length + i}" title="Back to ${esc(h)}">${esc(h)}</button><i aria-hidden="true">›</i>`).join("")
-    + `<b class="sk-title-g hz">${esc(CT.root)}</b>`
-    + `<span class="sk-title-t"><small>${a.c ? "Character map" : "Radical map"}</small><b>${esc(a.short || (a.c ? a.c.p : "component"))}${a.c ? ` <span class="py">${esc(a.c.p)}</span>` : ""}</b></span>`;
+    /* the cores walked through, in a strip that gives way before the core does */
+    + (CT.trail.length ? `<span class="sk-crumbs">${CT.trail.slice(-3).map((h, i, list) =>
+      `<button class="sk-crumb hz" type="button" data-ct="back" data-arg="${CT.trail.length - list.length + i}" title="Back to ${esc(h)}">${esc(h)}</button><i aria-hidden="true">›</i>`).join("")}</span>` : "")
+    /* the core, pressed: shown on the map and told in the panel */
+    + `<button class="sk-title-g hz${wr ? " word" : ""}" type="button" data-ct="pick" data-arg="${esc(CT.root)}" title="Show ${esc(CT.root)} on the map">${esc(CT.root)}</button>`
+    + (wr ? `<span class="sk-title-t"><small>Word map</small><b>${esc(ctShort(wr[3]))} <span class="py">${esc(wr[2])}</span></b></span>`
+      : `<span class="sk-title-t"><small>${a.c ? "Character map" : "Radical map"}</small><b>${esc(a.short || (a.c ? a.c.p : "component"))}${a.c ? ` <span class="py">${esc(a.c.p)}</span>` : ""}</b></span>`);
   const p = ctProgress();
-  $("#sk-fam").innerHTML = `<span class="sk-fam-t"><b>${num(p.learned)}</b><span>/ ${num(p.total)} learned</span><small>${CT_STAR}${num(p.stars)}</small></span>
-    <span class="sk-bar" role="progressbar" aria-label="Characters learned on this map" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.learned}"><i style="width:${p.pct}%"></i></span>`;
-  const {xp, rank} = questInfo, into = xp % 150;
-  $("#sk-me").innerHTML = `<span class="sk-rank" aria-hidden="true">${rank}</span>
-    <span class="sk-me-t"><b>Lv ${rank} · ${esc(ctTitle(rank))}</b><small>${num(xp)} XP · ${150 - into} to level ${rank + 1}</small>
-    <span class="sk-bar" role="progressbar" aria-label="XP towards the next level" aria-valuemin="0" aria-valuemax="150" aria-valuenow="${into}"><i style="width:${(into / 150 * 100).toFixed(1)}%"></i></span></span>`;
+  ctPaintMe(p, ctLearnedLine(p));
   ctPaintQuest();
+}
+
+/* The scholar, at the very start of the Characters tab's strip in both
+   views: the level, in a ring that fills as the characters in view are
+   learned — this map's on the map, the chosen level's (or all of them)
+   over the grid — then the XP and the bar to the next level. The ring's
+   first character already shows, however many there are; a tap says how
+   many (boot.js). */
+function ctPaintMe(p, line){
+  const me = $("#sk-me");
+  if(!me) return;
+  const {xp, rank} = questInfo, into = xp % 150;
+  const ring = p.total ? Math.max(p.learned ? 2 : 0, p.learned / p.total * 100).toFixed(1) : 0;
+  CT.meLine = line;
+  me.innerHTML = `<button class="sk-ring" type="button" style="--p:${ring}" title="${esc(line)}" aria-label="${esc(line)}">
+      <span class="sk-rank" aria-hidden="true">${rank}</span></button>
+    <span class="sk-me-t" title="Level ${rank} · ${esc(ctTitle(rank))} · ${num(xp)} XP in all, ${150 - into} to level ${rank + 1}"><b>Lv ${rank}<em> · ${esc(ctTitle(rank))}</em></b><small>${num(into)}<em>/150</em> XP</small>
+    <span class="sk-bar" role="progressbar" aria-label="XP towards the next level" aria-valuemin="0" aria-valuemax="150" aria-valuenow="${into}"><i style="width:${(into / 150 * 100).toFixed(1)}%"></i></span></span>`;
+}
+/* Over the grid: the ring is the characters it shows — a level, or all. */
+function ctPaintGridMe(list, level){
+  if(!CT.g) return;
+  const learned = list.filter(c => ctLearned(c.h)).length;
+  ctPaintMe({learned, total: list.length},
+    `${num(learned)} of ${num(list.length)} ${level === "all" ? "characters" : `HSK ${levelLabel(level)} characters`} learned`);
 }
 
 /* The next quest, over the map: what to learn, why, and what it is worth. */
@@ -466,7 +536,7 @@ function ctPaintQuest(){
   const h = CT.quest;
   if(!h){
     const p = ctProgress();
-    box.innerHTML = `<span class="sk-q-done">${CT_STAR}</span><span class="sk-q-text"><small>${p.total ? "Map complete" : "Nothing to learn here"}</small>
+    box.innerHTML = `<span class="sk-q-done">${CT_STAR}</span><span class="sk-q-text"><small><span>${p.total ? "Map complete" : "Nothing to learn here"}</span></small>
       <b>${p.total ? `All ${num(p.total)} characters learned` : `Nothing in the syllabus is built on ${esc(CT.root)}`}</b></span>`;
     go.hidden = true;
     return;
@@ -475,9 +545,8 @@ function ctPaintQuest(){
   const why = h === CT.root ? (kids ? `opens ${num(kids)} character${kids === 1 ? "" : "s"}` : "the core")
     : kids ? `opens ${num(kids)} more` : `HSK ${levelLabel(c.lv)}`;
   box.innerHTML = `<button class="sk-q-glyph hz v${c.lv}" type="button" data-ct="pick" data-arg="${esc(h)}" title="Show ${esc(h)} on the map">${esc(h)}</button>
-    <span class="sk-q-text"><small>Next quest · ${esc(why)}</small>
-      <b>${started ? "Finish" : "Learn"} <span class="hz">${esc(h)}</span> <span class="py">${esc(c.p)}</span> <span class="sk-q-en">${esc(ctShort(c.en[0]))}</span></b></span>
-    <span class="sk-xp">+${ctReward(h)} XP</span>`;
+    <span class="sk-q-text"><small><span>Next quest</span><i>${esc(why)}</i><em class="sk-q-xp">+${ctReward(h)} XP</em></small>
+      <b>${started ? "Finish" : "Learn"} <span class="hz">${esc(h)}</span> <span class="py">${esc(c.p)}</span><span class="sk-q-en"> · ${esc(ctShort(c.en[0]))}</span></b></span>`;
   go.hidden = false;
   go.textContent = started ? "Continue" : "Begin";
   go.dataset.arg = h;
@@ -516,10 +585,12 @@ function ctStart(root, opts = {}){
     CT.trail.push(CT.root);
     if(CT.trail.length > 10) CT.trail.shift();
   }else if(!opts.keepTrail) CT.trail = [];
+  const wr = ctWordRow(root);
   CT.root = root;
+  CT.word = wr ? wr[0] : "";
   S.treeRoot = root; save();
-  CT.tree = ctGrow(root);
-  CT.makes = ctMakings(root);
+  CT.tree = wr ? ctWordTree(wr) : ctGrow(root);
+  CT.makes = wr ? ctWordMakes(wr) : ctMakings(root);
   CT.depth = ctDepths();
   CT.open = new Set(); CT.fold = new Map(); CT.wall = new Map();
   CT.sel = ""; CT.hover = "";
@@ -619,6 +690,7 @@ const mmMore = h => (CT.tree.branches.get(h) || []).length + (CT.g.by.has(h) ? c
    on the map that does. */
 function mmLayout(){
   MM = mmPhone() ? MM_NARROW : MM_WIDE;
+  if(CT.word) return mmWordLayout();
   const root = mmBox("root", CT.root, null), placed = new Set();
   root.depth = 0;
   /* breadth first, so a word goes to the character nearest the core */
@@ -701,6 +773,60 @@ function mmLayout(){
   return {root, boxes, links, cols, ext: {x0, y0: y0 - 40, x1, y1, w: x1 - x0, h: y1 - y0 + 40}};
 }
 
+/* A word's map, left to right the way it is built: each character's parts,
+   the character, the word — then the longer words it is written in. Each
+   character with its parts is a group of its own, stacked down the map; the
+   word sits level with the middle of its characters. */
+function mmWordLayout(){
+  const r = CT.wordById.get(CT.word), word = CT.root, chars = [...new Set(word)];
+  const all = [], links = [];
+  const CX = MM.PART_W + Math.round(MM.GAP_X * .72), WX = CX + MM.NODE_W + MM.GAP_X;
+  const wide = Math.max(MM.ROOT_W + 24, 196 + [...word].length * 36);
+  const root = {type: "root", word: r, key: word, parent: null, depth: 0, kids: [], w: wide, h: MM.ROOT_H, x: WX, y: 0};
+  const centres = [];
+  let y = 0;
+  for(const ch of chars){
+    const parts = CT.makes.get(ch) || [];
+    const partsH = parts.length ? parts.length * MM.PART_H + (parts.length - 1) * MM.GAP_Y : 0;
+    const groupH = Math.max(MM.NODE_H, partsH);
+    /* a character with no entry of its own is shown as the part it is */
+    const node = CT.g.by.has(ch)
+      ? {type: "node", key: ch, parent: word, depth: -1, kids: [], w: MM.NODE_W, h: MM.NODE_H, x: CX, y: y + (groupH - MM.NODE_H) / 2}
+      : {type: "part", key: `p:${ch}`, ch, of: "", parent: word, depth: -1, kids: [], w: MM.PART_W, h: MM.PART_H, x: CX, y: y + (groupH - MM.PART_H) / 2};
+    all.push(node);
+    links.push({a: node.key, b: word, kind: "t"});
+    centres.push(node.y + node.h / 2);
+    let py = y + (groupH - partsH) / 2;
+    for(const p of parts){
+      const pb = {type: "part", key: `p:${ch}:${p}`, ch: p, of: ch, parent: node.key, depth: -2, kids: [], w: MM.PART_W, h: MM.PART_H, x: 0, y: py};
+      all.push(pb);
+      links.push({a: pb.key, b: node.key, kind: "p"});
+      py += MM.PART_H + MM.GAP_Y;
+    }
+    y += groupH + Math.round(MM.GAP_Y * 2.4);
+  }
+  root.y = Math.round((centres[0] + centres[centres.length - 1]) / 2 - root.h / 2);
+  all.push(root);
+  const rows = ctWordsWith(word);
+  if(rows.length){
+    const shown = rows.slice(0, CT.wall.get(word) || MM.WSHOW);
+    const wb = {type: "words", key: `wb:${word}`, owner: word, parent: word, depth: 1, kids: [], rows: shown, total: rows.length, more: rows.length,
+      w: MM.WORD_W, x: WX + wide + MM.GAP_X, y: Math.round(root.y + root.h / 2 - MM.WHEAD / 2)};
+    wb.h = MM.WHEAD + shown.length * MM.WROW + (rows.length > shown.length || shown.length > MM.WSHOW ? MM.WMORE : 0) + 6;
+    root.kids.push(wb);
+    all.push(wb);
+    links.push({a: word, b: wb.key, kind: "w"});
+  }
+  const boxes = new Map(all.map(b => [b.key, b]));
+  const names = {"-2": "Built from", "-1": chars.length === 1 ? "Character" : "Characters", 0: ctEveryday(r) ? "Everyday word" : "Word", 1: "In longer words"};
+  const tops = new Map();
+  for(const b of all) if(!tops.has(b.depth) || b.y < tops.get(b.depth).y) tops.set(b.depth, b);
+  const cols = [...tops].map(([d, b]) => ({d, x: b.x, y: b.y - 34, name: names[d]}));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for(const b of all){ x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
+  return {root, boxes, links, cols, ext: {x0, y0: y0 - 40, x1, y1, w: x1 - x0, h: y1 - y0 + 40}};
+}
+
 /* ---------------- the boxes ---------------- */
 
 const mmStars = n => `<span class="mm-stars" aria-hidden="true">${[1, 2, 3].map(i => `<i class="${i <= n ? "on" : ""}">${CT_STAR}</i>`).join("")}</span>`;
@@ -721,7 +847,19 @@ function mmKnob(h, cls = "mm-knob"){
     title="${open ? "Fold" : "Show"} what ${esc(h)} builds${kids ? ` (${kids} character${kids === 1 ? "" : "s"})` : ""} and its words">${open ? "−" : kids ? `+${kids}` : "›"}</button>`;
 }
 
+/* The word at the core of a word's map. */
+function mmWordRootHTML(b){
+  const r = b.word, st = ctWordState(r), daily = ctEveryday(r), n = [...r[1]].length, p = ctProgress();
+  return {cls: `mm-box mm-root mm-wroot ${st === "known" ? "learned" : st}`,
+    html: `<button class="mm-card" type="button" data-k="${esc(b.key)}" aria-label="${esc(`${r[1]} ${r[2]}, ${r[3]}. Built from ${[...new Set(r[1])].join(" and ")}`)}">
+      <span class="mm-gem mm-wgem n${Math.min(n, 4)}"><b class="hz">${esc(r[1])}</b></span>
+      <span class="mm-txt"><small class="mm-kick">${daily ? "Everyday word" : "Word"}</small><b class="mm-name">${esc(ctShort(r[3]))}</b>
+        <span class="mm-sub"><i class="py">${esc(r[2])}</i>${daily ? "" : `<span class="mm-wlv v${esc(r[4])}">HSK ${esc(levelLabel(r[4]))}</span>`}</span>
+        <span class="mm-wprog">${num(p.learned)} of ${num(p.total)} learned</span></span></button>`};
+}
+
 function mmBoxHTML(b){
+  if(b.type === "root" && b.word) return mmWordRootHTML(b);
   if(b.type === "root" || b.type === "node"){
     const h = b.key, a = ctAbout(h), c = a.c, st = ctState(h), root = b.type === "root";
     const p = root ? ctProgress() : null;
@@ -732,12 +870,14 @@ function mmBoxHTML(b){
           <span class="mm-sub">${c ? `<i class="py">${esc(c.p)}</i>${mmStars(ctStars(h))}` : `<i>${num(p.total)} characters</i>`}</span></span>`
       : `<span class="mm-txt"><span class="mm-l1"><i class="py">${esc(c.p)}</i>${mmStars(ctStars(h))}</span><span class="mm-l2">${esc(a.short)}</span></span>`;
     return {cls: `mm-box mm-${b.type} ${st}${c ? ` v${c.lv}` : ""}`,
-      html: `<button class="mm-card" type="button" data-k="${esc(h)}" aria-label="${esc(mmSay(h))}">${gem}${txt}</button>${root ? "" : mmKnob(h)}`};
+      html: `<button class="mm-card" type="button" data-k="${esc(h)}" aria-label="${esc(mmSay(h))}">${gem}${txt}</button>${root || CT.word ? "" : mmKnob(h)}`};
   }
   if(b.type === "part"){
-    const h = b.ch, a = ctAbout(h), role = ctRole(CT.root, h);
+    const h = b.ch, a = ctAbout(h), of = b.of ?? CT.root, role = ctRole(of, h);
+    /* what the part means in the character it is part of (尔 in 你 is "you"), else on its own */
+    const g = ((CT.g.by.get(of) || {comp: []}).comp.find(p => p.c === h) || {}).g || a.short;
     return {cls: "mm-box mm-part", html: `<button class="mm-card" type="button" data-ct="grow" data-arg="${esc(h)}" title="Make ${esc(h)} the core of the map">
-      <span class="mm-gem"><b class="hz">${esc(h)}</b></span><span class="mm-txt"><b class="mm-name">${esc(a.short || "component")}</b>
+      <span class="mm-gem"><b class="hz">${esc(h)}</b></span><span class="mm-txt"><b class="mm-name">${esc(ctShort(g) || "component")}</b>
       <small>${role ? ctRoleText(role) : a.c ? esc(a.c.p) : "component"}</small></span></button>`};
   }
   if(b.type === "cluster"){
@@ -775,7 +915,11 @@ function mmBoxHTML(b){
 }
 /* A word with the character it is listed under picked out: 你好 under 你
    reads as 你 + 好, the combination it is. */
-const mmCombo = (word, owner) => [...word].map(ch => ch === owner ? `<i class="mm-own">${esc(ch)}</i>` : esc(ch)).join("");
+function mmCombo(word, owner){
+  const at = [...owner].length > 1 ? word.indexOf(owner) : -1;
+  if(at >= 0) return `${esc(word.slice(0, at))}<i class="mm-own">${esc(owner)}</i>${esc(word.slice(at + owner.length))}`;
+  return [...word].map(ch => ch === owner ? `<i class="mm-own">${esc(ch)}</i>` : esc(ch)).join("");
+}
 
 /* ---------------- drawing the map ---------------- */
 
@@ -984,6 +1128,8 @@ function mmMarkKin(){
         lit.add(p); into.add(p);
         key = p;
       }
+      if(CT.word) for(const b of CT.lay.boxes.values()) if(b.type === "part" && (b.of === focus || focus === CT.root)) into.add(b.key);
+      if(CT.word && focus === CT.root) for(const k of CT.tree.branches.get(focus) || []) into.add(k);
       for(const l of CT.lay.links) if(l.kind !== "m" && into.has(l.a) && into.has(l.b)) hot.add(l);
       for(const k of CT.tree.branches.get(focus) || []) kin.add(k);
     }
@@ -1003,9 +1149,35 @@ function mmMarkKin(){
 /* ---------------- the camera ---------------- */
 
 const CT_ZMIN = .28, CT_ZMAX = 1.8;
+/* The room kept round the map, in screen pixels: about an eighth of the
+   view at each side and corner (56–140px across, 48–120px down), and below
+   the next quest's card at the top — so the map has space to breathe, but
+   not so much that it can be lost in empty canvas. */
+function mmEdges(){
+  const box = $("#ctree"), W = box ? box.clientWidth : 0, H = box ? box.clientHeight : 0;
+  return {mx: clamp(Math.round(W * .12), 56, 140), my: clamp(Math.round(H * .12), 48, 120),
+    top: Math.round(Math.min(mmTop(), H * .4)) + 16};
+}
+/* The view kept on the map: a map wider (or taller) than the window pans
+   until its edge is that room in from the window's, and no further; one
+   that fits stays whole in view. Every move of the camera — a drag, the
+   wheel, a pinch, a glide, the small map, a step shown — comes through
+   here. Returns whether it had to hold the view back. */
+function mmClamp(){
+  const box = $("#ctree"), e = CT.lay && CT.lay.ext;
+  if(!box || !e || !box.clientWidth) return false;
+  const {x, y, k} = CT.cam, W = box.clientWidth, H = box.clientHeight, {mx, my, top} = mmEdges();
+  const ax = mx - e.x0 * k, bx = W - mx - e.x1 * k;
+  const ay = top - e.y0 * k, by = H - my - e.y1 * k;
+  CT.cam.x = clamp(x, Math.min(ax, bx), Math.max(ax, bx));
+  CT.cam.y = clamp(y, Math.min(ay, by), Math.max(ay, by));
+  return CT.cam.x !== x || CT.cam.y !== y;
+}
 function mmCam(){
-  const plane = $("#ct-plane"), box = $("#ctree"), {x, y, k} = CT.cam;
+  const plane = $("#ct-plane"), box = $("#ctree");
   if(!plane) return;
+  CT.held = mmClamp();
+  const {x, y, k} = CT.cam;
   plane.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${k.toFixed(4)})`;
   box.style.backgroundPosition = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
   /* the dots spread out as the view draws back, rather than crowding */
@@ -1029,7 +1201,7 @@ function mmHome(ms = 420){
     const phone = mmPhone(), k = phone ? .74 : 1;
     /* on a phone the core comes first, its first tier showing at the edge,
        and what it is built from a swipe away to the left */
-    cam = {k, x: phone ? 10 - lay.root.x * k : 32 - e.x0 * k, y: top + 12 - e.y0 * k};
+    cam = {k, x: phone && !CT.word ? 10 - lay.root.x * k : 32 - e.x0 * k, y: top + 12 - e.y0 * k};
   }
   mmCamTo(cam, ms);
 }
@@ -1072,7 +1244,14 @@ function mmZoomBy(f){
 function mmShow(key, ms = 420){
   const box = $("#ctree"), it = mmItemBox(key, true);
   if(!box || !it) return;
-  const {x, y, k} = CT.cam, W = box.clientWidth, H = box.clientHeight, top = mmTop();
+  const {x, y, k} = CT.cam, W = box.clientWidth, top = mmTop();
+  /* over a phone's map the panel takes the lower half: shown above it */
+  let H = box.clientHeight;
+  const insp = $("#ct-insp");
+  if(insp && !insp.hidden && !ctDocked()){
+    const cut = insp.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    if(cut > top + 60 && cut < H) H = cut + 70;
+  }
   const sx = x + it.x * k, sy = y + it.y * k, sw = it.w * k, sh = it.h * k;
   if(sx >= 24 && sy >= top && sx + sw <= W - 24 && sy + sh <= H - 70) return;
   mmCamTo({k, x: W / 2 - (it.x + it.w / 2) * k, y: top + (H - top) / 2 - (it.y + it.h / 2) * k}, ms);
@@ -1091,9 +1270,20 @@ function mmDrawMap(){
   const g = cv.getContext("2d"), css = getComputedStyle(box);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, W, H);
-  const e = lay.ext, s = Math.min((W - 12) / e.w, (H - 12) / e.h), ox = (W - e.w * s) / 2 - e.x0 * s, oy = (H - e.h * s) / 2 - e.y0 * s;
+  /* The whole room the view can move in — the map and the space kept round
+     it (mmEdges) — so the view's frame is always inside the small map, and
+     its edges are the map's edges. The map's own ground shaded within it. */
+  const e = lay.ext, kk = CT.cam.k, m = mmEdges();
+  const X0 = e.x0 - m.mx / kk, X1 = e.x1 + m.mx / kk, Y0 = e.y0 - m.top / kk, Y1 = e.y1 + m.my / kk;
+  const s = Math.min((W - 6) / (X1 - X0), (H - 6) / (Y1 - Y0));
+  const ox = (W - (X1 - X0) * s) / 2 - X0 * s, oy = (H - (Y1 - Y0) * s) / 2 - Y0 * s;
   CT.mapXform = {s, ox, oy};
   const col = v => css.getPropertyValue(v).trim();
+  g.fillStyle = col("--surface-2"); g.globalAlpha = .55;
+  g.beginPath();
+  if(g.roundRect) g.roundRect(ox + e.x0 * s - 2, oy + e.y0 * s - 2, e.w * s + 4, e.h * s + 4, 3); else g.rect(ox + e.x0 * s - 2, oy + e.y0 * s - 2, e.w * s + 4, e.h * s + 4);
+  g.fill();
+  g.globalAlpha = 1;
   for(const r of CT.recs.values()){
     const b = r.b;
     g.fillStyle = b.type === "root" ? col("--acc") : b.type === "words" ? col("--line-hot") : b.type === "part" ? col("--line") : col("--line-hot");
@@ -1164,10 +1354,7 @@ function ctFind(raw){
     word = CT.wordRows.find(r => plainPinyin(r[2]) === want) || null;
     if(!word){ const c = (C.all || []).find(c => plainPinyin(c.p) === want); if(c) ch = c.h; }
   }else if([...q].length === 1) ch = q;
-  else{
-    if(!CT.wordBySimp) CT.wordBySimp = new Map(CT.wordRows.map(r => [r[1], r]).reverse());
-    word = CT.wordBySimp.get(q) || null;
-  }
+  else word = ctWordRow(q);
   if(word){ ctFindWord(word); return; }
   /* a radical is its family: 竹 is the bamboo characters, built on ⺮ */
   if(ch && typeof RX !== "undefined" && RX.by.has(ch)){
@@ -1185,25 +1372,39 @@ function ctFind(raw){
   }
   toast(`Nothing called “${q}” among the characters and words`);
 }
+/* The search opened over the header, as wide as the room to its left on
+   its own line allows — up to the view switch where that shares the line —
+   and folded back to its icon. */
+function ctFindOpen(){
+  const find = $("#sk-find"), head = $("#ct-head"), ctl = $("#character-controls");
+  if(!find || !head) return;
+  const r = find.getBoundingClientRect(), h = head.getBoundingClientRect(), c = ctl ? ctl.getBoundingClientRect() : null;
+  const sameLine = c && c.bottom > r.top + 4 && c.top < r.bottom - 4;
+  const left = sameLine ? c.right + 10 : h.left + parseFloat(getComputedStyle(head).paddingLeft || "12");
+  find.style.setProperty("--find-open", `${Math.round(Math.max(r.width, Math.min(340, r.right - left)))}px`);
+  find.classList.add("open");
+  $("#sk-find-open").setAttribute("aria-expanded", "true");
+  const q = $("#sk-find-q");
+  q.tabIndex = 0;
+  q.focus({preventScroll: true});
+}
+function ctFindFold(){
+  const find = $("#sk-find");
+  if(!find || !find.classList.contains("open")) return;
+  find.classList.remove("open");
+  $("#sk-find-open").setAttribute("aria-expanded", "false");
+  $("#sk-find-q").tabIndex = -1;
+}
+
+/* A word found: its own map, every character in it broken down. */
 function ctFindWord(r){
-  const chars = [...new Set(r[1])].filter(ch => CT.g.by.has(ch));
-  const owner = chars.find(ctPlaced) || chars[0];
-  if(!owner) return;
-  if(!ctPlaced(owner)) ctStart(owner, {trail: true});
-  for(let p = owner; p !== undefined && p !== CT.root; p = CT.tree.parent.get(p)) CT.open.add(p);
-  const key = `w:${r[0]}`;
-  const i = ctWordsOf(owner).findIndex(x => x[0] === r[0]);
-  if(i >= MM.WSHOW) CT.wall.set(owner, i + 1);
-  ctRender();
-  /* listed earlier under another character than counted: show all of it */
-  if(!mmItemEl(key)){ CT.wall.set(owner, ctWordsOf(owner).length); ctRender({ms: 0}); }
-  ctSelect(key, {focus: true});
-  setTimeout(() => mmShow(key), REDUCED() ? 0 : 440);
+  if(CT.word === r[0]){ ctSelect(CT.root, {show: true, focus: true}); return; }
+  ctStart(r[1], {trail: true});
 }
 
 /* A character opened or folded on the map; the camera keeps it where it is. */
 function ctToggle(key){
-  if(!CT.g.by.has(key) || key === CT.root) return;
+  if(!CT.g.by.has(key) || key === CT.root || CT.word) return;
   const opening = !CT.open.has(key);
   if(opening) CT.open.add(key);
   else for(const h of [key, ...mmBelow(key)]){ CT.open.delete(h); CT.wall.delete(h); }
@@ -1228,10 +1429,15 @@ function treeKey(e){
   if(e.target && e.target.closest && e.target.closest("input, select, textarea, dialog, #cidx")) return false;
   const k = e.key, onButton = e.target && e.target.closest && e.target.closest("button");
   const sel = CT.sel, word = sel.startsWith("w:");
+  if(k === "/"){ e.preventDefault(); ctFindOpen(); return true; }
   if(k === "+" || k === "="){ e.preventDefault(); mmZoomBy(1.25); return true; }
   if(k === "-" || k === "_"){ e.preventDefault(); mmZoomBy(.8); return true; }
   if(k === "0"){ e.preventDefault(); CT.touched = false; mmFit(); return true; }
-  if((k === "g" || k === "G") && sel && !word && sel !== CT.root){ e.preventDefault(); ctStart(sel, {trail: true}); return true; }
+  if((k === "g" || k === "G") && sel && sel !== CT.root){
+    const r = word ? CT.wordById.get(sel.slice(2)) : null;
+    if(word && !r) return false;
+    e.preventDefault(); ctStart(r ? r[1] : sel, {trail: true}); return true;
+  }
   if((k === "q" || k === "Q") && (sel && !word ? CT.g.by.has(sel) : CT.quest)){ e.preventDefault(); questStart(sel && !word ? sel : CT.quest); return true; }
   if(k === "Backspace" && CT.trail.length){ e.preventDefault(); ctCommand("back", CT.trail.length - 1); return true; }
   if(k === "Escape" && sel){ e.preventDefault(); ctSelect(""); return true; }
@@ -1247,6 +1453,10 @@ function treeKey(e){
 /* Something used: a character's entry, a word's entry, or a component's map. */
 function ctActivate(key){
   if(key.startsWith("w:")) safely("open that entry", () => openWord(key.slice(2)));
+  else if(CT.word && key === CT.root){
+    const r = CT.wordById.get(CT.word);
+    if(r && !ctEveryday(r)) safely("open that entry", () => openWord(CT.word));
+  }
   else if(CT.g.by.has(key)) safely("open that entry", () => openChar(key));
   else ctStart(key, {trail: true});
 }
@@ -1291,13 +1501,14 @@ function ctPaintInsp(){
     el.hidden = true; el.innerHTML = ""; CT.insp = ""; CT.writer = null;
     return;
   }
-  const word = key.startsWith("w:");
+  const word = key.startsWith("w:") || (!!CT.word && key === CT.root);
+  const wid = key.startsWith("w:") ? key.slice(2) : CT.word, wr = word ? CT.wordById.get(wid) : null;
   const stamp = [key, CT.root, S.level, docked, CT.quest, questInfo.xp, CT.open.has(key),
-    word ? CT.famWords.get(key.slice(2)) || 0 : `${ctStars(key)}${ctState(key)}${CT.deck.get(key) || 0}`].join("|");
+    word ? `${CT.famWords.get(wid) || 0}:${wr ? [...new Set(wr[1])].map(ctStars).join("") : ""}` : `${ctStars(key)}${ctState(key)}${CT.deck.get(key) || 0}`].join("|");
   el.hidden = false;
   if(CT.insp === stamp) return;
   CT.insp = stamp;
-  el.innerHTML = word ? mmWordHTML(key.slice(2), docked) : ctInspHTML(key, docked);
+  el.innerHTML = word ? mmWordHTML(wid, docked) : ctInspHTML(key, docked);
   el.querySelector(".ct-i-scroll").scrollTop = 0;
   CT.writer = null; // strokes load only when asked to play
   if(!word && CT.g.by.has(key)) wordsWithChar(key, 6).then(words => {
@@ -1313,36 +1524,73 @@ function ctPaintInsp(){
 
 const ctCloseX = `<button class="ct-x" data-ct="unsel" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
 
+/* A word told character by character: what it means, what it says
+   literally, and for each character how it is built — its parts and what
+   each brings, the way they sit, and the story the dictionary tells of it. */
 function mmWordHTML(id, docked){
   const r = CT.wordById.get(id);
   if(!r) return `<div class="ct-i-scroll"><p class="ct-i-none">That word is not in the syllabus.</p></div>`;
   const st = ctWordState(r), chars = [...new Set(r[1])], inDeck = (CT.famWords.get(id) || 0) > 0, daily = ctEveryday(r);
-  const need = chars.filter(ch => CT.g.by.has(ch) && !ctLearned(ch));
+  const need = chars.filter(ch => CT.g.by.has(ch) && !ctLearned(ch)), mapped = CT.word === id;
+  const literal = [...r[1]].map(ch => `<span><b class="hz">${esc(ch)}</b>${esc(ctAbout(ch).short || "")}</span>`).join(`<i>+</i>`);
   return `${docked ? "" : ctCloseX}
     <div class="ct-i-scroll">
-      <div class="ct-i-kicker">${daily ? "Everyday word · not on the HSK list" : "Word · a combination"}</div>
+      <div class="ct-i-kicker">${daily ? "Everyday word · not on the HSK list" : `Word · ${chars.length} character${chars.length === 1 ? "" : "s"}`}</div>
       <div class="mm-i-word"><b class="hz">${esc(r[1])}</b><span class="py">${pinyinHTML(r[2])}</span></div>
       <div class="sk-i-st"><span class="sk-badge ${st === "locked" ? "locked" : st === "ready" ? "ready" : st === "mastered" ? "mastered" : "learned"}">${
         st === "locked" ? CT_LOCK : ""}${st === "ready" ? "Ready" : CT_STATES[st]}</span>${daily
         ? `<span class="ct-chip">HSK ${esc(levelLabel(r[4]))} characters</span>${r[5] ? `<span class="ct-chip">#${num(r[5])} in films and TV</span>` : ""}` : lvChip(r[4])}</div>
       <p class="ct-i-en">${esc(r[3])}</p>
-      <section class="ct-i-sec"><h4 class="ct-i-h"><span>Built from</span><small>${chars.length} characters</small></h4>
-        <div class="mm-i-chars">${chars.map(ch => {
-          const a = ctAbout(ch), on = ctPlaced(ch), s = CT.g.by.has(ch) ? ctStars(ch) : 0;
-          return `<button class="mm-i-char${ctLearned(ch) ? " done" : ""}" type="button" ${on ? `data-ct="pick" data-arg="${esc(ch)}"` : `data-ct="grow" data-arg="${esc(ch)}"`}
-            title="${on ? `Show ${esc(ch)} on the map` : `Grow a map from ${esc(ch)}`}"><b class="hz">${esc(ch)}</b>
-            <span><em>${esc(a.short || "")}</em>${a.c ? `<small class="py">${esc(a.c.p)}</small>` : ""}</span>${mmStars(s)}</button>`;
-        }).join(`<i class="ct-i-plus">+</i>`)}</div>
+      <p class="mm-i-lit"><small>Literally</small>${literal}</p>
+      <section class="ct-i-sec"><h4 class="ct-i-h"><span>Character by character</span><small>${mapped ? "as on the map" : `${chars.length} to learn`}</small></h4>
+        <div class="mm-i-break">${chars.map(ch => mmCharBreakdown(ch, r[1])).join("")}</div>
         <p class="ct-i-note">${st === "locked" ? `Learn ${need.map(ch => `<b class="hz">${esc(ch)}</b>`).join(" and ")} to make this combination.`
           : daily ? "Every character in it is learned, so you can read it."
           : st === "ready" ? "Every character in it is learned — add it to your deck to practise the word." : "This word is in your deck."}</p>
         ${daily ? `<p class="ct-i-note">An everyday word the HSK list leaves out, written only with HSK characters. It has no card of its own: its characters do.</p>` : ""}
       </section>
     </div>
-    ${daily ? "" : `<div class="ct-i-acts">
-      <button class="btn sm" data-open="word:${esc(id)}">Open the word</button>
-      <button class="ghost sm${inDeck ? " on" : ""}" data-deck="word:${esc(id)}:${r[4]}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>
-    </div>`}`;
+    <div class="ct-i-acts">
+      ${mapped ? "" : `<button class="btn sm" data-ct="grow" data-arg="${esc(r[1])}" title="Show how ${esc(r[1])} is built, on the map (G)">Map this word</button>`}
+      ${daily ? "" : `<button class="${mapped ? "btn" : "ghost"} sm" data-open="word:${esc(id)}">Open the word</button>
+      <button class="ghost sm${inDeck ? " on" : ""}" data-deck="word:${esc(id)}:${r[4]}">${inDeck ? `${CT_TICK}In deck` : "Add to deck"}</button>`}
+    </div>`;
+}
+/* One character of a word, broken down: its reading and sense, its parts
+   with what each brings to it — the meaning (its radical) or a hint of the
+   sound — how they sit together, and the dictionary's story of it. */
+function mmCharBreakdown(ch, word){
+  const a = ctAbout(ch), c = a.c, times = [...word].filter(x => x === ch).length;
+  const head = `<button class="mm-i-bkhead" type="button" ${ctPlaced(ch) ? `data-ct="pick"` : `data-ct="grow"`} data-arg="${esc(ch)}"
+      title="${ctPlaced(ch) ? `Show ${esc(ch)} on the map` : `Grow a map from ${esc(ch)}`}">
+      <b class="hz">${esc(ch)}</b><span><em>${esc(a.short || "component")}${times > 1 ? ` <small>×${times}</small>` : ""}</em>${c ? `<small class="py">${esc(c.p)}</small>` : ""}</span>
+      ${c ? `${lvChip(c.lv)}${mmStars(ctStars(ch))}` : ""}</button>`;
+  if(!c) return `<div class="mm-i-bk">${head}<p class="mm-i-why">A component, not a character of its own.</p></div>`;
+  const parts = c.comp.filter(p => p.c !== ch);
+  const op = [...String(c.dec || "")].find(x => IDS[x]);
+  const chips = parts.map(p => {
+    const role = ctRole(ch, p.c), pa = ctAbout(p.c);
+    return `<button class="ct-i-part${role ? ` ${role}` : ""}" type="button" data-ct="grow" data-arg="${esc(p.c)}" title="Grow the map from ${esc(p.c)}">
+      <b class="hz">${esc(p.c)}</b><span><em>${esc(p.g || pa.short || "component")}</em>${role ? `<small>${ctRoleText(role)}</small>` : pa.c ? `<small class="py">${esc(pa.c.p)}</small>` : ""}</span></button>`;
+  }).join(`<i class="ct-i-plus">+</i>`);
+  /* what each part brings, in a sentence */
+  const brings = parts.map(p => {
+    const role = ctRole(ch, p.c), g = p.g || ctAbout(p.c).short;
+    const pc = CT.g.by.get(p.c);
+    return role === "meaning" ? `<b class="hz">${esc(p.c)}</b> gives the meaning${g ? ` (${esc(g)})` : ""}`
+      : role === "sound" ? `<b class="hz">${esc(p.c)}</b> hints at the sound${pc ? ` (<span class="py">${esc(pc.p)}</span>)` : ""}`
+      : g ? `<b class="hz">${esc(p.c)}</b> is ${esc(g)}` : "";
+  }).filter(Boolean);
+  /* the dictionary's story, where it names the parts (some say only "speech") */
+  const story = c.ety && /\p{Script=Han}/u.test(c.ety) ? c.ety.trim() : "";
+  const why = [
+    story ? `${esc(story.charAt(0).toUpperCase() + story.slice(1))}.` : "",
+    brings.length ? `${brings.join("; ")}.` : "",
+    op ? `The parts sit ${esc(IDS[op])}.` : "",
+  ].filter(Boolean).join(" ");
+  return `<div class="mm-i-bk${ctLearned(ch) ? " done" : ""}">${head}
+    ${parts.length ? `<div class="ct-i-parts">${chips}</div>` : ""}
+    <p class="mm-i-why">${why || "A single shape — not built from smaller parts."}</p></div>`;
 }
 
 function ctInspHTML(key, docked){
@@ -1350,6 +1598,7 @@ function ctInspHTML(key, docked){
   const st = ctState(key), stars = ctStars(key), up = t.parent.get(key), kids = t.branches.get(key) || [];
   const inDeck = (CT.deck.get(key) || 0) > 0, reward = c ? ctReward(key) : 0;
   const kicker = isRoot ? (c ? "Core character" : "Radical · a component")
+    : CT.word && up === t.root ? `A character of <span class="hz">${esc(t.root)}</span>`
     : ctPlaced(key) ? `Tier ${ctRoman(CT.depth.get(key))} character` : "Filed under this radical";
   const standing = c ? `<div class="sk-i-st">
       <span class="sk-badge ${st}">${st === "locked" ? CT_LOCK : ""}${CT_STATES[st]}</span>${mmStars(stars)}
@@ -1359,7 +1608,7 @@ function ctInspHTML(key, docked){
       <button class="sk-i-reqg hz" type="button" data-ct="pick" data-arg="${esc(up)}" title="Show ${esc(up)}">${esc(up)}</button>
       <p><b>Requires <span class="hz">${esc(up)}</span></b> — it is part of <span class="hz">${esc(key)}</span>. Learn it and this character opens.</p>
     </div>` : "";
-  const recipe = up !== undefined ? ctRecipe(key, up) : "";
+  const recipe = up !== undefined && !CT.word ? ctRecipe(key, up) : "";
   const ops = c ? [...String(c.dec || "")].filter(x => IDS[x]) : [];
   const built = c && c.comp.length ? `<section class="ct-i-sec">
       <h4 class="ct-i-h"><span>How it is built</span>${ops.length ? `<small>${esc(IDS[ops[0]])}</small>` : ""}</h4>
@@ -1394,7 +1643,7 @@ function ctInspHTML(key, docked){
   const facts = c ? [c.sc ? `<span><b>${c.sc}</b> strokes</span>` : "", c.rank ? `<span>frequency <b>#${num(c.rank)}</b></span>` : "",
     c.inWords ? `<span>in <b>${num(c.inWords)}</b> words</span>` : ""].filter(Boolean).join("") : "";
   const questLabel = stars >= 2 ? "Train again" : questInfo.recognised.has(key) ? "Continue quest" : "Begin quest";
-  const more = !isRoot && mmMore(key) ? `<button class="ghost sm" data-ct="toggle" data-arg="${esc(key)}">${CT.open.has(key) ? "Fold on map" : "Expand on map"}</button>` : "";
+  const more = !isRoot && !CT.word && mmMore(key) ? `<button class="ghost sm" data-ct="toggle" data-arg="${esc(key)}">${CT.open.has(key) ? "Fold on map" : "Expand on map"}</button>` : "";
   const acts = c ? (st === "locked" && up
       ? `<button class="btn sm" data-ct="pick" data-arg="${esc(up)}">Go to <span class="hz">${esc(up)}</span></button>
          <button class="ghost sm" data-ct="quest" data-arg="${esc(key)}" title="Practise it before ${esc(up)}">Train anyway</button>`
@@ -1456,6 +1705,7 @@ function ctCommand(what, arg){
   else if(what === "in") mmZoomBy(1.25);
   else if(what === "out") mmZoomBy(.8);
   else if(what === "fit"){ CT.touched = false; mmFit(); }
+  else if(what === "progress") toast(ctLearnedLine(ctProgress()));
   else if(what === "strokes"){
     if(!CT.writer) CT.writer = mountWriter("ct-i-host", CT.sel || CT.root, {mode: "demo", size: 104, autoplay: false});
     if(CT.writer) CT.writer.animate();
@@ -1517,6 +1767,9 @@ function ctWire(){
     CT.cam.x = pan.cx + dx; CT.cam.y = pan.cy + dy;
     CT.touched = true;
     mmCam();
+    /* held at the map's edge: the drag goes on from where the view stopped,
+       so it comes back the moment the finger does */
+    if(CT.held){ pan.cx = CT.cam.x - dx; pan.cy = CT.cam.y - dy; }
     const now = performance.now();
     trace.push({t: now, x: e.clientX, y: e.clientY});
     while(trace.length > 2 && now - trace[0].t > 90) trace.shift();
@@ -1544,6 +1797,7 @@ function ctWire(){
         CT.cam.x += vx * dt; CT.cam.y += vy * dt;
         mmCam();
         const f = Math.pow(.93, dt / 16); vx *= f; vy *= f;
+        if(CT.held){ vx = 0; vy = 0; }
         CT.glide = Math.hypot(vx, vy) > .02 ? requestAnimationFrame(step) : 0;
       };
       CT.glide = requestAnimationFrame(step);
@@ -1579,10 +1833,43 @@ function ctWire(){
   });
   $("#sk-find").addEventListener("submit", e => {
     e.preventDefault();
-    const q = $("#sk-find-q");
-    safely("find that", () => ctFind(q.value));
+    const q = $("#sk-find-q"), v = q.value;
+    q.value = "";
+    ctFindFold();
     q.blur();
+    if(v.trim()) safely("find that", () => ctFind(v));
   });
+  $("#sk-find-open").addEventListener("click", () => {
+    const open = $("#sk-find").classList.contains("open"), v = $("#sk-find-q").value.trim();
+    if(!open) ctFindOpen();
+    else if(v) $("#sk-find").requestSubmit();
+    else ctFindFold();
+  });
+  /* it folds away once the reader is done with it, the words typed kept */
+  $("#sk-find-q").addEventListener("blur", () => setTimeout(() => {
+    if(!$("#sk-find").contains(document.activeElement)) ctFindFold();
+  }, 150));
+  $("#sk-find-q").addEventListener("keydown", e => {
+    if(e.key !== "Escape") return;
+    e.preventDefault(); e.stopPropagation();
+    $("#sk-find-q").value = "";
+    ctFindFold();
+    $("#sk-find-open").focus();
+  });
+  /* The search's hint, as much of it as its box has room for: a phone's
+     narrower box says "Search a word", or just "Search". */
+  const q = $("#sk-find-q"), hints = [q.placeholder, "Search a word", "Search"];
+  const pen = document.createElement("canvas").getContext("2d");
+  const fitHint = () => {
+    const room = q.clientWidth;
+    if(!room) return;
+    const cs = getComputedStyle(q);
+    pen.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const hint = hints.find(h => pen.measureText(h).width <= room) || hints[hints.length - 1];
+    if(q.placeholder !== hint) q.placeholder = hint;
+  };
+  if(window.ResizeObserver) new ResizeObserver(fitHint).observe(q);
+  if(document.fonts) document.fonts.ready.then(fitHint);
   /* The panel's own controls: everything in it but an entry or the deck,
      which the page's one click handler takes. */
   $("#ct-insp").addEventListener("click", e => {
@@ -1624,15 +1911,31 @@ function ctWire(){
      thing that moves here */
   box.addEventListener("scroll", () => { box.scrollTop = 0; box.scrollLeft = 0; });
 
-  /* the small map: press or drag to go there */
+  /* The small map: small until it is wanted. A first press only enlarges it
+     a little; once it is larger, a press or a drag goes there. Left alone a
+     few seconds — or the map pressed anywhere else — it is small again; it
+     stays large while the pointer rests on it. */
   const map = $("#mm-map");
+  let shrink = 0, resting = false;
+  const big = (on, wait = 4000) => {
+    map.classList.toggle("big", on);
+    clearTimeout(shrink);
+    if(on && !resting) shrink = setTimeout(() => big(false), wait);
+  };
+  map.addEventListener("pointerenter", e => { if(e.pointerType === "mouse"){ resting = true; clearTimeout(shrink); } });
+  map.addEventListener("pointerleave", e => { if(e.pointerType === "mouse"){ resting = false; if(map.classList.contains("big")) big(true, 1600); } });
+  box.addEventListener("pointerdown", () => { if(map.classList.contains("big")) big(false); });
+  /* it is drawn again as it grows and shrinks */
+  if(window.ResizeObserver) new ResizeObserver(() => mmMapSoon()).observe(map);
   map.addEventListener("pointerdown", e => {
     e.stopPropagation();
+    if(!map.classList.contains("big")){ big(true); return; }
+    clearTimeout(shrink);
     mmStopCam();
     try{ map.setPointerCapture(e.pointerId); }catch(_){}
     mmMapTo(e);
     const move = ev => mmMapTo(ev);
-    const done = () => { map.removeEventListener("pointermove", move); map.removeEventListener("pointerup", done); map.removeEventListener("pointercancel", done); };
+    const done = () => { map.removeEventListener("pointermove", move); map.removeEventListener("pointerup", done); map.removeEventListener("pointercancel", done); big(true); };
     map.addEventListener("pointermove", move);
     map.addEventListener("pointerup", done);
     map.addEventListener("pointercancel", done);
